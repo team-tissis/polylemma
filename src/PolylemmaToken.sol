@@ -5,6 +5,7 @@ pragma solidity 0.8.13;
 import {Ownable} from "openzeppelin-contracts/access/Ownable.sol";
 
 import {IPolylesSeeder} from "./interfaces/IPolylesSeeder.sol";
+
 import {Counters} from "openzeppelin-contracts/contracts/utils/Counters.sol";
 import {ERC721} from "openzeppelin-contracts/contracts/token/ERC721/ERC721.sol";
 import {ERC721Burnable} from "openzeppelin-contracts/contracts/token/ERC721/extensions/ERC721Burnable.sol";
@@ -13,6 +14,9 @@ import {ERC20} from "openzeppelin-contracts/contracts/token/ERC020/ERC20.sol";
 
 contract polylemmaToken is IPolylemmaToken, ERC721Enumerable {
     using Counters for Counters.Counter;
+
+    address minter;
+
     Counters.Counter private _tokenIds;
 
     // TODO: ガス代が小さくなるようにtypeを決めるべき
@@ -25,8 +29,11 @@ contract polylemmaToken is IPolylemmaToken, ERC721Enumerable {
 
     mapping(uint256 => character_info) character_infos;
 
-    modifier onlyGameMaster() {
-        require(msg.sender == gameMaster, "Sender is not the game master");
+    modifier onlyMinter() {
+        require(
+            msg.sender == minter,
+            "Permission denied. Sender is not minter."
+        );
         _;
     }
 
@@ -35,25 +42,25 @@ contract polylemmaToken is IPolylemmaToken, ERC721Enumerable {
     }
 
     constructor(
-        address _gameMaster,
+        address _minter,
         IPolylesSeeder _seeder,
         IPolylemmaData _data,
         uint256 _maxSupply
     ) ERC721("Polyles", "POL") {
-        gameMaster = _gameMaster;
+        minter = _minter;
         seeder = _seeder;
         data = _data;
         maxSupply = _maxSupply;
     }
 
-    function mint() public {
+    // TODO: minterにgachaコントラクトアドレスをセットすることで、gachaからしかmintできないようにする。
+    function mint() public onlyMinter {
         return _mintTo(minter, _tokenIds.increment());
     }
 
     // TODO: not defined
-    function burn(uint256 nounId) public override onlyMinter {
-        _burn(nounId);
-        emit NounBurned(nounId);
+    function burn(uint256 tokenId) public override onlyMinter {
+        _burn(tokenId);
     }
 
     /// @notice descript how is the token minted
@@ -71,7 +78,7 @@ contract polylemmaToken is IPolylemmaToken, ERC721Enumerable {
             [data.abilities[seed.ability]]
         );
         _mint(owner(), to, tokenId);
-        emit NounCreated(tokenId, seed);
+        // TODO: event
         return tokenId;
     }
 }
