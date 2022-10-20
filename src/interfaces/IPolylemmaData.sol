@@ -1,5 +1,5 @@
 interface IPolylemmaData {
-    function getCharacters() external view returns (string[] memory);
+    function getCharacterTypes() external view returns (string[] memory);
 
     function getAbilities() external view returns (string[] memory);
 
@@ -8,7 +8,7 @@ interface IPolylemmaData {
         view
         returns (uint256);
 
-    function countCharacters() external view returns (uint256);
+    function countCharacterType() external view returns (uint256);
 
     function countAbilities() external view returns (uint256);
 }

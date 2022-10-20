@@ -2,30 +2,48 @@ import {IPolylemmaData} from "./interfaces/IPolylemmaData.sol";
 
 contract PolylemmaData is IPolylemmaData {
     // TODO: monsterblocksのmonster名で仮置きした
-    string[] public characters = [
-        "hikozaru",
-        "pocchama",
-        "naetoru",
-        "hitokage",
-        "zenigame",
-        "fushigidane"
+    // TODO: 入替可能なようにconstructorで初期化&setHogeで入替可能にするべき
+    string[] public characterTypes = [
+        "fire",
+        "grass",
+        "water",
+        "dark",
+        "light"
     ];
 
     string[] public abilities = ["mouka", "shinryoku", "gekiryu"];
 
-    function getCharacters() external view override returns (string[] memory) {
-        return characters;
+    uint8[] public characterTypeOdds;
+    uint8[] public abilityOdds;
+
+    function getCharacterTypes()
+        external
+        view
+        override
+        returns (string[] memory)
+    {
+        return characterTypes;
     }
 
     function getAbilities() external view override returns (string[] memory) {
         return abilities;
     }
 
-    function countCharacters() external view override returns (uint256) {
-        return characters.length;
+    // TODO: not defined yet
+    function calcRarity(uint256 characterId, uint256[] calldata abilityIds)
+        external
+        view
+        override
+        returns (uint256)
+    {
+        return 0;
     }
 
-    function countAbilities() external view override returns (uint256) {
-        return abilities.length;
+    function numOddsCharacterType() external view override returns (uint256) {
+        return characterTypeOdds.length;
+    }
+
+    function numOddsAbility() external view override returns (uint256) {
+        return abilityOdds.length;
     }
 }
