@@ -6,6 +6,6 @@ contract PolylemmaPLM is IPolylemmaPLM, ERC20 {
 
     constructor(address _treasury, uint256 _firstMint) ERC20("polylem", "PLM") {
         treasury = _treasury;
-        _mint(_deployer, _firstMint);
+        _mint(_treasury, _firstMint);
     }
 }
