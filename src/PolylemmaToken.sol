@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: SEE LICENSE IN LICENSE
 // TODO: thelatest version is 0.8.17.
-pragma solidity 0.8.17;
+pragma solidity 0.8.13;
 
-import {Ownable} from "openzeppelin/contracts/access/Ownable.sol";
+import {Ownable} from "openzeppelin-contracts/access/Ownable.sol";
 
 import {IPolylesSeeder} from "./interfaces/IPolylesSeeder.sol";
-import {Counters} from "./lib/openzeppelin-contracts/contracts/utils/Counters.sol";
+import {Counters} from "openzeppelin-contracts/contracts/utils/Counters.sol";
 import {ERC721} from "openzeppelin-contracts/contracts/token/ERC721/ERC721.sol";
 import {ERC721Burnable} from "openzeppelin-contracts/contracts/token/ERC721/extensions/ERC721Burnable.sol";
 import {ERC721Enumerable} from "openzeppelin-contracts/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
@@ -15,19 +15,12 @@ contract polylemmaToken is IPolylemmaToken, ERC721Enumerable {
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIds;
 
-    enum CharacterType {
-        Fire,
-        Water,
-        Grass
-    }
-
     // TODO: ガス代が小さくなるようにtypeを決めるべき
-    struct character_info {
-        string name;
-        CharacterType characterType;
+    struct CharacterInfo {
+        string characterType;
         uint8 level;
         uint8 rarity;
-        uint8[] abilityIDs;
+        uint8[] abilityIds;
     }
 
     mapping(uint256 => character_info) character_infos;
@@ -53,10 +46,11 @@ contract polylemmaToken is IPolylemmaToken, ERC721Enumerable {
         maxSupply = _maxSupply;
     }
 
-    function mint() public onlyGameMaster {
+    function mint() public {
         return _mintTo(minter, _tokenIds.increment());
     }
 
+    // TODO: not defined
     function burn(uint256 nounId) public override onlyMinter {
         _burn(nounId);
         emit NounBurned(nounId);
@@ -69,11 +63,15 @@ contract polylemmaToken is IPolylemmaToken, ERC721Enumerable {
     /// @return Documents the return variables of a contract’s function state variable
     /// @inheritdoc	Copies all missing tags from the base function (must be followed by the contract name)
     function _mintTo(address to, uint256 tokenId) internal returns (uint256) {
-        IPolylemmaSeeder.Seed memory seed = seeds[tokenId] = seeder
-            .generateSeed(tokenId, data);
+        IPolylemmaSeeder.Seed memory seed = seeder.generateSeed(tokenId, data);
+        character_infos[tokenId] = CharacterInfo(
+            data.characterType[seed.characterType],
+            1,
+            data.calcRarity(seed.characterType, seed.ability),
+            [data.abilities[seed.ability]]
+        );
         _mint(owner(), to, tokenId);
         emit NounCreated(tokenId, seed);
-
         return tokenId;
     }
 }
