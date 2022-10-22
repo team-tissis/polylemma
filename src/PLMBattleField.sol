@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.17;
 
-import {IPlmToken} from "./interfaces/IPlmToken.sol";
+import {IPLMToken} from "./interfaces/IPLMToken.sol";
 import {Ownable} from "openzeppelin-contracts/access/Ownable.sol";
 
-contract PlmBattleField is Ownable {
+contract PLMBattleField is Ownable {
     /// @notice Struct to specify tokenIds of the party
     struct Party {
         uint256 fixedSlotId1;
@@ -40,14 +40,29 @@ contract PlmBattleField is Ownable {
         RoundSettled
     }
 
-    event Commited(uint8 playerIdx);
-    event Revealed(uint8 player, Choice choice);
+    event Commited(uint8 numRounds, uint8 playerIdx);
+    event Revealed(uint8 numRounds, uint8 player, Choice choice);
+    event BattleResult(uint8 numRounds, 
+        uint8 winner,
+        uint8 loser,
+        uint8 winnerDamage,
+        uint8 loserDamage
+    );
+    event BattleResultDraw(uint8 numRounds, uint8 damage);
+    event BattleSettled(uint8 numRounds, uint8 winner, uint8 loser, uint8 winCount, uint8 loseCount);
+    event BattleSettled(uint8 numRounds, uint8 count);
+
+    /// @notice The number of winning needed to win the match.
+    constant uint8 WIN_COUNT = 3;
+
+    /// @notice The number of the maximum round.
+    constant uint8 MAX_ROUNDS = 6;
 
     /// @notice dealer's address of polylemma.
-    address dealer;
+    address payable dealer;
 
     /// @notice interface to the characters' information.
-    IPlmToken plmToken;
+    IPLMToken PLMToken;
 
     /// @notice playerAddress of the players in the current battle match.
     address[2] playerAddress;
@@ -58,8 +73,11 @@ contract PlmBattleField is Ownable {
     /// @notice states of the players (Commited, Revealed, etc...)
     PlayerState[2] playerStates;
 
+    /// @notice counter of the winning.
+    uint8[2] winCount;
+
     /// @notice number of rounds. (< 6)
-    uint8 numRound;
+    uint8 numRounds;
 
     /// @notice storage to store the commitment log in the current round.
     /// @dev Should we change this to the mapping whose key is the round number ?
@@ -124,7 +142,7 @@ contract PlmBattleField is Ownable {
         commitLog[playerIdx] = Commitment(commitString, Choice.Secret);
 
         // Emit the event that tells frontend that the player designated by playerIdx has commited.
-        emit Commited(playerIdx);
+        emit Commited(numRounds, playerIdx);
 
         // Update the state of the commit player to be Commited.
         playerStates[playerIdx] = PlayerState.Commited;
@@ -162,20 +180,72 @@ contract PlmBattleField is Ownable {
         commitment.choice = choice;
 
         // Emit the event that tells frontend that the player designated by playerIdx has revealed.
-        emit Revealed(playerIdx, choice);
+        emit Revealed(numRounds, playerIdx, choice);
 
         // Update the state of the reveal player to be Revealed.
         playerStates[playerIdx] = PlayerState.Revealed;
     }
 
     /// @notice Function to execute the battle.
-    function battle() public onlyDealer readyForBattle {}
+    function battle() public onlyDealer readyForBattle {
+        uint8 damage0 = _calcDamage(0);
+        uint8 damage1 = _calcDamage(1);
+        if (damage0 > damage1) {
+            // player0 wins this round.
+            winCount[0]++;
+            emit BattleResult(numRounds, 0, 1, damage0, damage1);
+            if (winCount[0] == WIN_COUNT) {
+                // player0 wins this match.
+                _settleBattle(0);
+                emit BattleSettled(numRounds, 0, 1);
+            }
+        } else if (damage0 < damage1) {
+            // player1 wins this round.
+            winCount[1]++;
+            emit BattleResult(numRounds, 1, 0, damage1, damage0);
+            if (winCount[1] == WIN_COUNT) {
+                // player1 wins this match.
+                _settleBattle(1);
+                emit BattleSettled(numRounds, 1, 0);
+            }
+        } else {
+            emit BattleResultDraw(damage0);
+        }
+        numRound++;
+        if (numRound == MAX_ROUND) {
+            if (winCount[0] > winCount[1] {
+                _settleBattle(0);
+                emit BattleSettled(numRounds - 1, 0, 1, winCount[0], winCount[1]);
+            } else if (winCount[0] < winCount[1]) {
+                _settleBattle(1);
+                emit BattleSettled(numRounds - 1, 1, 0, winCount[1], winCount[0]);
+            } else {
+                emit BattleSettledDraw(numRounds - 1, winCount[0]);
+            }
+        }
+    }
+
+    function _settleBattle(uint8 winnerIdx) internal onlyDealer readyForBattle payable {
+        playerState[0] = PlayerState.RoundSettled;
+        playerState[1] = PlayerState.RoundSettled;
+        uint8 loserIdx = winnerIdx == 0? 1: 0;
+
+        // Send MATIC from loser to winner.
+        plmToken.transferFrom(playerAddress[loser], playerAddress[winnerIdx], amount);
+
+        // Send MATIC from dealer to winner.
+        plmToken.transferFrom(dealer, playerAddress[winnerIdx], amount);
+
+    }
 
     /// @notice Function to calculate the damage of the monster.
-    function _calcDamage(uint8 playerIdx, Choice choice)
-        internal
-        returns (uint8 damage)
-    {
+    /// @param playerIdx: the index used to designate the player. 0 or 1.
+    /// @return damage: damage of the character selected by the player designated by playerIdx in this round.
+    function _calcDamage(uint8 playerIdx) internal returns (uint8 damage) {
+        require(playerIdx == 0 || playerIdx == 1, "Invalid playerIdx.");
+
+        Choice calldata choice = commitLog[playerIdx].choice;
+
         uint256 characterId;
         if (choice == Choice.Fixed1) {
             characterId = parties[playerIdx].fixedSlotId1;
@@ -192,5 +262,10 @@ contract PlmBattleField is Ownable {
         } else {
             revert("Unreachable !");
         }
+
+        IPLMToken.characterInfo charInfo = PLMToken.getCharacterInfo(tokenId);
+
+        // TODO: implement the damage logic later.
+        return charInfo.level;
     }
 }

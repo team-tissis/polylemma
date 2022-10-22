@@ -2,19 +2,19 @@
 pragma solidity ^0.8.17;
 
 import "forge-std/Test.sol";
-import {PlmToken} from "../src/PlmToken.sol";
-import {IPlmSeeder} from "../src/interfaces/IPlmSeeder.sol";
-import {IPlmData} from "../src/interfaces/IPlmData.sol";
+import {PLMToken} from "../src/PLMToken.sol";
+import {IPLMSeeder} from "../src/interfaces/IPLMSeeder.sol";
+import {IPLMData} from "../src/interfaces/IPLMData.sol";
 
-contract PlmTokenTest is Test {
+contract PLMTokenTest is Test {
     address iseeder = address(1337);
     address idata = address(1338);
-    IPlmSeeder seeder = IPlmSeeder(iseeder);
-    IPlmData data = IPlmData(idata);
-    PlmToken token;
+    IPLMSeeder seeder = IPLMSeeder(iseeder);
+    IPLMData data = IPLMData(idata);
+    PLMToken token;
 
     function setUp() public {
-        token = new PlmToken(msg.sender, seeder, data, 10000);
+        token = new PLMToken(msg.sender, seeder, data, 10000);
     }
 
     function testFailMintByNonMMiner() public {

@@ -1,6 +1,6 @@
 import {IERC721} from "openzeppelin-contracts/token/ERC721/IERC721.sol";
 
-interface IPlmToken is IERC721 {
+interface IPLMToken is IERC721 {
     struct CharacterInfo {
         string characterType;
         uint8 level;
@@ -10,7 +10,9 @@ interface IPlmToken is IERC721 {
 
     function mint() external returns (uint256);
 
-    // TODO: define in PlmToken.sol
+    function getAllCharacterInfo() external returns (CharacterInfo[] calldata);
+
+    // TODO: define in PLMToken.sol
     function getCharacterInfo(uint256 tokenId)
         external
         view

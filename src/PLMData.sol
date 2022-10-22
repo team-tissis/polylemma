@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.17;
 
-import {IPlmData} from "./interfaces/IPlmData.sol";
+import {IPLMData} from "./interfaces/IPLMData.sol";
 
-abstract contract PlmData is IPlmData {
+abstract contract PLMData is IPLMData {
     // TODO: monsterblocksのmonster名で仮置きした
     // TODO: 入替可能なようにconstructorで初期化&setHogeで入替可能にするべき
     string[] public characterTypes = [
@@ -15,7 +15,6 @@ abstract contract PlmData is IPlmData {
     ];
 
     string[] public abilities = ["mouka", "shinryoku", "gekiryu"];
-
     uint8[] public characterTypeOdds = [2, 2, 2, 2, 2];
     uint8[] public abilityOdds = [2, 2, 2];
 

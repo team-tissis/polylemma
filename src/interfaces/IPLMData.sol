@@ -1,4 +1,4 @@
-interface IPlmData {
+interface IPLMData {
     function getCharacterTypes() external view returns (string[] memory);
 
     function countCharacterType() external view returns (uint256);
