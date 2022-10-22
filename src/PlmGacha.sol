@@ -2,7 +2,7 @@ import {IPlmToken} from "./interfaces/IPlmToken.sol";
 import {IPlmCoin} from "./interfaces/IPlmCoin.sol";
 import {IPlmGacha} from "./interfaces/IPlmGacha.sol";
 
-import {ReentrancyGuard} from "openzeppelin-contracts/contracts/security/ReentrancyGuard.sol";
+import {ReentrancyGuard} from "openzeppelin-contracts/security/ReentrancyGuard.sol";
 
 contract PlmGacha is IPlmGacha, ReentracncyGuard {
     IPlmToken public plmToken;

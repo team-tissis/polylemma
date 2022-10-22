@@ -5,12 +5,12 @@ pragma solidity 0.8.13;
 import {IPlmToken} from "./interfaces/IPlmToken.sol";
 import {IPlmSeeder} from "./interfaces/IPlmSeeder.sol";
 import {IPlmData} from "./interfaces/IPlmData.sol";
-import {Ownable} from "openzeppelin-contracts/contracts/access/Ownable.sol";
-import {Counters} from "openzeppelin-contracts/contracts/utils/Counters.sol";
-import {ERC721} from "openzeppelin-contracts/contracts/token/ERC721/ERC721.sol";
-import {ERC721Burnable} from "openzeppelin-contracts/contracts/token/ERC721/extensions/ERC721Burnable.sol";
-import {ERC721Enumerable} from "openzeppelin-contracts/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
-import {ERC20} from "openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
+import {Ownable} from "openzeppelin-contracts/access/Ownable.sol";
+import {Counters} from "openzeppelin-contracts/utils/Counters.sol";
+import {ERC721} from "openzeppelin-contracts/token/ERC721/ERC721.sol";
+import {ERC721Burnable} from "openzeppelin-contracts/token/ERC721/extensions/ERC721Burnable.sol";
+import {ERC721Enumerable} from "openzeppelin-contracts/token/ERC721/extensions/ERC721Enumerable.sol";
+import {ERC20} from "openzeppelin-contracts/token/ERC20/ERC20.sol";
 
 contract PlmToken is IPlmToken, ERC721Enumerable {
     using Counters for Counters.Counter;
@@ -38,9 +38,9 @@ contract PlmToken is IPlmToken, ERC721Enumerable {
         _;
     }
 
-    modifier enoughLeft() {
-        require(totalMinted + _quantity < maxSupply + 1, "Not enough left");
-    }
+    // modifier enoughLeft() {
+    //     require(totalMinted + _quantity < maxSupply + 1, "Not enough left");
+    // }
 
     constructor(
         address _minter,
