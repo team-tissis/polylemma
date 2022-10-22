@@ -1,11 +1,17 @@
 import {IPolylemmaPLM} from "./interfaces/IPolylemmaPLM.sol";
-import {ERC20} from "lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
+import {ERC20} from "openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
 
-contract PolylemmaPLM is IPolylemmaPLM, ERC20 {
+contract PolylemmaPLM is ERC20, IPolylemmaPLM {
     address public treasury;
 
-    constructor(address _treasury, uint256 _firstMint) ERC20("polylem", "PLM") {
+    constructor(address _treasury, uint256 _initialMint)
+        ERC20("polylem", "PLM")
+    {
         treasury = _treasury;
-        _mint(_treasury, _firstMint);
+        _mint(_treasury, _initialMint);
+    }
+
+    function a(address ab) public view returns (uint256) {
+        return balanceOf(ab);
     }
 }

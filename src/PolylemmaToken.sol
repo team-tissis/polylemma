@@ -2,20 +2,21 @@
 // TODO: thelatest version is 0.8.17.
 pragma solidity 0.8.13;
 
-import {Ownable} from "openzeppelin-contracts/access/Ownable.sol";
-
-import {IPolylesSeeder} from "./interfaces/IPolylesSeeder.sol";
-
+import {IPolylemmaToken} from "./interfaces/IPolylemmaToken.sol";
+import {IPolylemmaSeeder} from "./interfaces/IPolylemmaSeeder.sol";
+import {IPolylemmaData} from "./interfaces/IPolylemmaData.sol";
+import {Ownable} from "openzeppelin-contracts/contracts/access/Ownable.sol";
 import {Counters} from "openzeppelin-contracts/contracts/utils/Counters.sol";
 import {ERC721} from "openzeppelin-contracts/contracts/token/ERC721/ERC721.sol";
 import {ERC721Burnable} from "openzeppelin-contracts/contracts/token/ERC721/extensions/ERC721Burnable.sol";
 import {ERC721Enumerable} from "openzeppelin-contracts/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
-import {ERC20} from "openzeppelin-contracts/contracts/token/ERC020/ERC20.sol";
+import {ERC20} from "openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
 
-contract polylemmaToken is IPolylemmaToken, ERC721Enumerable {
+contract PolylemmaToken is IPolylemmaToken, ERC721Enumerable {
     using Counters for Counters.Counter;
 
     address minter;
+    uint256 maxSupply;
 
     Counters.Counter private _tokenIds;
 

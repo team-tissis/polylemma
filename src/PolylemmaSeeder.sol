@@ -1,4 +1,4 @@
-pragma solidity 0.8.15;
+pragma solidity 0.8.17;
 
 import { IPolylemmaSeeder } from './interfaces/IPolylemmaSeeder.sol';
 import { IPolylemmaData } from './interfaces/IPolylemmaData.sol';
