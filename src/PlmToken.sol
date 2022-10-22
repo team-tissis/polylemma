@@ -1,11 +1,9 @@
-// SPDX-License-Identifier: SEE LICENSE IN LICENSE
-// TODO: thelatest version is 0.8.17.
-pragma solidity 0.8.13;
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity ^0.8.17;
 
 import {IPlmToken} from "./interfaces/IPlmToken.sol";
 import {IPlmSeeder} from "./interfaces/IPlmSeeder.sol";
 import {IPlmData} from "./interfaces/IPlmData.sol";
-import {Ownable} from "openzeppelin-contracts/access/Ownable.sol";
 import {Counters} from "openzeppelin-contracts/utils/Counters.sol";
 import {ERC721} from "openzeppelin-contracts/token/ERC721/ERC721.sol";
 import {ERC721Burnable} from "openzeppelin-contracts/token/ERC721/extensions/ERC721Burnable.sol";
@@ -17,18 +15,22 @@ contract PlmToken is IPlmToken, ERC721Enumerable {
 
     address minter;
     uint256 maxSupply;
+    IPlmSeeder seeder;
+    IPlmData data;
 
-    Counters.Counter private _tokenIds;
+    uint256 private _tokenIds;
 
     // TODO: ガス代が小さくなるようにtypeを決めるべき
+    // interfaceに宣言するべき？
     struct CharacterInfo {
         string characterType;
         uint8 level;
         uint8 rarity;
-        uint8[] abilityIds;
+        uint8[1] abilityIds;
     }
 
-    mapping(uint256 => character_info) character_infos;
+    // tokenId => characterInfo
+    mapping(uint256 => CharacterInfo) character_infos;
 
     modifier onlyMinter() {
         require(
@@ -44,7 +46,7 @@ contract PlmToken is IPlmToken, ERC721Enumerable {
 
     constructor(
         address _minter,
-        IPolylesSeeder _seeder,
+        IPlmSeeder _seeder,
         IPlmData _data,
         uint256 _maxSupply
     ) ERC721("Polyles", "POL") {
@@ -55,30 +57,24 @@ contract PlmToken is IPlmToken, ERC721Enumerable {
     }
 
     // TODO: minterにgachaコントラクトアドレスをセットすることで、gachaからしかmintできないようにする。
-    function mint() public onlyMinter {
-        return _mintTo(minter, _tokenIds.increment());
+    function mint() public override onlyMinter returns (uint256) {
+        return _mintTo(minter, _tokenIds++);
     }
 
-    // TODO: not defined
-    function burn(uint256 tokenId) public override onlyMinter {
-        _burn(tokenId);
-    }
-
-    /// @notice descript how is the token minted
-    /// @dev generate token attributes pattern randomly with seeder, if you want to mint defined patterns in defined numbers of pieces,
+    /// descript how is the token minted
+    /// generate token attributes pattern randomly with seeder, if you want to mint defined patterns in defined numbers of pieces,
     ///      you have to edit this function.
-    /// @param Documents a parameter just like in doxygen (must be followed by parameter name)
-    /// @return Documents the return variables of a contract’s function state variable
-    /// @inheritdoc	Copies all missing tags from the base function (must be followed by the contract name)
     function _mintTo(address to, uint256 tokenId) internal returns (uint256) {
         IPlmSeeder.Seed memory seed = seeder.generateSeed(tokenId, data);
+        string[] memory characterTypes = data.getCharacterTypes();
         character_infos[tokenId] = CharacterInfo(
-            data.characterType[seed.characterType],
+            characterTypes[seed.characterType],
             1,
-            data.calcRarity(seed.characterType, seed.ability),
-            [data.abilities[seed.ability]]
+            data.calcRarity(seed.characterType, [seed.ability]),
+            [seed.ability]
         );
-        _mint(owner(), to, tokenId);
+        // TODO; is it right??
+        _mint(to, tokenId);
         // TODO: event
         return tokenId;
     }

@@ -6,8 +6,8 @@ import {IPlmData} from "./IPlmData.sol";
 
 interface IPlmSeeder {
     struct Seed {
-        uint48 characterType;
-        uint48 ability;
+        uint8 characterType;
+        uint8 ability;
     }
 
     function generateSeed(uint256 tokenId, IPlmData data)
