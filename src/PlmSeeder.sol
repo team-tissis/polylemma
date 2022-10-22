@@ -16,13 +16,14 @@ contract PlmSeeder is IPlmSeeder {
 
         uint256 numOddsCharacterType = data.numOddsCharacterType();
         uint256 numOddsAbility = data.numOddsAbility();
-
+        uint8[] memory characterTypeOdds = data.getCharacterTypeOdds();
+        uint8[] memory abilityOdds = data.getAbilityOdds();
         return
             Seed({
-                characterType: data.characterTypeOdds[
+                characterType: characterTypeOdds[
                     pseudorandomness % numOddsCharacterType
                 ],
-                ability: data.abilityOdds[pseudorandomness % numOddsAbility]
+                ability: abilityOdds[pseudorandomness % numOddsAbility]
             });
     }
 }

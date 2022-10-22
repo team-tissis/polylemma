@@ -18,12 +18,12 @@ contract PlmBattleField is Ownable {
     /// @notice Enum to represent player's choice of the character fighting in the next round.
     enum Choice {
         Secret,
-        FixedOne,
-        FixedTwo,
-        FixedThree,
-        FixedFour,
-        RandomOne,
-        RandomTwo
+        Fixed1,
+        Fixed2,
+        Fixed3,
+        Fixed4,
+        Random1,
+        Random2
     }
 
     /// @notice Struct to represent the commitment of the choice.
@@ -43,13 +43,26 @@ contract PlmBattleField is Ownable {
     event Commited(uint8 playerIdx);
     event Revealed(uint8 player, Choice choice);
 
+    /// @notice dealer's address of polylemma.
     address dealer;
 
-    Party[2] parties;
-    PlayerState[2] playerStates;
-    address[2] playerAddress;
+    /// @notice interface to the characters' information.
     IPlmToken plmToken;
+
+    /// @notice playerAddress of the players in the current battle match.
+    address[2] playerAddress;
+
+    /// @notice parties of the characters of the players.
+    Party[2] parties;
+
+    /// @notice states of the players (Commited, Revealed, etc...)
+    PlayerState[2] playerStates;
+
+    /// @notice number of rounds. (< 6)
     uint8 numRound;
+
+    /// @notice storage to store the commitment log in the current round.
+    /// @dev Should we change this to the mapping whose key is the round number ?
     Commitment[2] commitLog;
 
     modifier onlyDealer() {
@@ -96,7 +109,7 @@ contract PlmBattleField is Ownable {
     /// @notice Commit the choice (the character the player choose to use in the current round).
     /// @param playerIdx: the index used to designate the player. 0 or 1.
     /// @param commitString: commitment string calculated by the player designated by playerIdx
-    ///                    as keccak256(abi.encodePacked(msg.sender, choice, blindingFactor)).
+    ///                      as keccak256(abi.encodePacked(msg.sender, choice, blindingFactor)).
     function commit(uint8 playerIdx, bytes32 commitString)
         public
         onlyPlayerOfIdx(playerIdx)
@@ -157,4 +170,27 @@ contract PlmBattleField is Ownable {
 
     /// @notice Function to execute the battle.
     function battle() public onlyDealer readyForBattle {}
+
+    /// @notice Function to calculate the damage of the monster.
+    function _calcDamage(uint8 playerIdx, Choice choice)
+        internal
+        returns (uint8 damage)
+    {
+        uint256 characterId;
+        if (choice == Choice.Fixed1) {
+            characterId = parties[playerIdx].fixedSlotId1;
+        } else if (choice == Choice.Fixed2) {
+            characterId = parties[playerIdx].fixedSlotId2;
+        } else if (choice == Choice.Fixed3) {
+            characterId = parties[playerIdx].fixedSlotId3;
+        } else if (choice == Choice.Fixed4) {
+            characterId = parties[playerIdx].fixedSlotId4;
+        } else if (choice == Choice.Random1) {
+            characterId = parties[playerIdx].randomSlotId1;
+        } else if (choice == Choice.Random2) {
+            characterId = parties[playerIdx].randomSlotId2;
+        } else {
+            revert("Unreachable !");
+        }
+    }
 }

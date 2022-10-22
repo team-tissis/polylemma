@@ -22,12 +22,6 @@ contract PlmToken is IPlmToken, ERC721Enumerable {
 
     // TODO: ガス代が小さくなるようにtypeを決めるべき
     // interfaceに宣言するべき？
-    struct CharacterInfo {
-        string characterType;
-        uint8 level;
-        uint8 rarity;
-        uint8[1] abilityIds;
-    }
 
     // tokenId => characterInfo
     mapping(uint256 => CharacterInfo) character_infos;
