@@ -1,4 +1,4 @@
-interface IPolylemmaData {
+interface IPlmData {
     function getCharacterTypes() external view returns (string[] memory);
 
     function getAbilities() external view returns (string[] memory);

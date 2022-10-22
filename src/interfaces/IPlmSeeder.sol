@@ -2,15 +2,15 @@
 
 /// @title Interface for PolylemmaSeeder
 
-import {IPolylemmaData} from "./IPolylemmaData.sol";
+import {IPlmData} from "./IPlmData.sol";
 
-interface IPolylemmaSeeder {
+interface IPlmSeeder {
     struct Seed {
         uint48 characterType;
         uint48 ability;
     }
 
-    function generateSeed(uint256 tokenId, IPolylemmaData data)
+    function generateSeed(uint256 tokenId, IPlmData data)
         external
         view
         returns (Seed memory);

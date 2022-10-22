@@ -2,9 +2,9 @@
 // TODO: thelatest version is 0.8.17.
 pragma solidity 0.8.13;
 
-import {IPolylemmaToken} from "./interfaces/IPolylemmaToken.sol";
-import {IPolylemmaSeeder} from "./interfaces/IPolylemmaSeeder.sol";
-import {IPolylemmaData} from "./interfaces/IPolylemmaData.sol";
+import {IPlmToken} from "./interfaces/IPlmToken.sol";
+import {IPlmSeeder} from "./interfaces/IPlmSeeder.sol";
+import {IPlmData} from "./interfaces/IPlmData.sol";
 import {Ownable} from "openzeppelin-contracts/contracts/access/Ownable.sol";
 import {Counters} from "openzeppelin-contracts/contracts/utils/Counters.sol";
 import {ERC721} from "openzeppelin-contracts/contracts/token/ERC721/ERC721.sol";
@@ -12,7 +12,7 @@ import {ERC721Burnable} from "openzeppelin-contracts/contracts/token/ERC721/exte
 import {ERC721Enumerable} from "openzeppelin-contracts/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import {ERC20} from "openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
 
-contract PolylemmaToken is IPolylemmaToken, ERC721Enumerable {
+contract PlmToken is IPlmToken, ERC721Enumerable {
     using Counters for Counters.Counter;
 
     address minter;
@@ -45,7 +45,7 @@ contract PolylemmaToken is IPolylemmaToken, ERC721Enumerable {
     constructor(
         address _minter,
         IPolylesSeeder _seeder,
-        IPolylemmaData _data,
+        IPlmData _data,
         uint256 _maxSupply
     ) ERC721("Polyles", "POL") {
         minter = _minter;
@@ -71,7 +71,7 @@ contract PolylemmaToken is IPolylemmaToken, ERC721Enumerable {
     /// @return Documents the return variables of a contract’s function state variable
     /// @inheritdoc	Copies all missing tags from the base function (must be followed by the contract name)
     function _mintTo(address to, uint256 tokenId) internal returns (uint256) {
-        IPolylemmaSeeder.Seed memory seed = seeder.generateSeed(tokenId, data);
+        IPlmSeeder.Seed memory seed = seeder.generateSeed(tokenId, data);
         character_infos[tokenId] = CharacterInfo(
             data.characterType[seed.characterType],
             1,

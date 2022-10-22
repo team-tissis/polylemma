@@ -1,6 +1,6 @@
-import {IPolylemmaData} from "./interfaces/IPolylemmaData.sol";
+import {IPlmData} from "./interfaces/IPlmData.sol";
 
-contract PolylemmaData is IPolylemmaData {
+contract PlmData is IPlmData {
     // TODO: monsterblocksのmonster名で仮置きした
     // TODO: 入替可能なようにconstructorで初期化&setHogeで入替可能にするべき
     string[] public characterTypes = [

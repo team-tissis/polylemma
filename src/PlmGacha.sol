@@ -1,12 +1,12 @@
-import {IPolylemmaToken} from "./interfaces/IPolylemmaToken.sol";
-import {IPolylemmaPLM} from "./interfaces/IPolylemmaPLM.sol";
-import {IPolylemmaGacha} from "./interfaces/IPolylemmaGacha.sol";
+import {IPlmToken} from "./interfaces/IPlmToken.sol";
+import {IPlmCoin} from "./interfaces/IPlmCoin.sol";
+import {IPlmGacha} from "./interfaces/IPlmGacha.sol";
 
 import {ReentrancyGuard} from "openzeppelin-contracts/contracts/security/ReentrancyGuard.sol";
 
-contract PolylemmaGacha is IPolylemmaGacha, ReentracncyGuard {
-    IPolylemmaToken public polylemmaToken;
-    IPolylemmaPLM public polylemmaPLM;
+contract PlmGacha is IPlmGacha, ReentracncyGuard {
+    IPlmToken public plmToken;
+    IPlmCoin public plmCoin;
 
     address gameMaster;
 
@@ -18,18 +18,18 @@ contract PolylemmaGacha is IPolylemmaGacha, ReentracncyGuard {
     }
 
     constructor(
-        IPolylemmaToken _polylemmaToken,
-        IPolylemmaData _polylemmaPLM,
+        IPlmToken _plmToken,
+        IPlmData _plmCoin,
         uint256 _gachaPayment
     ) {
-        polylemmaToken = _polylemmaToken;
-        polylemmaPLM = _polylemmaPLM;
+        plmToken = _plmToken;
+        plmCoin = _plmCoin;
         gachaPayment = _gachaPayment;
     }
 
     function gacha() external nonReentrant {
-        require(polylemmaPLM.balanceOf(msg.sender)<);
-        try polylemmaToken.mint() returns (uint256 tokenId) {
+        // require(plmCoin.balanceOf(msg.sender)<);
+        try plmToken.mint() returns (uint256 tokenId) {
             emit CharacterRecievedByUser(tokenId);
         } catch Error(string memory) {
             _pause();
