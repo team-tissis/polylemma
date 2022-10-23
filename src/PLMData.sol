@@ -3,7 +3,7 @@ pragma solidity ^0.8.17;
 
 import {IPLMData} from "./interfaces/IPLMData.sol";
 
-abstract contract PLMData is IPLMData {
+contract PLMData is IPLMData {
     // TODO: monsterblocksのmonster名で仮置きした
     // TODO: 入替可能なようにconstructorで初期化&setHogeで入替可能にするべき
     string[] public characterTypes = [
@@ -27,6 +27,10 @@ abstract contract PLMData is IPLMData {
         return characterTypes;
     }
 
+    function countCharacterType() external view returns (uint256) {
+        return characterTypes.length;
+    }
+
     function getCharacterTypeOdds()
         external
         view
@@ -38,6 +42,10 @@ abstract contract PLMData is IPLMData {
 
     function getAbilities() external view override returns (string[] memory) {
         return abilities;
+    }
+
+    function countAbilities() external view override returns (uint256) {
+        return abilities.length;
     }
 
     function getAbilityOdds() external view override returns (uint8[] memory) {

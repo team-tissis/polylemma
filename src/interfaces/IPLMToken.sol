@@ -17,5 +17,7 @@ interface IPLMToken is IERC721 {
         external
         view
         returns (CharacterInfo calldata);
+
+    function getTotalSupply() external returns (uint256);
     // function burn() external;
 }

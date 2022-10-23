@@ -30,11 +30,14 @@ contract PLMGacha is IPLMGacha, ReentrancyGuard {
         gachaPayment = _gachaPayment;
     }
 
-    function gacha() external nonReentrant {
+    function gacha() external nonReentrant returns (uint256) {
         // require(PLMCoin.balanceOf(msg.sender)<);
         try PLMToken.mint() returns (uint256 tokenId) {
             emit CharacterRecievedByUser(tokenId);
-        } catch Error(string memory) {}
+            return tokenId;
+        } catch Error(string memory) {
+            return 0;
+        }
     }
 
     function setGachaPayment(uint256 _newGachaPayment) internal onlyDealer {

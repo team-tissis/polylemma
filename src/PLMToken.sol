@@ -18,7 +18,7 @@ contract PLMToken is IPLMToken, ERC721Enumerable {
     IPLMSeeder seeder;
     IPLMData data;
 
-    uint256 private currentTokenId;
+    uint256 private currentTokenId = 0;
 
     // TODO: ガス代が小さくなるようにtypeを決めるべき
     // interfaceに宣言するべき？
@@ -45,7 +45,7 @@ contract PLMToken is IPLMToken, ERC721Enumerable {
         IPLMSeeder _seeder,
         IPLMData _data,
         uint256 _maxSupply
-    ) ERC721("Polyles", "POL") {
+    ) ERC721("Polylemma", "PLM") {
         minter = _minter;
         seeder = _seeder;
         data = _data;
@@ -68,21 +68,24 @@ contract PLMToken is IPLMToken, ERC721Enumerable {
     // TODO: for文回してるのでガス代くそかかる。節約した記述を考える
     function getAllCharacterInfo()
         public
+        view
         override
         returns (CharacterInfo[] memory)
     {
-        CharacterInfo[] memory allCharacterInfos;
+        CharacterInfo[] memory allCharacterInfos = new CharacterInfo[](
+            currentTokenId
+        );
         for (uint256 i = 0; i < currentTokenId; i++) {
-            allCharacterInfos.push(characterInfos[i]);
+            allCharacterInfos[i] = characterInfos[i];
         }
-        return allCharacterInfos
+        return allCharacterInfos;
     }
 
     /// descript how is the token minted
     /// generate token attributes pattern randomly with seeder, if you want to mint defined patterns in defined numbers of pieces,
     ///      you have to edit this function.
     function _mintTo(address to, uint256 tokenId) internal returns (uint256) {
-        IPLMSeeder.Seed memory seed = seeder.generateSeed(tokenId, data);
+        IPLMSeeder.Seed memory seed = seeder.generateSeed(tokenId);
         string[] memory characterTypes = data.getCharacterTypes();
         characterInfos[tokenId] = CharacterInfo(
             characterTypes[seed.characterType],

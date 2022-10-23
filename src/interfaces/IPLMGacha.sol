@@ -1,5 +1,5 @@
 interface IPLMGacha {
     event CharacterRecievedByUser(uint256 indexed tokenId);
 
-    function gacha() external;
+    function gacha() external returns (uint256);
 }
