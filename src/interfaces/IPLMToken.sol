@@ -1,6 +1,7 @@
 import {IERC721} from "openzeppelin-contracts/token/ERC721/IERC721.sol";
+import {IERC721Enumerable} from "openzeppelin-contracts/token/ERC721/extensions/IERC721Enumerable.sol";
 
-interface IPLMToken is IERC721 {
+interface IPLMToken is IERC721, IERC721Enumerable {
     struct CharacterInfo {
         string characterType;
         uint8 level;
@@ -18,6 +19,5 @@ interface IPLMToken is IERC721 {
         view
         returns (CharacterInfo calldata);
 
-    function getTotalSupply() external returns (uint256);
     // function burn() external;
 }

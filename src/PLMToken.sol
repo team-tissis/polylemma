@@ -10,7 +10,7 @@ import {ERC721Burnable} from "openzeppelin-contracts/token/ERC721/extensions/ERC
 import {ERC721Enumerable} from "openzeppelin-contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import {ERC20} from "openzeppelin-contracts/token/ERC20/ERC20.sol";
 
-contract PLMToken is IPLMToken, ERC721Enumerable {
+contract PLMToken is ERC721Enumerable, IPLMToken {
     using Counters for Counters.Counter;
 
     address minter;
@@ -53,7 +53,7 @@ contract PLMToken is IPLMToken, ERC721Enumerable {
     }
 
     // TODO: minterにgachaコントラクトアドレスをセットすることで、gachaからしかmintできないようにする。
-    function mint() public override onlyMinter returns (uint256) {
+    function mint() public onlyMinter returns (uint256) {
         return _mintTo(minter, currentTokenId++);
     }
 
@@ -85,7 +85,7 @@ contract PLMToken is IPLMToken, ERC721Enumerable {
     /// generate token attributes pattern randomly with seeder, if you want to mint defined patterns in defined numbers of pieces,
     ///      you have to edit this function.
     function _mintTo(address to, uint256 tokenId) internal returns (uint256) {
-        IPLMSeeder.Seed memory seed = seeder.generateSeed(tokenId);
+        IPLMSeeder.Seed memory seed = seeder.generateSeed(tokenId, data);
         string[] memory characterTypes = data.getCharacterTypes();
         characterInfos[tokenId] = CharacterInfo(
             characterTypes[seed.characterType],
