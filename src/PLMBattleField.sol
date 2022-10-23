@@ -387,7 +387,9 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
 
     /// @notice Function to finalize the battle.
     /// @dev reward is paid from dealer to the winner of this battle.
-    function _settleBattle() internal onlyDealer readyForBattleSettlement {}
+    function _settleBattle() internal onlyDealer readyForBattleSettlement {
+        // TODO
+    }
 
     /// @notice Function to mark the slot used in the current round as used.
     function _markSlot(PlayerId playerId) internal {
