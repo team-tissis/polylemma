@@ -2,114 +2,110 @@
 pragma solidity ^0.8.17;
 
 import {IPLMToken} from "./interfaces/IPLMToken.sol";
-import {Ownable} from "openzeppelin-contracts/access/Ownable.sol";
+import {IPLMSeeder} from "./interfaces/IPLMSeeder.sol";
+import {IPLMBattleField} from "./interfaces/IPLMBattleField.sol";
 
-contract PLMBattleField is Ownable {
-    /// @notice Struct to specify tokenIds of the party
-    struct Party {
-        uint256 fixedSlotId1;
-        uint256 fixedSlotId2;
-        uint256 fixedSlotId3;
-        uint256 fixedSlotId4;
-        uint256 randomSlotId1;
-        uint256 randomSlotId2;
-    }
+import {ReentrancyGuard} from "openzeppelin-contracts/security/ReentrancyGuard.sol";
 
-    /// @notice Enum to represent player's choice of the character fighting in the next round.
-    enum Choice {
-        Secret,
-        Fixed1,
-        Fixed2,
-        Fixed3,
-        Fixed4,
-        Random1,
-        Random2
-    }
-
-    /// @notice Struct to represent the commitment of the choice.
-    struct Commitment {
-        bytes32 commitString;
-        Choice choice;
-    }
-
-    /// @notice Players' states in each round.
-    enum PlayerState {
-        RoundStarted,
-        Commited,
-        Revealed,
-        RoundSettled
-    }
-
-    event Commited(uint8 numRounds, uint8 playerIdx);
-    event Revealed(uint8 numRounds, uint8 player, Choice choice);
-    event BattleResult(uint8 numRounds, 
-        uint8 winner,
-        uint8 loser,
-        uint8 winnerDamage,
-        uint8 loserDamage
-    );
-    event BattleResultDraw(uint8 numRounds, uint8 damage);
-    event BattleSettled(uint8 numRounds, uint8 winner, uint8 loser, uint8 winCount, uint8 loseCount);
-    event BattleSettled(uint8 numRounds, uint8 count);
-
+contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
     /// @notice The number of winning needed to win the match.
-    constant uint8 WIN_COUNT = 3;
+    uint8 constant WIN_COUNT = 3;
 
     /// @notice The number of the maximum round.
-    constant uint8 MAX_ROUNDS = 6;
+    uint8 constant MAX_ROUNDS = 5;
 
     /// @notice dealer's address of polylemma.
     address payable dealer;
 
     /// @notice interface to the characters' information.
-    IPLMToken PLMToken;
+    IPLMToken token;
 
-    /// @notice playerAddress of the players in the current battle match.
-    address[2] playerAddress;
+    /// @notice interface to the seeder.
+    IPLMSeeder seeder;
 
-    /// @notice parties of the characters of the players.
-    Party[2] parties;
+    /// @notice state of the battle.
+    BattleState battleState;
 
-    /// @notice states of the players (Commited, Revealed, etc...)
-    PlayerState[2] playerStates;
-
-    /// @notice counter of the winning.
-    uint8[2] winCount;
-
-    /// @notice number of rounds. (< 6)
+    /// @notice number of rounds. (< MAX_ROUNDS)
     uint8 numRounds;
 
-    /// @notice storage to store the commitment log in the current round.
-    /// @dev Should we change this to the mapping whose key is the round number ?
-    Commitment[2] commitLog;
+    /// @notice commitment log for all rounds.
+    /// @dev The key is numRounds.
+    mapping(uint8 => mapping(PlayerId => ChoiceCommitment)) choiceCommitLog;
+
+    /// @notice commitment log for player seed.
+    mapping(PlayerId => PlayerSeedCommitment) playerSeedCommitLog;
+
+    /// @notice players' information
+    mapping(PlayerId => PlayerInfo) playerInfoTable;
 
     modifier onlyDealer() {
-        require(msg.sender == dealer);
+        require(
+            msg.sender == dealer,
+            "The caller of the function must be a dealer"
+        );
         _;
     }
 
     /// @notice Check whether the caller of the function is the valid account.
-    /// @param playerIdx: the index used to designate the player. 0 or 1.
-    modifier onlyPlayerOfIdx(uint8 playerIdx) {
-        require(playerIdx == 0 || playerIdx == 1, "Invalid playerIdx.");
+    /// @param playerId: The player's identifier.
+    modifier onlyPlayerOfIdx(PlayerId playerId) {
         require(
-            msg.sender == playerAddress[playerIdx],
+            playerId == PlayerId.Alice || playerId == PlayerId.Bob,
+            "Invalid playerId."
+        );
+        require(
+            msg.sender == playerInfoTable[playerId].addr,
             "The caller player is not the valid account."
         );
         _;
     }
 
-    /// @notice Check that both players have already commited in this round.
-    modifier readyForRevealment(uint8 playerIdx) {
+    /// @notice Check that the battle round has already started.
+    modifier roundStarted() {
         require(
-            playerStates[playerIdx] == PlayerState.Commited,
-            "The player hasn't commited in this round yet."
+            _getRandomSlotState(PlayerId.Alice) != RandomSlotState.NotSet &&
+                _getRandomSlotState(PlayerId.Bob) != RandomSlotState.NotSet,
+            "random slots haven't set yet."
         );
-        uint8 enemyIdx = playerIdx == 0 ? 1 : 0;
         require(
-            playerStates[enemyIdx] == PlayerState.Commited ||
-                playerStates[enemyIdx] == PlayerState.Revealed,
-            "The enemy player hasn't commited in this round yet."
+            battleState == BattleState.RoundStarted,
+            "battle round hasn't started yet."
+        );
+        _;
+    }
+
+    /// @notice Check that the random slot of the player designated by playerId
+    ///         has already been committed, the choice of that player in this
+    ///         round is randomSlot, and it has already been revealed.
+    modifier readyForPlayerSeedRevealment(PlayerId playerId) {
+        require(
+            _getRandomSlotState(playerId) == RandomSlotState.Committed,
+            "The commit of random slot has already been revealed."
+        );
+        require(
+            _getPlayerState(playerId) == PlayerState.Revealed &&
+                choiceCommitLog[numRounds][playerId] == Choice.Random,
+            "The choice of the player has not been revealed or it is not randomSlot."
+        );
+        _;
+    }
+
+    /// @notice Check that both players have already committed in this round.
+    /// @param playerId: The player's identifier.
+    modifier readyForChoiceRevealment(PlayerId playerId) {
+        require(
+            _getPlayerState(playerId) == PlayerState.Committed,
+            "The player hasn't committed the choice in this round yet."
+        );
+        PlayerId enemyId = playerId == PlayerId.Alice
+            ? PlayerId.Bob
+            : PlayerId.Alice;
+        PlayerState enemyState = _getPlayerState(enemyId);
+        require(
+            enemyState == PlayerState.Committed ||
+                enemyState == PlayerState.Revealed,
+            "The enemy player hasn't committed the choice in this round yet."
         );
         _;
     }
@@ -117,155 +113,242 @@ contract PLMBattleField is Ownable {
     /// @notice Check that both players have already revealed in this round.
     modifier readyForBattle() {
         require(
-            playerStates[0] == PlayerState.Revealed &&
-                playerStates[1] == PlayerState.Revealed,
+            _getPlayerState(PlayerId.Alice) == PlayerState.Revealed &&
+                _getPlayerState(PlayerId.Bob) == PlayerState.Revealed,
             "Both palyes have to reveal their choices before executing the battle."
         );
         _;
     }
 
-    /// @notice Commit the choice (the character the player choose to use in the current round).
-    /// @param playerIdx: the index used to designate the player. 0 or 1.
-    /// @param commitString: commitment string calculated by the player designated by playerIdx
+    /// @notice Commit the player's seed to generate the tokenId for random slot.
+    /// @param playerId: the identifier of the player. Alice or Bob.
+    /// @param commitString: commitment string calculated by the player designated by playerId
     ///                      as keccak256(abi.encodePacked(msg.sender, choice, blindingFactor)).
-    function commit(uint8 playerIdx, bytes32 commitString)
-        public
-        onlyPlayerOfIdx(playerIdx)
+    function commitPlayerSeed(PlayerId playerId, bytes32 commitString)
+        external
+        nonReentrant
+        onlyPlayerOfIdx(playerId)
     {
-        // Check that the player who want to commit haven't commited yet in this round.
+        // Check that the battle hasn't started yet.
         require(
-            playerStates[playerIdx] == PlayerState.RoundStarted,
+            battleState == BattleState.Preparing,
+            "The battle has already started."
+        );
+
+        // Check that the player seed hasn't set yet.
+        require(
+            _getRandomSlotState(playerId) == RandomSlotState.NotSet,
+            "The playerSeed has already set."
+        );
+
+        // Save commitment on the storage. The playerSeed of the player is hidden in the commit phase.
+        playerSeedCommitLog[playerId] = PlayerSeedCommitment(
+            commitString,
+            bytes(0)
+        );
+
+        // Emit the event that tells frontend that the player designated by playerId has committed.
+        emit PlayerSeedCommitted(playerId);
+
+        // Update the state of the random slot to be commited.
+        playerInfoTable[playerId].randomSlot.state = RandomSlotState.Committed;
+
+        // Generate nonce after player committed the playerSeed.
+        bytes32 nonce = seeder.generateRandomSlotNonce();
+
+        // Emit the event that tells frontend that the randomSlotNonce is generated for the player designated
+        // by playerId.
+        emit RandomSlotNounceGenerated(playerId, nonce);
+
+        playerInfoTable[playerId].randomSlot.nonce = nonce;
+
+        // If both players have already committed their player seeds, start the battle.
+        PlayerId enemyId = playerId == PlayerId.Alice
+            ? PlayerId.Bob
+            : PlayerId.Alice;
+        if (_getRandomSlotState(enemyId) == RandomSlotState.Committed) {
+            battleState = BattleState.RoundStarted;
+        }
+    }
+
+    /// @param playerId: the identifier of the player. Alice or Bob.
+    /// @param playerSeed: the choice the player designated by playerId committed in this round.
+    ///                    bytes(0) is not allowed.
+    /// @param bindingFactor: the secret factor (one-time) used in the generation of the commitment.
+    /// @dev bindingFactor should be used only once. Reusing bindingFactor results in the security
+    ///      vulnerability.
+    function revealPlayerSeed(
+        PlayerId playerId,
+        bytes32 playerSeed,
+        bytes32 bindingFactor
+    )
+        external
+        nonReentrant
+        roundStarted
+        onlyPlayerOfIdx(playerId)
+        readyForPlayerSeedRevealment(playerId)
+    {
+        // playerSeed is not allowed to be bytes(0).
+        require(
+            playerSeed != bytes(0),
+            "bytes(0) is not allowed for playerSeed."
+        );
+
+        // The pointer to the commit log of the player designated by playerId.
+        PlayerSeedCommitment storage playerSeedCommitment = playerSeedCommitLog[
+            playerId
+        ];
+
+        // Check the commit has coincides with the one stored on chain.
+        require(
+            keccak256(
+                abi.encodePacked(msg.sender, playerSeed, bindingFactor)
+            ) == playerSeedCommitment.commitString,
+            "Commit hash doesn't coincide."
+        );
+
+        // Execute revealment
+        playerSeedCommitment.playerSeed = playerSeed;
+
+        // Emit the event that tells frontend that the player designated by playerId has revealed.
+        emit PlayerSeedRevealed(numRounds, playerId, playerSeed);
+
+        // Update the state of the random slot to be revealed.
+        playerInfoTable[playerId].randomSlot.state = RandomSlotState.Revealed;
+    }
+
+    /// @notice Commit the choice (the character the player choose to use in the current round).
+    /// @param playerId: the identifier of the player. Alice or Bob.
+    /// @param commitString: commitment string calculated by the player designated by playerId
+    ///                      as keccak256(abi.encodePacked(msg.sender, choice, blindingFactor)).
+    function commitChoice(PlayerId playerId, bytes32 commitString)
+        external
+        nonReentrant
+        roundStarted
+        onlyPlayerOfIdx(playerId)
+    {
+        // Check that the player who want to commit haven't committed yet in this round.
+        require(
+            _getPlayerState(playerId) == PlayerState.RoundStarted,
             "This player is not in the state to commit in this round."
         );
 
         // Save commitment on the storage. The choice of the player is hidden in the commit phase.
-        commitLog[playerIdx] = Commitment(commitString, Choice.Secret);
+        choiceCommitLog[numRounds][playerId] = ChoiceCommitment(
+            commitString,
+            Choice.Secret
+        );
 
-        // Emit the event that tells frontend that the player designated by playerIdx has commited.
-        emit Commited(numRounds, playerIdx);
+        // Emit the event that tells frontend that the player designated by playerId has committed.
+        emit ChoiceCommitted(numRounds, playerId);
 
-        // Update the state of the commit player to be Commited.
-        playerStates[playerIdx] = PlayerState.Commited;
+        // Update the state of the commit player to be committed.
+        playerInfoTable[playerId].state = PlayerState.Committed;
     }
 
-    /// @notice Reveal the commited choice by the player who commited it in this round.
-    /// @param playerIdx: the index used to designate the player. 0 or 1.
-    /// @param choice: the choice the player designated by playerIdx commited in this round.
+    /// @notice Reveal the committed choice by the player who committed it in this round.
+    /// @param playerId: the identifier of the player. Alice or Bob.
+    /// @param choice: the choice the player designated by playerId committed in this round.
     ///                Choice.Secret is not allowed.
     /// @param bindingFactor: the secret factor (one-time) used in the generation of the commitment.
     /// @dev bindingFactor should be used only once. Reusing bindingFactor results in the security
     ///      vulnerability.
-    function reveal(
-        uint8 playerIdx,
+    function revealChoice(
+        PlayerId playerId,
         Choice choice,
         bytes32 bindingFactor
-    ) public onlyPlayerOfIdx(playerIdx) readyForRevealment(playerIdx) {
+    )
+        external
+        nonReentrant
+        roundStarted
+        onlyPlayerOfIdx(playerId)
+        readyForChoiceRevealment(playerId)
+    {
         // Choice.Secret is not allowed for the choice passed to the reveal function.
         require(
             choice != Choice.Secret,
             "Choice.Secret is not allowed when revealing."
         );
 
-        // The pointer to the commit log of the player designated by playerIdx.
-        Commitment storage commitment = commitLog[playerIdx];
+        // The pointer to the commit log of the player designated by playerId.
+        ChoiceCommitment storage choiceCommitment = choiceCommitLog[numRounds][
+            playerId
+        ];
 
         // Check the commit hash coincides with the one stored on chain.
         require(
             keccak256(abi.encodePacked(msg.sender, choice, bindingFactor)) ==
-                commitment.commitString,
+                choiceCommitment.commitString,
             "Commit hash doesn't coincide."
         );
 
         // Execute revealment
-        commitment.choice = choice;
+        choiceCommitment.choice = choice;
 
-        // Emit the event that tells frontend that the player designated by playerIdx has revealed.
-        emit Revealed(numRounds, playerIdx, choice);
+        // Emit the event that tells frontend that the player designated by playerId has revealed.
+        emit ChoiceRevealed(numRounds, playerId, choice);
 
         // Update the state of the reveal player to be Revealed.
-        playerStates[playerIdx] = PlayerState.Revealed;
+        playerInfoTable[playerId].state = PlayerState.Revealed;
     }
 
-    /// @notice Function to execute the battle.
-    function battle() public onlyDealer readyForBattle {
-        uint8 damage0 = _calcDamage(0);
-        uint8 damage1 = _calcDamage(1);
-        if (damage0 > damage1) {
-            // player0 wins this round.
-            winCount[0]++;
-            emit BattleResult(numRounds, 0, 1, damage0, damage1);
-            if (winCount[0] == WIN_COUNT) {
-                // player0 wins this match.
-                _settleBattle(0);
-                emit BattleSettled(numRounds, 0, 1);
-            }
-        } else if (damage0 < damage1) {
-            // player1 wins this round.
-            winCount[1]++;
-            emit BattleResult(numRounds, 1, 0, damage1, damage0);
-            if (winCount[1] == WIN_COUNT) {
-                // player1 wins this match.
-                _settleBattle(1);
-                emit BattleSettled(numRounds, 1, 0);
-            }
-        } else {
-            emit BattleResultDraw(damage0);
-        }
-        numRound++;
-        if (numRound == MAX_ROUND) {
-            if (winCount[0] > winCount[1] {
-                _settleBattle(0);
-                emit BattleSettled(numRounds - 1, 0, 1, winCount[0], winCount[1]);
-            } else if (winCount[0] < winCount[1]) {
-                _settleBattle(1);
-                emit BattleSettled(numRounds - 1, 1, 0, winCount[1], winCount[0]);
-            } else {
-                emit BattleSettledDraw(numRounds - 1, winCount[0]);
-            }
-        }
-    }
+    /// @notice Function to calculate the damage of the character.
+    /// @param playerId: the identifier of the player. Alice or Bob.
+    function _calcDamage(uint8 playerId) internal view returns (uint8) {
+        require(
+            playerId == PlayerId.Alice || playerId == PlayerId.Bob,
+            "Invalid playerId."
+        );
 
-    function _settleBattle(uint8 winnerIdx) internal onlyDealer readyForBattle payable {
-        playerState[0] = PlayerState.RoundSettled;
-        playerState[1] = PlayerState.RoundSettled;
-        uint8 loserIdx = winnerIdx == 0? 1: 0;
+        Choice calldata choice = choiceCommitLog[numRounds][playerId].choice;
 
-        // Send MATIC from loser to winner.
-        plmToken.transferFrom(playerAddress[loser], playerAddress[winnerIdx], amount);
-
-        // Send MATIC from dealer to winner.
-        plmToken.transferFrom(dealer, playerAddress[winnerIdx], amount);
-
-    }
-
-    /// @notice Function to calculate the damage of the monster.
-    /// @param playerIdx: the index used to designate the player. 0 or 1.
-    /// @return damage: damage of the character selected by the player designated by playerIdx in this round.
-    function _calcDamage(uint8 playerIdx) internal returns (uint8 damage) {
-        require(playerIdx == 0 || playerIdx == 1, "Invalid playerIdx.");
-
-        Choice calldata choice = commitLog[playerIdx].choice;
-
-        uint256 characterId;
-        if (choice == Choice.Fixed1) {
-            characterId = parties[playerIdx].fixedSlotId1;
-        } else if (choice == Choice.Fixed2) {
-            characterId = parties[playerIdx].fixedSlotId2;
-        } else if (choice == Choice.Fixed3) {
-            characterId = parties[playerIdx].fixedSlotId3;
-        } else if (choice == Choice.Fixed4) {
-            characterId = parties[playerIdx].fixedSlotId4;
-        } else if (choice == Choice.Random1) {
-            characterId = parties[playerIdx].randomSlotId1;
-        } else if (choice == Choice.Random2) {
-            characterId = parties[playerIdx].randomSlotId2;
-        } else {
+        uint256 tokenId;
+        if (choice == Choice.Random) {
+            // Player's choice is random slot.
+            // TODO
+            tokenId = 0;
+        } else if (choice == Choice.Secret) {
             revert("Unreachable !");
+        } else {
+            // Player's choice is in fixed slots.
+            tokenId = _getFixedSlotTokenId(uint8(choice));
         }
-
         IPLMToken.characterInfo charInfo = PLMToken.getCharacterInfo(tokenId);
 
         // TODO: implement the damage logic later.
         return charInfo.level;
+    }
+
+    function _getRandomSlotState(PlayerId playerId)
+        internal
+        view
+        returns (RandomSlotState)
+    {
+        return playerInfoTable[playerId].randomSlot.state;
+    }
+
+    function _getPlayerState(PlayerId playerId)
+        internal
+        view
+        returns (PlayerId)
+    {
+        return playerInfoTable[playerId].state;
+    }
+
+    function _getPlayerAddress(PlayerId playerId)
+        internal
+        view
+        returns (address)
+    {
+        return playerInfoTable[playerId].addr;
+    }
+
+    function _getFixedSlotTokenId(uint8 fixedSlotIdx)
+        internal
+        view
+        returns (uint256)
+    {
+        require(fixedSlotIdx <= 4, "Invalid fixed slot index.");
+        return playerInfoTable[playerId].fixedSlots[uint8(choice)];
     }
 }
