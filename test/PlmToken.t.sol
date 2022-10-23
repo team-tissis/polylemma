@@ -13,14 +13,18 @@ contract PLMTokenTest is Test {
     // EOA
     address minter = address(101);
 
-    PLMSeeder seederContract = new PLMSeeder();
-    PLMData dataContract = new PLMData();
+    PLMSeeder seederContract;
+    PLMData dataContract;
     PLMToken token;
 
-    IPLMSeeder seeder = IPLMSeeder(address(seederContract));
-    IPLMData data = IPLMData(address(dataContract));
+    IPLMSeeder seeder;
+    IPLMData data;
 
     function setUp() public {
+        dataContract = new PLMData();
+        seederContract = new PLMSeeder();
+        seeder = IPLMSeeder(address(seederContract));
+        data = IPLMData(address(dataContract));
         token = new PLMToken(minter, seeder, data, 10000);
     }
 
