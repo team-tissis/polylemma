@@ -416,7 +416,8 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             // Player's choice is random slot.
             tokenId = seeder.getRandomSlotTokenId(
                 _getNonce(playerId),
-                _getPlayerSeed(playerId)
+                _getPlayerSeed(playerId),
+                token
             );
         } else if (choice == Choice.Secret) {
             revert("Unreachable !");
