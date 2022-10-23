@@ -85,7 +85,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         );
         require(
             _getPlayerState(playerId) == PlayerState.Revealed &&
-                choiceCommitLog[numRounds][playerId] == Choice.Random,
+                choiceCommitLog[numRounds][playerId].choice == Choice.Random,
             "The choice of the player has not been revealed or it is not randomSlot."
         );
         _;
@@ -111,11 +111,20 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
     }
 
     /// @notice Check that both players have already revealed in this round.
-    modifier readyForBattle() {
+    modifier readyForRoundSettlement() {
         require(
             _getPlayerState(PlayerId.Alice) == PlayerState.Revealed &&
                 _getPlayerState(PlayerId.Bob) == PlayerState.Revealed,
             "Both palyes have to reveal their choices before executing the battle."
+        );
+        _;
+    }
+
+    /// @notice Check that this battle is ready for settlement.
+    modifier readyForBattleSettlement() {
+        require(
+            battleState == BattleState.RoundSettled,
+            "This battle is ongoing."
         );
         _;
     }
@@ -144,7 +153,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         // Save commitment on the storage. The playerSeed of the player is hidden in the commit phase.
         playerSeedCommitLog[playerId] = PlayerSeedCommitment(
             commitString,
-            bytes(0)
+            bytes32(0)
         );
 
         // Emit the event that tells frontend that the player designated by playerId has committed.
@@ -161,6 +170,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         emit RandomSlotNounceGenerated(playerId, nonce);
 
         playerInfoTable[playerId].randomSlot.nonce = nonce;
+        playerInfoTable[playerId].randomSlot.nonceSet = true;
 
         // If both players have already committed their player seeds, start the battle.
         PlayerId enemyId = playerId == PlayerId.Alice
@@ -173,7 +183,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
 
     /// @param playerId: the identifier of the player. Alice or Bob.
     /// @param playerSeed: the choice the player designated by playerId committed in this round.
-    ///                    bytes(0) is not allowed.
+    ///                    bytes32(0) is not allowed.
     /// @param bindingFactor: the secret factor (one-time) used in the generation of the commitment.
     /// @dev bindingFactor should be used only once. Reusing bindingFactor results in the security
     ///      vulnerability.
@@ -188,10 +198,10 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         onlyPlayerOfIdx(playerId)
         readyForPlayerSeedRevealment(playerId)
     {
-        // playerSeed is not allowed to be bytes(0).
+        // playerSeed is not allowed to be bytes32(0).
         require(
-            playerSeed != bytes(0),
-            "bytes(0) is not allowed for playerSeed."
+            playerSeed != bytes32(0),
+            "bytes32(0) is not allowed for playerSeed."
         );
 
         // The pointer to the commit log of the player designated by playerId.
@@ -229,7 +239,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
     {
         // Check that the player who want to commit haven't committed yet in this round.
         require(
-            _getPlayerState(playerId) == PlayerState.RoundStarted,
+            _getPlayerState(playerId) == PlayerState.Preparing,
             "This player is not in the state to commit in this round."
         );
 
@@ -282,6 +292,19 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             "Commit hash doesn't coincide."
         );
 
+        // Check that the chosen slot hasn't been used yet.
+        if (choice == Choice.Random) {
+            require(
+                !_getRandomSlotUsedFlag(playerId),
+                "Random slot has already been used in the previous round."
+            );
+        } else {
+            require(
+                !_getFixedSlotUsedFlag(playerId, uint8(choice)),
+                "Designated fixed slot has already been used in the previous round."
+            );
+        }
+
         // Execute revealment
         choiceCommitment.choice = choice;
 
@@ -292,30 +315,135 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         playerInfoTable[playerId].state = PlayerState.Revealed;
     }
 
+    /// @notice Function to execute the current round.
+    function stepRound()
+        external
+        nonReentrant
+        onlyDealer
+        roundStarted
+        readyForRoundSettlement
+    {
+        // Mark the slot as used.
+        _markSlot(PlayerId.Alice);
+        _markSlot(PlayerId.Bob);
+
+        // Calculate the damage of both players.
+        uint8 damageAlice = _calcDamage(PlayerId.Alice);
+        uint8 damageBob = _calcDamage(PlayerId.Bob);
+
+        if (damageAlice > damageBob) {
+            // Alice wins !!
+            playerInfoTable[PlayerId.Alice].winCount++;
+
+            emit RoundResult(
+                numRounds,
+                false,
+                PlayerId.Alice,
+                PlayerId.Bob,
+                damageAlice,
+                damageBob
+            );
+        } else if (damageAlice < damageBob) {
+            // Bob wins !!
+            playerInfoTable[PlayerId.Bob].winCount++;
+
+            emit RoundResult(
+                numRounds,
+                false,
+                PlayerId.Bob,
+                PlayerId.Alice,
+                damageBob,
+                damageAlice
+            );
+        } else {
+            // Draw !!
+            emit RoundResult(
+                numRounds,
+                true,
+                PlayerId.Alice,
+                PlayerId.Bob,
+                damageAlice,
+                damageBob
+            );
+        }
+
+        // Increment the round number.
+        numRounds++;
+        if (
+            _getWinCount(PlayerId.Alice) == WIN_COUNT ||
+            _getWinCount(PlayerId.Bob) == WIN_COUNT ||
+            numRounds == MAX_ROUNDS
+        ) {
+            // This battle ends.
+            battleState = BattleState.RoundSettled;
+            _settleBattle();
+            return;
+        }
+
+        // Reset the player states.
+        playerInfoTable[PlayerId.Alice].state = PlayerState.Preparing;
+        playerInfoTable[PlayerId.Bob].state = PlayerState.Preparing;
+    }
+
+    /// @notice Function to finalize the battle.
+    /// @dev reward is paid from dealer to the winner of this battle.
+    function _settleBattle() internal onlyDealer readyForBattleSettlement {}
+
+    /// @notice Function to mark the slot used in the current round as used.
+    function _markSlot(PlayerId playerId) internal {
+        Choice choice = choiceCommitLog[numRounds][playerId].choice;
+        if (choice == Choice.Random) {
+            playerInfoTable[playerId].randomSlot.used = true;
+        } else if (choice == Choice.Secret) {
+            revert("Unreachable!");
+        } else {
+            playerInfoTable[playerId].slotsUsed[uint8(choice)] = true;
+        }
+    }
+
     /// @notice Function to calculate the damage of the character.
     /// @param playerId: the identifier of the player. Alice or Bob.
-    function _calcDamage(uint8 playerId) internal view returns (uint8) {
+    function _calcDamage(PlayerId playerId) internal view returns (uint8) {
         require(
             playerId == PlayerId.Alice || playerId == PlayerId.Bob,
             "Invalid playerId."
         );
 
-        Choice calldata choice = choiceCommitLog[numRounds][playerId].choice;
+        Choice choice = choiceCommitLog[numRounds][playerId].choice;
 
         uint256 tokenId;
         if (choice == Choice.Random) {
             // Player's choice is random slot.
-            // TODO
-            tokenId = 0;
+            tokenId = seeder.getRandomSlotTokenId(
+                _getNonce(playerId),
+                _getPlayerSeed(playerId)
+            );
         } else if (choice == Choice.Secret) {
             revert("Unreachable !");
         } else {
             // Player's choice is in fixed slots.
-            tokenId = _getFixedSlotTokenId(uint8(choice));
+            tokenId = _getFixedSlotTokenId(playerId, uint8(choice));
         }
-        IPLMToken.characterInfo charInfo = PLMToken.getCharacterInfo(tokenId);
 
-        // TODO: implement the damage logic later.
+        // Retrieve the character information.
+        IPLMToken.CharacterInfo memory charInfo = token.getCharacterInfo(
+            tokenId
+        );
+
+        if (choice == Choice.Random) {
+            charInfo.level = _getRandomSlotLevel(playerId);
+        }
+
+        return _calcDamageInternal(charInfo);
+    }
+
+    /// @notice Core logic to calculate damage from character's level and attributes.
+    function _calcDamageInternal(IPLMToken.CharacterInfo memory charInfo)
+        internal
+        view
+        returns (uint8)
+    {
+        // TODO
         return charInfo.level;
     }
 
@@ -327,10 +455,46 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         return playerInfoTable[playerId].randomSlot.state;
     }
 
+    function _getRandomSlotLevel(PlayerId playerId)
+        internal
+        view
+        returns (uint8)
+    {
+        return playerInfoTable[playerId].randomSlot.level;
+    }
+
+    function _getRandomSlotUsedFlag(PlayerId playerId)
+        internal
+        view
+        returns (bool)
+    {
+        return playerInfoTable[playerId].randomSlot.used;
+    }
+
+    function _getNonce(PlayerId playerId) internal view returns (bytes32) {
+        require(
+            playerInfoTable[playerId].randomSlot.nonceSet,
+            "Nonce hasn't been set."
+        );
+        return playerInfoTable[playerId].randomSlot.nonce;
+    }
+
+    function _getWinCount(PlayerId playerId) internal view returns (uint8) {
+        return playerInfoTable[playerId].winCount;
+    }
+
+    function _getPlayerSeed(PlayerId playerId) internal view returns (bytes32) {
+        require(
+            _getRandomSlotState(playerId) == RandomSlotState.Revealed,
+            "random slot hasn't been revealed yet."
+        );
+        return playerSeedCommitLog[playerId].playerSeed;
+    }
+
     function _getPlayerState(PlayerId playerId)
         internal
         view
-        returns (PlayerId)
+        returns (PlayerState)
     {
         return playerInfoTable[playerId].state;
     }
@@ -343,12 +507,21 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         return playerInfoTable[playerId].addr;
     }
 
-    function _getFixedSlotTokenId(uint8 fixedSlotIdx)
+    function _getFixedSlotTokenId(PlayerId playerId, uint8 fixedSlotIdx)
         internal
         view
         returns (uint256)
     {
-        require(fixedSlotIdx <= 4, "Invalid fixed slot index.");
-        return playerInfoTable[playerId].fixedSlots[uint8(choice)];
+        require(fixedSlotIdx < 4, "Invalid fixed slot index.");
+        return playerInfoTable[playerId].fixedSlots[fixedSlotIdx];
+    }
+
+    function _getFixedSlotUsedFlag(PlayerId playerId, uint8 fixedSlotIdx)
+        internal
+        view
+        returns (bool)
+    {
+        require(fixedSlotIdx < 4, "Invalid fixed slot index.");
+        return playerInfoTable[playerId].slotsUsed[fixedSlotIdx];
     }
 }

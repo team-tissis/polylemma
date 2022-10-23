@@ -20,6 +20,7 @@ interface IPLMBattleField {
     struct RandomSlot {
         uint8 level;
         bytes32 nonce;
+        bool nonceSet;
         bool used;
         RandomSlotState state;
     }
@@ -39,10 +40,9 @@ interface IPLMBattleField {
 
     /// @notice Players' states in each round.
     enum PlayerState {
-        RoundStarted, // 0
+        Preparing, // 0
         Committed, // 1
-        Revealed, // 2
-        RoundSettled // 3
+        Revealed // 2
     }
 
     /// @notice Enum to represent player's choice of the character fighting in the next round.
@@ -69,7 +69,11 @@ interface IPLMBattleField {
 
     event PlayerSeedCommitted(PlayerId playerId);
     event RandomSlotNounceGenerated(PlayerId playerId, bytes32 nonce);
-    event PlayerSeedRevealed(PlayerId playerId, bytes32 playerSeed);
+    event PlayerSeedRevealed(
+        uint8 numRounds,
+        PlayerId playerId,
+        bytes32 playerSeed
+    );
     event ChoiceCommitted(uint8 numRounds, PlayerId playerId);
     event ChoiceRevealed(uint8 numRounds, PlayerId playerId, Choice choice);
     event RoundResult(
