@@ -5,15 +5,11 @@ import {IPLMData} from "./interfaces/IPLMData.sol";
 import {IPLMToken} from "./interfaces/IPLMToken.sol";
 
 contract PLMSeeder is IPLMSeeder {
-    IPLMData data;
-    IPLMToken token;
-
-    constructor(IPLMData _data, IPLMToken _token) {
-        data = _data;
-        token = _token;
-    }
-
-    function generateSeed(uint256 tokenId)
+    /// @notice generate seeds for character mint
+    /// @dev generate seeds of traits from current-block's hash for to mint character
+    /// @param tokenId tokenId to be minted
+    /// @return Seed the struct of trait seed that is indexId of trait array
+    function generateSeed(uint256 tokenId, IPLMData data)
         external
         view
         override
@@ -33,7 +29,8 @@ contract PLMSeeder is IPLMSeeder {
             });
     }
 
-    // TODO: this requirement is not right
+    /// @notice generate nonce to be used as input of hash for randomSlotTokenId
+    /// @dev generate nonce to be used as input of hash for randomSlotTokenId
     function generateRandomSlotNonce()
         external
         view
@@ -56,13 +53,18 @@ contract PLMSeeder is IPLMSeeder {
             );
     }
 
-    function getRandomSlotTokenId(bytes32 nonce, bytes32 playerSeed)
-        external
-        returns (uint256 tokenId)
-    {
+    /// @notice create tokenId for randomslot without being searched
+    /// @dev create tokenId for randomslot without being searched
+    /// @param nonce : this prevent players from searching in input space
+    /// @return tokenId : tokenId of randomslot
+    function getRandomSlotTokenId(
+        bytes32 nonce,
+        bytes32 playerSeed,
+        IPLMToken token
+    ) external view returns (uint256 tokenId) {
         tokenId =
             uint256(keccak256(abi.encodePacked(nonce, playerSeed))) %
-            token.getTotalSupply();
+            token.totalSupply();
         return tokenId;
     }
 }
