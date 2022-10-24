@@ -3,6 +3,7 @@ pragma solidity ^0.8.17;
 
 import {IPLMToken} from "./interfaces/IPLMToken.sol";
 import {IPLMSeeder} from "./interfaces/IPLMSeeder.sol";
+import {IPLMData} from "./interfaces/IPLMData.sol";
 import {IPLMBattleField} from "./interfaces/IPLMBattleField.sol";
 
 import {ReentrancyGuard} from "openzeppelin-contracts/security/ReentrancyGuard.sol";
