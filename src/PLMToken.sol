@@ -13,6 +13,7 @@ import {ERC20} from "openzeppelin-contracts/token/ERC20/ERC20.sol";
 contract PLMToken is ERC721Enumerable, IPLMToken {
     using Counters for Counters.Counter;
 
+    address dealer;
     address minter;
     uint256 maxSupply;
     IPLMSeeder seeder;
@@ -28,6 +29,14 @@ contract PLMToken is ERC721Enumerable, IPLMToken {
     // address => public key
     mapping(address => bytes32) publicKeys;
 
+    modifier onlyDealer() {
+        require(
+            msg.sender == dealer,
+            "Permission denied. Sender is not dealer."
+        );
+        _;
+    }
+
     modifier onlyMinter() {
         require(
             msg.sender == minter,
@@ -41,11 +50,13 @@ contract PLMToken is ERC721Enumerable, IPLMToken {
     // }
 
     constructor(
+        address _dealer,
         address _minter,
         IPLMSeeder _seeder,
         IPLMData _data,
         uint256 _maxSupply
     ) ERC721("Polylemma", "PLM") {
+        dealer = _dealer;
         minter = _minter;
         seeder = _seeder;
         data = _data;
@@ -56,6 +67,11 @@ contract PLMToken is ERC721Enumerable, IPLMToken {
     function mint() public onlyMinter returns (uint256) {
         currentTokenId++;
         return _mintTo(minter, currentTokenId);
+    }
+
+    function burn(uint256 tokenId) public onlyMinter {
+        _burn(tokenId);
+        // TODO: event
     }
 
     function getCharacterInfo(uint256 tokenId)
@@ -80,6 +96,10 @@ contract PLMToken is ERC721Enumerable, IPLMToken {
             allCharacterInfos[i] = characterInfos[i];
         }
         return allCharacterInfos;
+    }
+
+    function setMinter(address newMinter) external onlyDealer {
+        minter = newMinter;
     }
 
     /// descript how is the token minted

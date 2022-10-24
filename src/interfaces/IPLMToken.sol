@@ -12,6 +12,8 @@ interface IPLMToken is IERC721, IERC721Enumerable {
 
     function mint() external returns (uint256);
 
+    function burn(uint256 tokenId) external;
+
     function getAllCharacterInfo() external returns (CharacterInfo[] calldata);
 
     // TODO: define in PLMToken.sol
@@ -19,6 +21,8 @@ interface IPLMToken is IERC721, IERC721Enumerable {
         external
         view
         returns (CharacterInfo calldata);
+
+    function setMinter(address newMinter) external;
 
     // function burn() external;
 }

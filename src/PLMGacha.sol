@@ -8,10 +8,11 @@ import {IPLMGacha} from "./interfaces/IPLMGacha.sol";
 import {ReentrancyGuard} from "openzeppelin-contracts/security/ReentrancyGuard.sol";
 
 contract PLMGacha is IPLMGacha, ReentrancyGuard {
-    IPLMToken public PLMToken;
-    IPLMCoin public PLMCoin;
+    IPLMToken public token;
+    IPLMCoin public coin;
 
     address dealer;
+    address treasury;
 
     uint256 gachaPayment;
 
@@ -21,20 +22,36 @@ contract PLMGacha is IPLMGacha, ReentrancyGuard {
     }
 
     constructor(
-        IPLMToken _PLMToken,
-        IPLMCoin _PLMCoin,
+        IPLMToken _token,
+        IPLMCoin _coin,
+        address _treasury,
         uint256 _gachaPayment
     ) {
-        PLMToken = _PLMToken;
-        PLMCoin = _PLMCoin;
+        token = _token;
+        coin = _coin;
+        treasury = _treasury;
         gachaPayment = _gachaPayment;
     }
 
     function gacha() external nonReentrant returns (uint256) {
-        // require(PLMCoin.balanceOf(msg.sender)<);
-        try PLMToken.mint() returns (uint256 tokenId) {
-            emit CharacterRecievedByUser(tokenId);
-            return tokenId;
+        require(coin.allowance(msg.sender, address(this)) >= gachaPayment);
+        require(coin.balanceOf(msg.sender) >= gachaPayment);
+        // TODO: require battle proposal
+        return _gacha();
+    }
+
+    function _gacha() internal returns (uint256) {
+        try token.mint() returns (uint256 tokenId) {
+            try coin.transferFrom(msg.sender, treasury, gachaPayment) {
+                token.transferFrom(address(this), msg.sender, tokenId);
+                // TODO: should also emit characterinfo
+                emit CharacterRecievedByUser(tokenId);
+                return tokenId;
+            } catch Error(string memory) {
+                token.burn(tokenId);
+                // TODO:emit gacha payment failed
+                return 0;
+            }
         } catch Error(string memory) {
             return 0;
         }
