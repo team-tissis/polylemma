@@ -54,7 +54,8 @@ contract PLMToken is ERC721Enumerable, IPLMToken {
 
     // TODO: minterにgachaコントラクトアドレスをセットすることで、gachaからしかmintできないようにする。
     function mint() public onlyMinter returns (uint256) {
-        return _mintTo(minter, currentTokenId++);
+        currentTokenId++;
+        return _mintTo(minter, currentTokenId);
     }
 
     function getCharacterInfo(uint256 tokenId)
