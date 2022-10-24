@@ -443,7 +443,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
     /// @notice Core logic to calculate damage from character's level and attributes.
     function _calcDamageInternal(IPLMToken.CharacterInfo memory charInfo)
         internal
-        view
+        pure
         returns (uint8)
     {
         // TODO
