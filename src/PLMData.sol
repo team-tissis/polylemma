@@ -2,6 +2,7 @@
 pragma solidity ^0.8.17;
 
 import {IPLMData} from "./interfaces/IPLMData.sol";
+import {IPLMToken} from "./interfaces/IPLMToken.sol";
 
 contract PLMData is IPLMData {
     // TODO: monsterblocksのmonster名で仮置きした
@@ -68,5 +69,13 @@ contract PLMData is IPLMData {
 
     function numOddsAbility() external view returns (uint256) {
         return abilityOdds.length;
+    }
+
+    // TODO: 一旦ダメージはそのままレヴェルを返す
+    function calcBattleResult(
+        IPLMToken.CharacterInfo calldata aliceChar,
+        IPLMToken.CharacterInfo calldata bobChar
+    ) external view returns (uint8, uint8) {
+        return (aliceChar.level, bobChar.level);
     }
 }
