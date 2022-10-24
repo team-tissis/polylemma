@@ -20,7 +20,11 @@ contract PLMGacha is IPLMGacha, ReentrancyGuard {
         _;
     }
 
-    constructor(IPLMToken _PLMToken, IPLMCoin _PLMCoin, uint256 _gachaPayment) {
+    constructor(
+        IPLMToken _PLMToken,
+        IPLMCoin _PLMCoin,
+        uint256 _gachaPayment
+    ) {
         PLMToken = _PLMToken;
         PLMCoin = _PLMCoin;
         gachaPayment = _gachaPayment;
