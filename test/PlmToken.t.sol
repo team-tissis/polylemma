@@ -11,6 +11,7 @@ import {IPLMData} from "../src/interfaces/IPLMData.sol";
 
 contract PLMTokenTest is Test {
     // EOA
+    address dealer = address(1);
     address minter = msg.sender;
 
     PLMSeeder seederContract;
@@ -26,7 +27,7 @@ contract PLMTokenTest is Test {
         seeder = IPLMSeeder(address(seederContract));
         data = IPLMData(address(dataContract));
         uint256 maxSupply = 10000;
-        token = new PLMToken(minter, seeder, data, maxSupply);
+        token = new PLMToken(dealer, minter, seeder, data, maxSupply);
     }
 
     function testMint() public {
