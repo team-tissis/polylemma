@@ -1,3 +1,5 @@
+import {IPLMToken} from "../interfaces/IPLMToken.sol";
+
 interface IPLMData {
     function getCharacterTypes() external view returns (string[] memory);
 
@@ -16,4 +18,9 @@ interface IPLMData {
     function getAbilityOdds() external view returns (uint8[] calldata abilityOdds);
 
     function numOddsAbility() external view returns (uint256);
+
+    function calcBattleResult(
+        IPLMToken.CharacterInfo aliceChar,
+        IPLMToken.CharacterInfo bobChar
+    ) external view returns (uint8 aliceDamage, uint8 bobDamage);
 }
