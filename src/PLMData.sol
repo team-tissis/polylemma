@@ -75,7 +75,22 @@ contract PLMData is IPLMData {
     function calcBattleResult(
         IPLMToken.CharacterInfo calldata aliceChar,
         IPLMToken.CharacterInfo calldata bobChar
-    ) external view returns (uint8, uint8) {
+    ) external pure returns (uint8, uint8) {
         return (aliceChar.level, bobChar.level);
+    }
+
+    // TODO: 一旦レベルポイントは最大値をそのまま返す。
+    function calcLevelPoint(IPLMToken.CharacterInfo[4] calldata charInfos)
+        external
+        pure
+        returns (uint8)
+    {
+        uint8 maxLevel = 0;
+        for (uint8 i = 0; i < 4; i++) {
+            if (charInfos[i].level > maxLevel) {
+                maxLevel = charInfos[i].level;
+            }
+        }
+        return maxLevel;
     }
 }
