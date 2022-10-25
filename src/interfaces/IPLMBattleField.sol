@@ -100,7 +100,6 @@ interface IPLMBattleField {
         uint8 winCount,
         uint8 loseCount
     );
-    event BattleCanceled();
 
     // Events for cheater detection.
     event ExceedingLevelPointCheatDetected(
@@ -109,6 +108,13 @@ interface IPLMBattleField {
         uint8 cheaterLevelPoint
     );
     event ReusingUsedSlotCheatDetected(PlayerId cheater, Choice targetSlot);
+
+    // Events for lazy player detection.
+    event TimeOutAtPlayerSeedCommitDetected(PlayerId lazyPlayer);
+    event TimeOutAtChoiceCommitDetected(uint8 numRounds, PlayerId lazyPlayer);
+    event TimeOutAtChoiceRevealDetected(uint8 numRounds, PlayerId lazyPlayer);
+
+    error BattleCanceled(PlayerId cause);
 
     function commitPlayerSeed(PlayerId playerId, bytes32 commitString) external;
 
@@ -126,4 +132,13 @@ interface IPLMBattleField {
         Choice choice,
         bytes32 bindingFactor
     ) external;
+
+    function startBattle(
+        address aliceAddr,
+        address bobAddr,
+        uint256[4] calldata aliceFixedSlots,
+        uint256[4] calldata bobFixedSlots
+    ) external;
+
+    function settleBattle() external;
 }
