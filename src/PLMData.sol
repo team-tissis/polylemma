@@ -56,7 +56,7 @@ contract PLMData is IPLMData {
     // TODO: not defined yet
     function calcRarity(uint8 characterId, uint8[1] calldata abilityIds)
         external
-        view
+        pure
         override
         returns (uint8)
     {
@@ -66,10 +66,10 @@ contract PLMData is IPLMData {
     // TODO: calc with exp table
     function calcNecessaryExp(IPLMToken.CharacterInfo calldata charInfo)
         external
-        view
+        pure
         returns (uint256)
     {
-        return charInfo.level;
+        return charInfo.level**3;
     }
 
     function numOddsCharacterType() external view returns (uint256) {
