@@ -2,7 +2,7 @@
 pragma solidity ^0.8.17;
 
 import {IPLMToken} from "./interfaces/IPLMToken.sol";
-import {IPLMCoin} from "./intefaces/IPLMCoin.sol";
+import {IPLMCoin} from "./interfaces/IPLMCoin.sol";
 import {IPLMSeeder} from "./interfaces/IPLMSeeder.sol";
 import {IPLMData} from "./interfaces/IPLMData.sol";
 import {Counters} from "openzeppelin-contracts/utils/Counters.sol";
