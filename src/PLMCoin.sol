@@ -24,7 +24,7 @@ contract PLMCoin is ERC20, IPLMCoin {
         return subscExpiredPoint[account];
     }
 
-    function banUser(address account, uint256 banPeriod) external {
+    function banAccount(address account, uint256 banPeriod) external {
         subscExpiredPoint[account] -= banPeriod;
     }
 }
