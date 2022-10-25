@@ -11,12 +11,12 @@ interface IPLMData {
 
     function calcRarity(uint8 characterId, uint8[1] calldata abilityIds)
         external
-        view
+        pure
         returns (uint8);
 
     function calcNecessaryExp(IPLMToken.CharacterInfo calldata charInfo)
         external
-        view
+        pure
         returns (uint256);
 
     function getCharacterTypeOdds()
