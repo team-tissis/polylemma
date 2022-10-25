@@ -63,7 +63,7 @@ contract PLMData is IPLMData {
         return 0;
     }
 
-    // TODO: calc with exp table
+    // This logic is derived from Pokemon
     function calcNecessaryExp(IPLMToken.CharacterInfo calldata charInfo)
         external
         pure
