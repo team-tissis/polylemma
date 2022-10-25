@@ -100,6 +100,7 @@ interface IPLMBattleField {
         uint8 winCount,
         uint8 loseCount
     );
+    event BattleCanceled();
 
     // Events for cheater detection.
     event ExceedingLevelPointCheatDetected(
