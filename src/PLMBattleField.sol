@@ -17,6 +17,21 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
     /// @notice The number of the maximum round.
     uint8 constant MAX_ROUNDS = 5;
 
+    /// @notice The number of blocks generated per day.
+    uint256 constant DAILY_BLOCK_NUM = 43200;
+
+    /// @notice The length of the dates to ban cheater account.
+    uint256 constant BAN_DATE_LENGTH = 3;
+
+    /// @notice The limit of playerSeed commitment for each player. About 30 seconds.
+    uint256 constant PLAYER_SEED_COMMIT_TIME_LIMIT = 15;
+
+    /// @notice The limit of commitment for each player. About 30 seconds.
+    uint256 constant CHOICE_COMMIT_TIME_LIMIT = 15;
+
+    /// @notice The limit of revealment for each player. About 30 seconds.
+    uint256 constant CHOICE_REVEAL_TIME_LIMIT = 15;
+
     /// @notice interface to the dealer of polylemma.
     IPLMDealer dealer;
 
@@ -328,7 +343,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             );
 
             // End this match and ban the player designated by playerId.
-            _killCheater(playerId);
+            _banCheater(playerId);
             return;
         }
 
@@ -345,7 +360,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             emit ReusingUsedSlotCheatDetected(playerId, choice);
 
             // End this match and ban the player designated by playerId.
-            _killCheater(playerId);
+            _banCheater(playerId);
             return;
         }
 
@@ -438,8 +453,17 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
 
     /// @notice Function to kill the cheater
     /// @dev Ban the account (subtract constant block number from the subscribing period limit.)
-    function _killCheater(PlayerId playerId) internal {
-        // TODO: reduce the subscribing period to ban the cheater account.
+    function _banCheater(PlayerId playerId) internal {
+        // Reduce the subscribing period to ban the cheater account.
+        coin.banAccount(
+            _getPlayerAddress(playerId),
+            DAILY_BLOCK_NUM * BAN_DATE_LENGTH
+        );
+
+        // Cancel this battle.
+        battleState = BattleState.Settled;
+
+        emit BattleCanceled();
     }
 
     /// @notice Function to finalize the battle.
