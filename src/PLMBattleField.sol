@@ -21,7 +21,10 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
     uint256 constant DAILY_BLOCK_NUM = 43200;
 
     /// @notice The length of the dates to ban cheater account.
-    uint256 constant BAN_DATE_LENGTH = 3;
+    uint256 constant BAN_DATE_LENGTH_FOR_CHEATER = 10;
+
+    /// @notice The length of the dates to ban lazy account.
+    uint256 constant BAN_DATE_LENGTH_FOR_LAZY_ACCOUNT = 2;
 
     /// @notice The limit of playerSeed commitment for each player. About 30 seconds.
     uint256 constant PLAYER_SEED_COMMIT_TIME_LIMIT = 15;
@@ -52,6 +55,15 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
 
     /// @notice number of rounds. (< MAX_ROUNDS)
     uint8 numRounds;
+
+    /// @notice block number when playerSeed commitment starts.
+    uint256 playerSeedCommitStartPoint;
+
+    /// @notice block number log when choice committment starts for all rounds.
+    mapping(uint8 => uint256) choiceCommitStartPoints;
+
+    /// @notice block number log when choice revealment starts for all rounds.
+    mapping(uint8 => uint256) choiceRevealStartPoints;
 
     /// @notice commitment log for all rounds.
     /// @dev The key is numRounds.
@@ -189,6 +201,21 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             "The playerSeed has already set."
         );
 
+        // Check that player seed commitment is in time.
+        if (
+            block.number >
+            playerSeedCommitStartPoint + PLAYER_SEED_COMMIT_TIME_LIMIT
+        ) {
+            emit TimeOutAtPlayerSeedCommitDetected(playerId);
+
+            // ban the lazy player.
+            _banLazyPlayer(playerId);
+
+            // Cancel this battle.
+            battleState = BattleState.Settled;
+            revert BattleCanceled(playerId);
+        }
+
         // Save commitment on the storage. The playerSeed of the player is hidden in the commit phase.
         playerSeedCommitLog[playerId] = PlayerSeedCommitment(
             commitString,
@@ -218,6 +245,9 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         if (_getRandomSlotState(enemyId) == RandomSlotState.Committed) {
             battleState = BattleState.RoundStarted;
         }
+
+        // Set the block number when the round starts.
+        choiceCommitStartPoints[numRounds] = block.number;
     }
 
     /// @param playerId: the identifier of the player. Alice or Bob.
@@ -281,6 +311,21 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             "This player is not in the state to commit in this round."
         );
 
+        // Check that choice commitment is in time.
+        if (
+            block.number >
+            choiceCommitStartPoints[numRounds] + CHOICE_COMMIT_TIME_LIMIT
+        ) {
+            emit TimeOutAtChoiceCommitDetected(numRounds, playerId);
+
+            // ban the lazy player.
+            _banLazyPlayer(playerId);
+
+            // Cancel this battle.
+            battleState = BattleState.Settled;
+            revert BattleCanceled(playerId);
+        }
+
         // Save commitment on the storage. The choice of the player is hidden in the commit phase.
         choiceCommitLog[numRounds][playerId] = ChoiceCommitment(
             commitString,
@@ -293,6 +338,14 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
 
         // Update the state of the commit player to be committed.
         playerInfoTable[playerId].state = PlayerState.Committed;
+
+        PlayerId enemyId = playerId == PlayerId.Alice
+            ? PlayerId.Bob
+            : PlayerId.Alice;
+        if (_getPlayerState(enemyId) == PlayerState.Committed) {
+            // both players have already committed.
+            choiceRevealStartPoints[numRounds] = block.number;
+        }
     }
 
     /// @notice Reveal the committed choice by the player who committed it in this round.
@@ -320,6 +373,21 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             "Choice.Secret is not allowed when revealing."
         );
 
+        // Check that choice revealment is in time.
+        if (
+            block.number >
+            choiceRevealStartPoints[numRounds] + CHOICE_REVEAL_TIME_LIMIT
+        ) {
+            emit TimeOutAtChoiceRevealDetected(numRounds, playerId);
+
+            // ban the lazy player.
+            _banLazyPlayer(playerId);
+
+            // Cancel this battle.
+            battleState = BattleState.Settled;
+            revert BattleCanceled(playerId);
+        }
+
         // The pointer to the commit log of the player designated by playerId.
         ChoiceCommitment storage choiceCommitment = choiceCommitLog[numRounds][
             playerId
@@ -344,7 +412,10 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
 
             // End this match and ban the player designated by playerId.
             _banCheater(playerId);
-            return;
+
+            // Cancel this battle.
+            battleState = BattleState.Settled;
+            revert BattleCanceled(playerId);
         }
 
         // Subtract revealed levelPoint from remainingLevelPoint
@@ -361,7 +432,10 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
 
             // End this match and ban the player designated by playerId.
             _banCheater(playerId);
-            return;
+
+            // Cancel this battle.
+            battleState = BattleState.Settled;
+            revert BattleCanceled(playerId);
         }
 
         // Execute revealment
@@ -373,11 +447,18 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
 
         // Update the state of the reveal player to be Revealed.
         playerInfoTable[playerId].state = PlayerState.Revealed;
+
+        PlayerId enemyId = playerId == PlayerId.Alice
+            ? PlayerId.Bob
+            : PlayerId.Alice;
+        if (_getPlayerState(enemyId) == PlayerState.Revealed) {
+            _stepRound();
+        }
     }
 
     /// @notice Function to execute the current round.
-    function stepRound()
-        external
+    function _stepRound()
+        internal
         nonReentrant
         roundStarted
         readyForRoundSettlement
@@ -449,25 +530,41 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         // Reset the player states.
         playerInfoTable[PlayerId.Alice].state = PlayerState.Preparing;
         playerInfoTable[PlayerId.Bob].state = PlayerState.Preparing;
+
+        // Set the block number when the next round starts.
+        choiceCommitStartPoints[numRounds] = block.number;
     }
 
-    /// @notice Function to kill the cheater
+    /// @notice Function to ban the cheater
     /// @dev Ban the account (subtract constant block number from the subscribing period limit.)
     function _banCheater(PlayerId playerId) internal {
         // Reduce the subscribing period to ban the cheater account.
         coin.banAccount(
             _getPlayerAddress(playerId),
-            DAILY_BLOCK_NUM * BAN_DATE_LENGTH
+            DAILY_BLOCK_NUM * BAN_DATE_LENGTH_FOR_CHEATER
         );
 
         // Cancel this battle.
         battleState = BattleState.Settled;
+    }
 
-        emit BattleCanceled();
+    /// @notice Function to ban the lazy player
+    /// @dev Ban the account (subtract constant block number from the subscribing period limit.)
+    function _banLazyPlayer(PlayerId playerId) internal {
+        // Reduce the subscribing period to ban the cheater account.
+        coin.banAccount(
+            _getPlayerAddress(playerId),
+            DAILY_BLOCK_NUM * BAN_DATE_LENGTH_FOR_LAZY_ACCOUNT
+        );
     }
 
     /// @notice Function to finalize the battle.
     /// @dev reward is paid from dealer to the winner of this battle.
+    function settleBattle() external {
+        _settleBattle();
+    }
+
+    /// @notice Core logic to finalization of the battle.
     function _settleBattle() internal nonReentrant readyForBattleSettlement {
         uint8 aliceWinCount = _getWinCount(PlayerId.Alice);
         uint8 bobWinCount = _getWinCount(PlayerId.Bob);
@@ -487,6 +584,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
     }
 
     /// @notice Function to pay reward to the winner.
+    /// @dev This logic is derived from Pokemon.
     function _payRewards(PlayerId winner, PlayerId loser) internal {
         // Calculate the reward balance of the winner.
         uint16 winnerTotalLevel = _getTotalLevel(winner);
@@ -502,6 +600,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
     }
 
     /// @notice Function to pay reward to both players when draws.
+    /// @dev This logic is derived from Pokemon.
     function _payRewardsDraw() internal {
         // Calculate the reward balance of both players.
         uint16 aliceTotalLevel = _getTotalLevel(PlayerId.Alice);
@@ -521,12 +620,12 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
     }
 
     /// @notice Function to start the battle.
-    function _startBattle(
+    function startBattle(
         address aliceAddr,
         address bobAddr,
         uint256[4] calldata aliceFixedSlots,
         uint256[4] calldata bobFixedSlots
-    ) internal readyForBattleStart {
+    ) external readyForBattleStart {
         IPLMToken.CharacterInfo[4] memory aliceCharInfos;
         IPLMToken.CharacterInfo[4] memory bobCharInfos;
 
@@ -574,6 +673,9 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
 
         // Change battle state to wait for the playerSeed commitment.
         battleState = BattleState.Preparing;
+
+        // Set the block number when the battle has started.
+        playerSeedCommitStartPoint = block.number;
     }
 
     /// @notice Function to mark the slot used in the current round as used.
