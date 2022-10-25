@@ -36,5 +36,10 @@ interface IPLMData {
     function calcBattleResult(
         IPLMToken.CharacterInfo calldata aliceChar,
         IPLMToken.CharacterInfo calldata bobChar
-    ) external view returns (uint8 aliceDamage, uint8 bobDamage);
+    ) external pure returns (uint8 aliceDamage, uint8 bobDamage);
+
+    function calcLevelPoint(IPLMToken.CharacterInfo[4] calldata charInfos)
+        external
+        pure
+        returns (uint8 levelPoint);
 }

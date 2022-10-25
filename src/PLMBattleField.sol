@@ -4,6 +4,8 @@ pragma solidity ^0.8.17;
 import {IPLMToken} from "./interfaces/IPLMToken.sol";
 import {IPLMSeeder} from "./interfaces/IPLMSeeder.sol";
 import {IPLMData} from "./interfaces/IPLMData.sol";
+import {IPLMDealer} from "./interfaces/IPLMDealer.sol";
+import {IPLMCoin} from "./interfaces/IPLMCoin.sol";
 import {IPLMBattleField} from "./interfaces/IPLMBattleField.sol";
 
 import {ReentrancyGuard} from "openzeppelin-contracts/security/ReentrancyGuard.sol";
@@ -15,14 +17,20 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
     /// @notice The number of the maximum round.
     uint8 constant MAX_ROUNDS = 5;
 
-    /// @notice dealer's address of polylemma.
-    address payable dealer;
+    /// @notice interface to the dealer of polylemma.
+    IPLMDealer dealer;
 
     /// @notice interface to the characters' information.
     IPLMToken token;
 
     /// @notice interface to the seeder.
     IPLMSeeder seeder;
+
+    /// @notice interface to the character data.
+    IPLMData data;
+
+    /// @notice interface to the coin.
+    IPLMCoin coin;
 
     /// @notice state of the battle.
     BattleState battleState;
@@ -39,14 +47,6 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
 
     /// @notice players' information
     mapping(PlayerId => PlayerInfo) playerInfoTable;
-
-    modifier onlyDealer() {
-        require(
-            msg.sender == dealer,
-            "The caller of the function must be a dealer"
-        );
-        _;
-    }
 
     /// @notice Check whether the caller of the function is the valid account.
     /// @param playerId: The player's identifier.
@@ -130,10 +130,33 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         _;
     }
 
+    /// @notice Check that this battle is ready for start.
+    modifier readyForBattleStart() {
+        require(
+            battleState == BattleState.Settled,
+            "Battle is not ready for start."
+        );
+        _;
+    }
+
+    constructor(
+        IPLMDealer _dealer,
+        IPLMToken _PLMToken,
+        IPLMSeeder _PLMSeeder,
+        IPLMData _PLMData,
+        IPLMCoin _PLMCoin
+    ) {
+        dealer = _dealer;
+        token = _PLMToken;
+        seeder = _PLMSeeder;
+        data = _PLMData;
+        coin = _PLMCoin;
+    }
+
     /// @notice Commit the player's seed to generate the tokenId for random slot.
     /// @param playerId: the identifier of the player. Alice or Bob.
     /// @param commitString: commitment string calculated by the player designated by playerId
-    ///                      as keccak256(abi.encodePacked(msg.sender, choice, blindingFactor)).
+    ///                      as keccak256(abi.encodePacked(msg.sender, levelPoint, choice, blindingFactor)).
     function commitPlayerSeed(PlayerId playerId, bytes32 commitString)
         external
         nonReentrant
@@ -194,7 +217,6 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         bytes32 bindingFactor
     )
         external
-        nonReentrant
         roundStarted
         onlyPlayerOfIdx(playerId)
         readyForPlayerSeedRevealment(playerId)
@@ -231,7 +253,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
     /// @notice Commit the choice (the character the player choose to use in the current round).
     /// @param playerId: the identifier of the player. Alice or Bob.
     /// @param commitString: commitment string calculated by the player designated by playerId
-    ///                      as keccak256(abi.encodePacked(msg.sender, choice, blindingFactor)).
+    ///                      as keccak256(abi.encodePacked(msg.sender, levelPoint, choice, blindingFactor)).
     function commitChoice(PlayerId playerId, bytes32 commitString)
         external
         nonReentrant
@@ -247,6 +269,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         // Save commitment on the storage. The choice of the player is hidden in the commit phase.
         choiceCommitLog[numRounds][playerId] = ChoiceCommitment(
             commitString,
+            0,
             Choice.Secret
         );
 
@@ -259,6 +282,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
 
     /// @notice Reveal the committed choice by the player who committed it in this round.
     /// @param playerId: the identifier of the player. Alice or Bob.
+    /// @param levelPoint: the levelPoint the player uses to the chosen character.
     /// @param choice: the choice the player designated by playerId committed in this round.
     ///                Choice.Secret is not allowed.
     /// @param bindingFactor: the secret factor (one-time) used in the generation of the commitment.
@@ -266,11 +290,11 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
     ///      vulnerability.
     function revealChoice(
         PlayerId playerId,
+        uint8 levelPoint,
         Choice choice,
         bytes32 bindingFactor
     )
         external
-        nonReentrant
         roundStarted
         onlyPlayerOfIdx(playerId)
         readyForChoiceRevealment(playerId)
@@ -288,12 +312,22 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
 
         // Check the commit hash coincides with the one stored on chain.
         require(
-            keccak256(abi.encodePacked(msg.sender, choice, bindingFactor)) ==
-                choiceCommitment.commitString,
+            keccak256(
+                abi.encodePacked(msg.sender, levelPoint, choice, bindingFactor)
+            ) == choiceCommitment.commitString,
             "Commit hash doesn't coincide."
         );
 
+        // Check that the levelPoint is less than or equal to the remainingLevelPoint.
+        if (levelPoint > _getRamainingLevelPoint(playerId)) {
+            // TODO: 配布されたレベルポイントを超えてしまったらもう戻せないので負け !!
+        }
+
+        // Subtract revealed levelPoint from remainingLevelPoint
+        playerInfoTable[playerId].remainingLevelPoint -= levelPoint;
+
         // Check that the chosen slot hasn't been used yet.
+        // TODO: 使用済みスロットを使っていたらもう戻せないので負け !!
         if (choice == Choice.Random) {
             require(
                 !_getRandomSlotUsedFlag(playerId),
@@ -307,10 +341,11 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         }
 
         // Execute revealment
+        choiceCommitment.levelPoint = levelPoint;
         choiceCommitment.choice = choice;
 
         // Emit the event that tells frontend that the player designated by playerId has revealed.
-        emit ChoiceRevealed(numRounds, playerId, choice);
+        emit ChoiceRevealed(numRounds, playerId, levelPoint, choice);
 
         // Update the state of the reveal player to be Revealed.
         playerInfoTable[playerId].state = PlayerState.Revealed;
@@ -320,7 +355,6 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
     function stepRound()
         external
         nonReentrant
-        onlyDealer
         roundStarted
         readyForRoundSettlement
     {
@@ -329,10 +363,17 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         _markSlot(PlayerId.Bob);
 
         // Calculate the damage of both players.
-        uint8 damageAlice = _calcDamage(PlayerId.Alice);
-        uint8 damageBob = _calcDamage(PlayerId.Bob);
+        IPLMToken.CharacterInfo memory aliceChar = _getChosenCharacterInfo(
+            PlayerId.Alice
+        );
+        IPLMToken.CharacterInfo memory bobChar = _getChosenCharacterInfo(
+            PlayerId.Bob
+        );
+        uint8 aliceDamage;
+        uint8 bobDamage;
+        (aliceDamage, bobDamage) = data.calcBattleResult(aliceChar, bobChar);
 
-        if (damageAlice > damageBob) {
+        if (aliceDamage > bobDamage) {
             // Alice wins !!
             playerInfoTable[PlayerId.Alice].winCount++;
 
@@ -341,10 +382,10 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
                 false,
                 PlayerId.Alice,
                 PlayerId.Bob,
-                damageAlice,
-                damageBob
+                aliceDamage,
+                bobDamage
             );
-        } else if (damageAlice < damageBob) {
+        } else if (aliceDamage < bobDamage) {
             // Bob wins !!
             playerInfoTable[PlayerId.Bob].winCount++;
 
@@ -353,8 +394,8 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
                 false,
                 PlayerId.Bob,
                 PlayerId.Alice,
-                damageBob,
-                damageAlice
+                bobDamage,
+                aliceDamage
             );
         } else {
             // Draw !!
@@ -363,8 +404,8 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
                 true,
                 PlayerId.Alice,
                 PlayerId.Bob,
-                damageAlice,
-                damageBob
+                aliceDamage,
+                bobDamage
             );
         }
 
@@ -388,8 +429,112 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
 
     /// @notice Function to finalize the battle.
     /// @dev reward is paid from dealer to the winner of this battle.
-    function _settleBattle() internal onlyDealer readyForBattleSettlement {
-        // TODO
+    function _settleBattle() internal nonReentrant readyForBattleSettlement {
+        uint8 aliceWinCount = _getWinCount(PlayerId.Alice);
+        uint8 bobWinCount = _getWinCount(PlayerId.Bob);
+
+        // Pay rewards (PLMCoin) to the winner from dealer.
+        if (aliceWinCount > bobWinCount) {
+            // Alice Wins !!
+            _payRewards(PlayerId.Alice, PlayerId.Bob);
+        } else if (aliceWinCount < bobWinCount) {
+            // BoB Wins !!
+            _payRewards(PlayerId.Bob, PlayerId.Alice);
+        } else {
+            _payRewardsDraw();
+        }
+
+        battleState = BattleState.Settled;
+    }
+
+    /// @notice Function to pay reward to the winner.
+    function _payRewards(PlayerId winner, PlayerId loser) internal {
+        // Calculate the reward balance of the winner.
+        uint16 winnerTotalLevel = _getTotalLevel(winner);
+        uint16 loserTotalLevel = _getTotalLevel(loser);
+        uint48 top = uint48(loserTotalLevel) *
+            (uint48(loserTotalLevel) * 2 + 102)**3;
+        uint48 bottom = 51 *
+            (uint48(winnerTotalLevel) + uint48(loserTotalLevel) + 102)**3;
+        uint256 amount = top / bottom;
+
+        // Dealer pay rewards to the winner.
+        dealer.payReward(_getPlayerAddress(winner), uint256(amount));
+    }
+
+    /// @notice Function to pay reward to both players when draws.
+    function _payRewardsDraw() internal {
+        // Calculate the reward balance of both players.
+        uint16 aliceTotalLevel = _getTotalLevel(PlayerId.Alice);
+        uint16 bobTotalLevel = _getTotalLevel(PlayerId.Bob);
+        uint48 aliceTop = uint48(aliceTotalLevel) *
+            (uint48(aliceTotalLevel) * 2 + 102)**3;
+        uint48 bobTop = uint48(bobTotalLevel) *
+            (uint48(bobTotalLevel) * 2 + 102)**3;
+        uint48 bottom = 51 *
+            (uint48(aliceTotalLevel) + uint48(bobTotalLevel) + 102)**3;
+        uint256 aliceAmount = aliceTop / bottom / 2;
+        uint256 bobAmount = bobTop / bottom / 2;
+
+        // Dealer pay rewards to both players.
+        dealer.payReward(_getPlayerAddress(PlayerId.Alice), aliceAmount);
+        dealer.payReward(_getPlayerAddress(PlayerId.Bob), bobAmount);
+    }
+
+    /// @notice Function to start the battle.
+    function _startBattle(
+        address aliceAddr,
+        uint256[4] calldata aliceFixedSlots,
+        address bobAddr,
+        uint256[4] calldata bobFixedSlots
+    ) internal readyForBattleStart {
+        IPLMToken.CharacterInfo[4] memory aliceCharInfos;
+        IPLMToken.CharacterInfo[4] memory bobCharInfos;
+
+        // Retrieve character infomation by tokenId in the fixed slots.
+        for (uint8 i = 0; i < 4; i++) {
+            aliceCharInfos[i] = token.getCharacterInfo(aliceFixedSlots[i]);
+            bobCharInfos[i] = token.getCharacterInfo(bobFixedSlots[i]);
+        }
+
+        // Get level point for both players.
+        uint8 aliceLevelPoint = data.calcLevelPoint(aliceCharInfos);
+        uint8 bobLevelPoint = data.calcLevelPoint(bobCharInfos);
+
+        // Initial state of random slot.
+        RandomSlot memory initRandomSlot = RandomSlot(
+            0,
+            bytes32(0),
+            false,
+            false,
+            RandomSlotState.NotSet
+        );
+
+        PlayerInfo memory aliceInfo = PlayerInfo(
+            aliceAddr,
+            aliceFixedSlots,
+            [false, false, false, false],
+            initRandomSlot,
+            PlayerState.Preparing,
+            0,
+            aliceLevelPoint
+        );
+        PlayerInfo memory bobInfo = PlayerInfo(
+            bobAddr,
+            bobFixedSlots,
+            [false, false, false, false],
+            initRandomSlot,
+            PlayerState.Preparing,
+            0,
+            bobLevelPoint
+        );
+
+        // Set the initial character information.
+        playerInfoTable[PlayerId.Alice] = aliceInfo;
+        playerInfoTable[PlayerId.Bob] = bobInfo;
+
+        // Change battle state to wait for the playerSeed commitment.
+        battleState = BattleState.Preparing;
     }
 
     /// @notice Function to mark the slot used in the current round as used.
@@ -404,9 +549,35 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         }
     }
 
-    /// @notice Function to calculate the damage of the character.
+    /// @notice Function to calculate the total level of the fixed slots.
     /// @param playerId: the identifier of the player. Alice or Bob.
-    function _calcDamage(PlayerId playerId) internal view returns (uint8) {
+    function _getTotalLevel(PlayerId playerId) internal view returns (uint16) {
+        uint16 totalLevel = 0;
+        for (uint8 i = 0; i < 4; i++) {
+            totalLevel += token
+                .getCharacterInfo(_getFixedSlotTokenId(playerId, i))
+                .level;
+        }
+        return totalLevel;
+    }
+
+    /// @notice Function to return the player's remainingLevelPoint.
+    /// @param playerId: the identifier of the player. Alice or Bob.
+    function _getRamainingLevelPoint(PlayerId playerId)
+        internal
+        view
+        returns (uint8)
+    {
+        return playerInfoTable[playerId].remainingLevelPoint;
+    }
+
+    /// @notice Function to return the character information used in this round.
+    /// @param playerId: the identifier of the player. Alice or Bob.
+    function _getChosenCharacterInfo(PlayerId playerId)
+        internal
+        view
+        returns (IPLMToken.CharacterInfo memory)
+    {
         require(
             playerId == PlayerId.Alice || playerId == PlayerId.Bob,
             "Invalid playerId."
@@ -438,17 +609,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             charInfo.level = _getRandomSlotLevel(playerId);
         }
 
-        return _calcDamageInternal(charInfo);
-    }
-
-    /// @notice Core logic to calculate damage from character's level and attributes.
-    function _calcDamageInternal(IPLMToken.CharacterInfo memory charInfo)
-        internal
-        pure
-        returns (uint8)
-    {
-        // TODO
-        return charInfo.level;
+        return charInfo;
     }
 
     function _getRandomSlotState(PlayerId playerId)

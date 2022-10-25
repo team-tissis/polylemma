@@ -3,7 +3,8 @@ interface IPLMBattleField {
     enum BattleState {
         Preparing, // 0
         RoundStarted, // 1
-        RoundSettled // 2
+        RoundSettled, // 2
+        Settled // 3
     }
 
     /// @notice Struct to store player's infomation.
@@ -14,6 +15,7 @@ interface IPLMBattleField {
         RandomSlot randomSlot;
         PlayerState state;
         uint8 winCount;
+        uint8 remainingLevelPoint;
     }
 
     /// @notice Struct to store the information of the random slot.
@@ -58,6 +60,7 @@ interface IPLMBattleField {
     /// @notice Struct to represent the commitment of the choice.
     struct ChoiceCommitment {
         bytes32 commitString;
+        uint8 levelPoint;
         Choice choice;
     }
 
@@ -75,7 +78,12 @@ interface IPLMBattleField {
         bytes32 playerSeed
     );
     event ChoiceCommitted(uint8 numRounds, PlayerId playerId);
-    event ChoiceRevealed(uint8 numRounds, PlayerId playerId, Choice choice);
+    event ChoiceRevealed(
+        uint8 numRounds,
+        PlayerId playerId,
+        uint8 levelPoint,
+        Choice choice
+    );
     event RoundResult(
         uint8 numRounds,
         bool isDraw,
@@ -105,6 +113,7 @@ interface IPLMBattleField {
 
     function revealChoice(
         PlayerId playerId,
+        uint8 levelPoint,
         Choice choice,
         bytes32 bindingFactor
     ) external;
