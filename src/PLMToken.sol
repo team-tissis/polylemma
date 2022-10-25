@@ -15,8 +15,10 @@ contract PLMToken is ERC721Enumerable, IPLMToken {
 
     address dealer;
     address minter;
+    address enhancer;
     uint256 maxSupply;
     IPLMSeeder seeder;
+    IPLMCoin coin;
     IPLMData data;
 
     uint256 private currentTokenId = 0;
@@ -96,6 +98,24 @@ contract PLMToken is ERC721Enumerable, IPLMToken {
             allCharacterInfos[i] = characterInfos[i];
         }
         return allCharacterInfos;
+    }
+
+    // Used by Enhancement Contract
+    function updateLevel(uint256 tokenId) external {
+        require(
+            msg.sender == ownerOf(tokenId),
+            "Permission denied. Sender is not enhancer."
+        );
+        uint8 memory charInfo = characterInfos[tokenId];
+        uint256 necessaryExp = data.getNecessaryExp(charInfo);
+        require(coin.allowance(msg.sender, address(this)) >= necessaryExp);
+        require(coin.balanceOf(msg.sender) >= necessaryExp);
+        try coin.transferFrom(msg.sender, treasury, necessaryExp) {
+            characterInfos[tokenId].level += 1;
+            return characterInfos[tokenId].level;
+        } catch Error(string memory) {
+            return 0;
+        }
     }
 
     function setMinter(address newMinter) external onlyDealer {

@@ -22,6 +22,8 @@ interface IPLMToken is IERC721, IERC721Enumerable {
         view
         returns (CharacterInfo calldata);
 
+    function updateLevel(uint256 tokenId) external;
+
     function setMinter(address newMinter) external;
 
     // function burn() external;

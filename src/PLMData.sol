@@ -63,6 +63,15 @@ contract PLMData is IPLMData {
         return 0;
     }
 
+    // TODO: calc with exp table
+    function calcNecessaryExp(IPLMToken.CharacterInfo calldata charInfo)
+        external
+        view
+        returns (uint256)
+    {
+        return charInfo.level;
+    }
+
     function numOddsCharacterType() external view returns (uint256) {
         return characterTypeOdds.length;
     }

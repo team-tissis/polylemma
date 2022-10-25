@@ -14,6 +14,11 @@ interface IPLMData {
         view
         returns (uint8);
 
+    function calcNecessaryExp(IPLMToken.CharacterInfo calldata charInfo)
+        external
+        view
+        returns (uint256);
+
     function getCharacterTypeOdds()
         external
         view
