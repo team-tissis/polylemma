@@ -6,35 +6,52 @@ import {PLMToken} from "../src/PLMToken.sol";
 import {PLMCoin} from "../src/PLMCoin.sol";
 import {PLMSeeder} from "../src/PLMSeeder.sol";
 import {PLMData} from "../src/PLMData.sol";
+import {PLMEx} from "../src/PLMEx.sol";
 
 import {IPLMSeeder} from "../src/interfaces/IPLMSeeder.sol";
 import {IPLMData} from "../src/interfaces/IPLMData.sol";
 import {IPLMCoin} from "../src/interfaces/IPLMCoin.sol";
+import {IPLMEx} from "../src/interfaces/IPLMEx.sol";
 
 contract PLMTokenTest is Test {
     // EOA
     address dealer = address(100);
     address minter = address(10);
+    address tmpTreasury = address(9);
+    address treasury;
+    address user = address(999);
+
+    uint256 initialMint = 10000000;
+    uint256 subscFee = 100;
+    uint256 subscDuration = 600000;
 
     PLMSeeder seederContract;
     PLMData dataContract;
     PLMCoin coinContract;
+    PLMEx coinExContract;
     PLMToken token;
 
     IPLMSeeder seeder;
     IPLMData data;
     IPLMCoin coin;
+    IPLMEx coinEx;
 
     function setUp() public {
         vm.startPrank(dealer);
         dataContract = new PLMData();
-        seederContract = new PLMSeeder();
-        coinContract = new PLMCoin(1000000);
-        seeder = IPLMSeeder(address(seederContract));
         data = IPLMData(address(dataContract));
+        seederContract = new PLMSeeder();
+        coinContract = new PLMCoin(data, tmpTreasury, subscFee, subscDuration);
+        seeder = IPLMSeeder(address(seederContract));
         coin = IPLMCoin(address(coinContract));
         uint256 maxSupply = 10000;
         token = new PLMToken(minter, seeder, data, coin, maxSupply);
+
+        coinExContract = new PLMEx(data, coin);
+        coinEx = IPLMEx(address(coinExContract));
+        treasury = address(coinEx);
+        coin.setTreasury(treasury);
+        coinEx.mintForTreasury(100000000);
         vm.stopPrank();
     }
 
@@ -82,9 +99,15 @@ contract PLMTokenTest is Test {
     }
 
     function testUpdateLevel() public {
+        vm.prank(treasury);
+        coin.transfer(user, 10000);
+
         vm.startPrank(minter);
         uint256 tokenId = token.mint();
-        coin.mint(100000);
+        token.transferFrom(minter, user, tokenId);
+        vm.stopPrank();
+
+        vm.startPrank(user);
         coin.approve(
             address(token),
             data.calcNecessaryExp(token.getCharacterInfo(tokenId))
@@ -93,5 +116,6 @@ contract PLMTokenTest is Test {
         token.updateLevel(tokenId);
         token.getCharacterInfo(tokenId);
         assertEq(token.getCharacterInfo(tokenId).level, 2, "level not updated");
+        vm.stopPrank();
     }
 }

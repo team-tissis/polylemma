@@ -42,4 +42,9 @@ interface IPLMData {
         external
         pure
         returns (uint8 levelPoint);
+
+    function getTaxRate(uint256 amount)
+        external
+        view
+        returns (uint256, uint256);
 }

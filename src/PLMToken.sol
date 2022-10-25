@@ -99,7 +99,7 @@ contract PLMToken is ERC721Enumerable, IPLMToken {
             currentTokenId
         );
         for (uint256 i = 0; i < currentTokenId; i++) {
-            allCharacterInfos[i] = characterInfos[i];
+            allCharacterInfos[i] = characterInfos[i + 1];
         }
         return allCharacterInfos;
     }
@@ -110,8 +110,8 @@ contract PLMToken is ERC721Enumerable, IPLMToken {
             msg.sender == ownerOf(tokenId),
             "Permission denied. Sender is not owner of this token"
         );
-        CharacterInfo memory charInfo = characterInfos[tokenId];
-        uint256 necessaryExp = data.calcNecessaryExp(charInfo);
+
+        uint256 necessaryExp = getNecessaryExp(tokenId);
         // whether user have delgated this contract to spend coin for levelup
         require(
             coin.allowance(msg.sender, address(this)) >= necessaryExp,
@@ -131,6 +131,11 @@ contract PLMToken is ERC721Enumerable, IPLMToken {
             emit Log(reason);
             return 0;
         }
+    }
+
+    function getNecessaryExp(uint256 tokenId) public view returns (uint256) {
+        CharacterInfo memory charInfo = characterInfos[tokenId];
+        return data.calcNecessaryExp(charInfo);
     }
 
     function setMinter(address newMinter) external onlyDealer {

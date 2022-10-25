@@ -19,6 +19,9 @@ contract PLMData is IPLMData {
     uint8[] public characterTypeOdds = [2, 2, 2, 2, 2];
     uint8[] public abilityOdds = [2, 2, 2];
 
+    uint256[] public taxTable = [5, 10, 20, 23, 33, 40, 45];
+    uint256 public taxTotal = 100;
+
     function getCharacterTypes()
         external
         view
@@ -101,5 +104,23 @@ contract PLMData is IPLMData {
             }
         }
         return maxLevel;
+    }
+
+    function getTaxRate(uint256 amount) public view returns (uint256, uint256) {
+        if (0 < amount && amount <= 2000 ether) {
+            return (taxTable[0], taxTotal);
+        } else if (2000 ether < amount && amount <= 4000 ether) {
+            return (taxTable[1], taxTotal);
+        } else if (4000 ether < amount && amount <= 5000 ether) {
+            return (taxTable[2], taxTotal);
+        } else if (5000 ether < amount && amount <= 6000 ether) {
+            return (taxTable[3], taxTotal);
+        } else if (6000 ether < amount && amount <= 7000 ether) {
+            return (taxTable[4], taxTotal);
+        } else if (7000 ether < amount && amount <= 8000 ether) {
+            return (taxTable[5], taxTotal);
+        } else {
+            return (taxTable[6], taxTotal);
+        }
     }
 }

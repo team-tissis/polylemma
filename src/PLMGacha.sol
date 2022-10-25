@@ -43,6 +43,7 @@ contract PLMGacha is IPLMGacha, ReentrancyGuard {
         );
         uint256 tokenId = token.mint();
         coin.transferFrom(msg.sender, treasury, gachaPayment);
+        // coin.transfer(msg.sender, gachaPayment);
         token.transferFrom(address(this), msg.sender, tokenId);
         // try token.mint() returns (uint256 tokenId) {
         //     try coin.transferFrom(msg.sender, treasury, gachaPayment) {
