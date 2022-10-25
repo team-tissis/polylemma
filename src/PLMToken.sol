@@ -102,16 +102,16 @@ contract PLMToken is ERC721Enumerable, IPLMToken {
     }
 
     // Used by Enhancement Contract
-    function updateLevel(uint256 tokenId) external {
+    function updateLevel(uint256 tokenId) external returns (uint8) {
         require(
             msg.sender == ownerOf(tokenId),
             "Permission denied. Sender is not enhancer."
         );
-        uint8 memory charInfo = characterInfos[tokenId];
-        uint256 necessaryExp = data.getNecessaryExp(charInfo);
+        CharacterInfo memory charInfo = characterInfos[tokenId];
+        uint256 necessaryExp = data.calcNecessaryExp(charInfo);
         require(coin.allowance(msg.sender, address(this)) >= necessaryExp);
         require(coin.balanceOf(msg.sender) >= necessaryExp);
-        try coin.transferFrom(msg.sender, treasury, necessaryExp) {
+        try coin.transferFrom(msg.sender, dealer, necessaryExp) {
             characterInfos[tokenId].level += 1;
             return characterInfos[tokenId].level;
         } catch Error(string memory) {
