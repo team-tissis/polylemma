@@ -101,6 +101,14 @@ interface IPLMBattleField {
         uint8 loseCount
     );
 
+    // Events for cheater detection.
+    event ExceedingLevelPointCheatDetected(
+        PlayerId cheater,
+        uint8 remainingLevelPoint,
+        uint8 cheaterLevelPoint
+    );
+    event ReusingUsedSlotCheatDetected(PlayerId cheater, Choice targetSlot);
+
     function commitPlayerSeed(PlayerId playerId, bytes32 commitString) external;
 
     function revealPlayerSeed(

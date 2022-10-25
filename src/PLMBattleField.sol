@@ -319,25 +319,34 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         );
 
         // Check that the levelPoint is less than or equal to the remainingLevelPoint.
-        if (levelPoint > _getRamainingLevelPoint(playerId)) {
-            // TODO: 配布されたレベルポイントを超えてしまったらもう戻せないので負け !!
+        uint8 remainingLevelPoint = _getRemainingLevelPoint(playerId);
+        if (levelPoint > remainingLevelPoint) {
+            emit ExceedingLevelPointCheatDetected(
+                playerId,
+                remainingLevelPoint,
+                levelPoint
+            );
+
+            // End this match and ban the player designated by playerId.
+            _killCheater(playerId);
+            return;
         }
 
         // Subtract revealed levelPoint from remainingLevelPoint
         playerInfoTable[playerId].remainingLevelPoint -= levelPoint;
 
         // Check that the chosen slot hasn't been used yet.
-        // TODO: 使用済みスロットを使っていたらもう戻せないので負け !!
-        if (choice == Choice.Random) {
-            require(
-                !_getRandomSlotUsedFlag(playerId),
-                "Random slot has already been used in the previous round."
-            );
-        } else {
-            require(
-                !_getFixedSlotUsedFlag(playerId, uint8(choice)),
-                "Designated fixed slot has already been used in the previous round."
-            );
+        // If the revealed slot has already used, then end this match and ban the player designated by playerId.
+        if (
+            (choice == Choice.Random && _getRandomSlotUsedFlag(playerId)) ||
+            (choice != Choice.Random &&
+                _getFixedSlotUsedFlag(playerId, uint8(choice)))
+        ) {
+            emit ReusingUsedSlotCheatDetected(playerId, choice);
+
+            // End this match and ban the player designated by playerId.
+            _killCheater(playerId);
+            return;
         }
 
         // Execute revealment
@@ -427,6 +436,12 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         playerInfoTable[PlayerId.Bob].state = PlayerState.Preparing;
     }
 
+    /// @notice Function to kill the cheater
+    /// @dev Ban the account (subtract constant block number from the subscribing period limit.)
+    function _killCheater(PlayerId playerId) internal {
+        // TODO: reduce the subscribing period to ban the cheater account.
+    }
+
     /// @notice Function to finalize the battle.
     /// @dev reward is paid from dealer to the winner of this battle.
     function _settleBattle() internal nonReentrant readyForBattleSettlement {
@@ -484,8 +499,8 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
     /// @notice Function to start the battle.
     function _startBattle(
         address aliceAddr,
-        uint256[4] calldata aliceFixedSlots,
         address bobAddr,
+        uint256[4] calldata aliceFixedSlots,
         uint256[4] calldata bobFixedSlots
     ) internal readyForBattleStart {
         IPLMToken.CharacterInfo[4] memory aliceCharInfos;
@@ -563,7 +578,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
 
     /// @notice Function to return the player's remainingLevelPoint.
     /// @param playerId: the identifier of the player. Alice or Bob.
-    function _getRamainingLevelPoint(PlayerId playerId)
+    function _getRemainingLevelPoint(PlayerId playerId)
         internal
         view
         returns (uint8)
