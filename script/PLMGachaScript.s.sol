@@ -31,7 +31,8 @@ contract PolylemmagachaScript is Script {
     address dealer = address(1);
     address tmpMinter = address(10);
     address treasury;
-    address user = address(100);
+    address user;
+    address etherDispensor;
     uint256 subscFee = 10;
     uint256 subscDuration = 600000;
 
@@ -40,6 +41,8 @@ contract PolylemmagachaScript is Script {
     uint256 gachaPayment = 5;
 
     function run() public {
+        user = address(1111);
+
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         vm.startBroadcast(deployerPrivateKey);
         dataContract = new PLMData();

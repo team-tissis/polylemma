@@ -6,6 +6,7 @@ import {ERC20} from "openzeppelin-contracts/token/ERC20/ERC20.sol";
 
 contract PLMCoin is ERC20, IPLMCoin {
     address public treasury;
+    event mintDebug(uint256 amount, address user);
 
     mapping(address => uint256) subscExpiredPoint;
 
@@ -29,5 +30,11 @@ contract PLMCoin is ERC20, IPLMCoin {
 
     function banAccount(address account, uint256 banPeriod) external {
         subscExpiredPoint[account] -= banPeriod;
+    }
+
+    // TODO: for debug
+    function mint() public {
+        _mint(msg.sender, 10000000);
+        emit mintDebug(10000000, msg.sender);
     }
 }
