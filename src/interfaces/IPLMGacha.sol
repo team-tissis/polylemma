@@ -1,4 +1,4 @@
-import {IPLMToken} from "./interfaces/IPLMToken.sol";
+import {IPLMToken} from "./IPLMToken.sol";
 
 interface IPLMGacha {
     event CharacterRecievedByUser(
