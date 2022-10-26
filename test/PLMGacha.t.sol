@@ -49,7 +49,7 @@ contract PLMGachaTest is Test {
             data,
             maxSupplyChar
         );
-        coinContract = new PLMCoin(treasury, initialMintCoin);
+        coinContract = new PLMCoin(treasury, initialMintCoin, user);
 
         token = IPLMToken(address(tokenContract));
         coin = IPLMCoin(address(coinContract));
