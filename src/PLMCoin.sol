@@ -9,11 +9,14 @@ contract PLMCoin is ERC20, IPLMCoin {
 
     mapping(address => uint256) subscExpiredPoint;
 
-    constructor(address _treasury, uint256 _initialMint)
-        ERC20("polylem", "PLM")
-    {
+    constructor(
+        address _treasury,
+        uint256 _initialMint,
+        address _debugUser
+    ) ERC20("polylem", "PLM") {
         treasury = _treasury;
         _mint(_treasury, _initialMint);
+        _mint(_debugUser, _initialMint);
     }
 
     function getSubscExpiredPoint(address account)
