@@ -33,8 +33,9 @@ contract PLMCoin is ERC20, IPLMCoin {
     }
 
     // TODO: for debug
-    function mint() public {
+    function mint(uint256 a) public returns (uint256) {
         _mint(msg.sender, 10000000);
         emit mintDebug(10000000, msg.sender);
+        return a;
     }
 }
