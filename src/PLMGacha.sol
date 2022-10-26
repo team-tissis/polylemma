@@ -34,8 +34,14 @@ contract PLMGacha is IPLMGacha, ReentrancyGuard {
     }
 
     function gacha() external nonReentrant returns (uint256) {
-        require(coin.allowance(msg.sender, address(this)) >= gachaPayment);
-        require(coin.balanceOf(msg.sender) >= gachaPayment);
+        require(
+            coin.allowance(msg.sender, address(this)) >= gachaPayment,
+            "coin allowance insufficient /gacha"
+        );
+        require(
+            coin.balanceOf(msg.sender) >= gachaPayment,
+            "not sufficient balance /gacha"
+        );
         // TODO: require battle proposal
         return _gacha();
     }
