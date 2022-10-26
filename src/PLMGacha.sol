@@ -45,7 +45,10 @@ contract PLMGacha is IPLMGacha, ReentrancyGuard {
             try coin.transferFrom(msg.sender, treasury, gachaPayment) {
                 token.transferFrom(address(this), msg.sender, tokenId);
                 // TODO: should also emit characterinfo
-                emit CharacterRecievedByUser(tokenId);
+                emit CharacterRecievedByUser(
+                    tokenId,
+                    token.getCharacterInfo(tokenId)
+                );
                 return tokenId;
             } catch Error(string memory) {
                 token.burn(tokenId);

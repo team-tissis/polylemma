@@ -113,6 +113,7 @@ contract PLMToken is ERC721Enumerable, IPLMToken {
         require(coin.balanceOf(msg.sender) >= necessaryExp);
         try coin.transferFrom(msg.sender, dealer, necessaryExp) {
             characterInfos[tokenId].level += 1;
+            emit levelUped(characterInfos[tokenId]);
             return characterInfos[tokenId].level;
         } catch Error(string memory) {
             return 0;

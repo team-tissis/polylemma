@@ -10,6 +10,8 @@ interface IPLMToken is IERC721, IERC721Enumerable {
         uint8[1] abilityIds;
     }
 
+    event levelUped(CharacterInfo indexed characterInfo);
+
     function mint() external returns (uint256);
 
     function burn(uint256 tokenId) external;
