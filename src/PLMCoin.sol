@@ -10,14 +10,9 @@ contract PLMCoin is ERC20, IPLMCoin {
 
     mapping(address => uint256) subscExpiredPoint;
 
-    constructor(
-        address _treasury,
-        uint256 _initialMint,
-        address _debugUser
-    ) ERC20("polylem", "PLM") {
-        treasury = _treasury;
-        _mint(_treasury, _initialMint);
-        _mint(_debugUser, _initialMint);
+    constructor(uint256 _initialMint) ERC20("polylem", "PLM") {
+        treasury = msg.sender;
+        _mint(treasury, _initialMint);
     }
 
     function getSubscExpiredPoint(address account)
@@ -33,9 +28,8 @@ contract PLMCoin is ERC20, IPLMCoin {
     }
 
     // TODO: for debug
-    function mint(uint256 a) public returns (uint256) {
-        _mint(msg.sender, 10000000);
-        emit mintDebug(10000000, msg.sender);
-        return a;
+    function mint(uint256 amount) public {
+        _mint(msg.sender, amount);
+        emit mintDebug(amount, msg.sender);
     }
 }

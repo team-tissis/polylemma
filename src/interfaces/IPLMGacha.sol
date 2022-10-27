@@ -6,5 +6,9 @@ interface IPLMGacha {
         IPLMToken.CharacterInfo indexed characterInfo
     );
 
-    function gacha() external returns (uint256);
+    function getDealer() external view returns (address);
+
+    function getGachaPayment() external view returns (uint256);
+
+    function gacha() external;
 }

@@ -28,11 +28,9 @@ contract PolylemmagachaScript is Script {
 
     IPLMToken.CharacterInfo characterInfo;
 
-    address dealer = address(1);
-    address tmpMinter = address(10);
-    address treasury;
-    address user;
-    address etherDispensor;
+    // game admin address
+    address tmpMinter = address(1);
+
     uint256 subscFee = 10;
     uint256 subscDuration = 600000;
 
@@ -41,25 +39,22 @@ contract PolylemmagachaScript is Script {
     uint256 gachaPayment = 5;
 
     function run() public {
-        user = address(1111);
-
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         vm.startBroadcast(deployerPrivateKey);
+
         dataContract = new PLMData();
         seederContract = new PLMSeeder();
+
         seeder = IPLMSeeder(address(seederContract));
         data = IPLMData(address(dataContract));
-        tokenContract = new PLMToken(
-            dealer,
-            tmpMinter,
-            seeder,
-            data,
-            maxSupplyChar
-        );
-        coinContract = new PLMCoin(dealer, initialMintCoin, user);
-        treasury = address(coinContract);
+
+        tokenContract = new PLMToken(tmpMinter, seeder, data, maxSupplyChar);
+        coinContract = new PLMCoin(initialMintCoin);
+
         token = IPLMToken(address(tokenContract));
         coin = IPLMCoin(address(coinContract));
-        gacha = new PLMGacha(token, coin, treasury, gachaPayment);
+
+        gacha = new PLMGacha(token, coin, gachaPayment);
+        token.setMinter(address(gacha));
     }
 }

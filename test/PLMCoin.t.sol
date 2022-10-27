@@ -13,7 +13,7 @@ contract PLMTokenTest is Test {
 
     function setUp() public {
         treasury = address(10);
-        coin = new PLMCoin(treasury, initialMint, user);
+        coin = new PLMCoin(initialMint);
     }
 
     function testInitialMint() public {

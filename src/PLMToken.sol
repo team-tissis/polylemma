@@ -53,13 +53,12 @@ contract PLMToken is ERC721Enumerable, IPLMToken {
     // }
 
     constructor(
-        address _dealer,
         address _minter,
         IPLMSeeder _seeder,
         IPLMData _data,
         uint256 _maxSupply
     ) ERC721("Polylemma", "PLM") {
-        dealer = _dealer;
+        dealer = msg.sender;
         minter = _minter;
         seeder = _seeder;
         data = _data;
@@ -122,6 +121,10 @@ contract PLMToken is ERC721Enumerable, IPLMToken {
 
     function setMinter(address newMinter) external onlyDealer {
         minter = newMinter;
+    }
+
+    function getMinter() public view returns (address) {
+        return minter;
     }
 
     /// descript how is the token minted
