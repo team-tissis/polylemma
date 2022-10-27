@@ -10,7 +10,7 @@ import {ReentrancyGuard} from "openzeppelin-contracts/security/ReentrancyGuard.s
 contract PLMGacha is IPLMGacha, ReentrancyGuard {
     IPLMToken public token;
     IPLMCoin public coin;
-
+    event Log(string message);
     address dealer;
     address treasury;
 
@@ -24,16 +24,15 @@ contract PLMGacha is IPLMGacha, ReentrancyGuard {
     constructor(
         IPLMToken _token,
         IPLMCoin _coin,
-        address _treasury,
         uint256 _gachaPayment
     ) {
+        treasury = msg.sender;
         token = _token;
         coin = _coin;
-        treasury = _treasury;
         gachaPayment = _gachaPayment;
     }
 
-    function gacha() external nonReentrant returns (uint256) {
+    function gacha() public nonReentrant {
         require(
             coin.allowance(msg.sender, address(this)) >= gachaPayment,
             "coin allowance insufficient /gacha"
@@ -42,31 +41,36 @@ contract PLMGacha is IPLMGacha, ReentrancyGuard {
             coin.balanceOf(msg.sender) >= gachaPayment,
             "not sufficient balance /gacha"
         );
-        // TODO: require battle proposal
-        return _gacha();
+        uint256 tokenId = token.mint();
+        coin.transferFrom(msg.sender, treasury, gachaPayment);
+        token.transferFrom(address(this), msg.sender, tokenId);
+        // try token.mint() returns (uint256 tokenId) {
+        //     try coin.transferFrom(msg.sender, treasury, gachaPayment) {
+        //         token.transferFrom(address(this), msg.sender, tokenId);
+        //         // TODO: should also emit characterinf
+        //         emit CharacterRecievedByUser(
+        //             tokenId,
+        //             token.getCharacterInfo(tokenId)
+        //         );
+        //     } catch Error(string memory reason) {
+        //         token.burn(tokenId);
+        //         // TODO:emit gacha payment failed
+        //         emit Log(reason);
+        //     }
+        // } catch Error(string memory reason) {
+        //     emit Log(reason);
+        // }
     }
 
-    function _gacha() internal returns (uint256) {
-        try token.mint() returns (uint256 tokenId) {
-            try coin.transferFrom(msg.sender, treasury, gachaPayment) {
-                token.transferFrom(address(this), msg.sender, tokenId);
-                // TODO: should also emit characterinfo
-                emit CharacterRecievedByUser(
-                    tokenId,
-                    token.getCharacterInfo(tokenId)
-                );
-                return tokenId;
-            } catch Error(string memory) {
-                token.burn(tokenId);
-                // TODO:emit gacha payment failed
-                return 0;
-            }
-        } catch Error(string memory) {
-            return 0;
-        }
+    function getDealer() public view returns (address) {
+        return dealer;
     }
 
     function setGachaPayment(uint256 _newGachaPayment) internal onlyDealer {
         gachaPayment = _newGachaPayment;
+    }
+
+    function getGachaPayment() public view returns (uint256) {
+        return gachaPayment;
     }
 }

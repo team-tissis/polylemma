@@ -42,19 +42,13 @@ contract PLMGachaTest is Test {
         seeder = IPLMSeeder(address(seederContract));
         data = IPLMData(address(dataContract));
 
-        tokenContract = new PLMToken(
-            dealer,
-            tmpMinter,
-            seeder,
-            data,
-            maxSupplyChar
-        );
-        coinContract = new PLMCoin(treasury, initialMintCoin, user);
+        tokenContract = new PLMToken(tmpMinter, seeder, data, maxSupplyChar);
+        coinContract = new PLMCoin(initialMintCoin);
 
         token = IPLMToken(address(tokenContract));
         coin = IPLMCoin(address(coinContract));
 
-        gacha = new PLMGacha(token, coin, treasury, gachaPayment);
+        gacha = new PLMGacha(token, coin, gachaPayment);
         vm.prank(dealer);
         token.setMinter(address(gacha));
 
@@ -68,8 +62,9 @@ contract PLMGachaTest is Test {
         vm.prank(user);
         coin.approve(address(gacha), gachaPayment);
         vm.prank(user);
-        uint256 gachaResult = gacha.gacha();
-        assertEq(1, gachaResult);
+        gacha.gacha();
+        uint256 tokenUsers = token.tokenOfOwnerByIndex(user, 0);
+        assertEq(tokenUsers, 1);
         assertEq(1, token.totalSupply());
     }
 }
