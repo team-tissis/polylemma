@@ -48,11 +48,17 @@ contract PolylemmagachaScript is Script {
         seeder = IPLMSeeder(address(seederContract));
         data = IPLMData(address(dataContract));
 
-        tokenContract = new PLMToken(tmpMinter, seeder, data, maxSupplyChar);
         coinContract = new PLMCoin(initialMintCoin);
-
-        token = IPLMToken(address(tokenContract));
         coin = IPLMCoin(address(coinContract));
+
+        tokenContract = new PLMToken(
+            tmpMinter,
+            seeder,
+            data,
+            coin,
+            maxSupplyChar
+        );
+        token = IPLMToken(address(tokenContract));
 
         gacha = new PLMGacha(token, coin, gachaPayment);
         token.setMinter(address(gacha));

@@ -7,4 +7,6 @@ interface IPLMCoin is IERC20 {
         returns (uint256);
 
     function banAccount(address account, uint256 banPeriod) external;
+
+    function mint(uint256 amount) external;
 }
