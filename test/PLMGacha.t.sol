@@ -29,7 +29,6 @@ contract PLMGachaTest is Test {
 
     address dealer = address(1);
     address tmpMinter = address(10);
-    address treasury = address(11);
     address user = address(100);
 
     uint256 maxSupplyChar = 10000;
@@ -37,24 +36,33 @@ contract PLMGachaTest is Test {
     uint256 gachaPayment = 5;
 
     function setUp() public {
+        vm.startPrank(dealer);
+
         dataContract = new PLMData();
         seederContract = new PLMSeeder();
         seeder = IPLMSeeder(address(seederContract));
         data = IPLMData(address(dataContract));
 
-        tokenContract = new PLMToken(tmpMinter, seeder, data, maxSupplyChar);
         coinContract = new PLMCoin(initialMintCoin);
 
-        token = IPLMToken(address(tokenContract));
         coin = IPLMCoin(address(coinContract));
 
+        tokenContract = new PLMToken(
+            tmpMinter,
+            seeder,
+            data,
+            coin,
+            maxSupplyChar
+        );
+        token = IPLMToken(address(tokenContract));
+
         gacha = new PLMGacha(token, coin, gachaPayment);
-        vm.prank(dealer);
+
         token.setMinter(address(gacha));
 
         // send enough ERC20 token to gacha to user address
-        vm.prank(treasury);
         coin.transfer(user, 100);
+        vm.stopPrank();
     }
 
     function testGachaCanMint() public {

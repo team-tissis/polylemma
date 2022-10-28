@@ -3,30 +3,39 @@ pragma solidity ^0.8.17;
 
 import "forge-std/Test.sol";
 import {PLMToken} from "../src/PLMToken.sol";
+import {PLMCoin} from "../src/PLMCoin.sol";
 import {PLMSeeder} from "../src/PLMSeeder.sol";
 import {PLMData} from "../src/PLMData.sol";
 
 import {IPLMSeeder} from "../src/interfaces/IPLMSeeder.sol";
 import {IPLMData} from "../src/interfaces/IPLMData.sol";
+import {IPLMCoin} from "../src/interfaces/IPLMCoin.sol";
 
 contract PLMTokenTest is Test {
     // EOA
-    address minter = msg.sender;
+    address dealer = address(100);
+    address minter = address(10);
 
     PLMSeeder seederContract;
     PLMData dataContract;
+    PLMCoin coinContract;
     PLMToken token;
 
     IPLMSeeder seeder;
     IPLMData data;
+    IPLMCoin coin;
 
     function setUp() public {
+        vm.startPrank(dealer);
         dataContract = new PLMData();
         seederContract = new PLMSeeder();
+        coinContract = new PLMCoin(1000000);
         seeder = IPLMSeeder(address(seederContract));
         data = IPLMData(address(dataContract));
+        coin = IPLMCoin(address(coinContract));
         uint256 maxSupply = 10000;
-        token = new PLMToken(minter, seeder, data, maxSupply);
+        token = new PLMToken(minter, seeder, data, coin, maxSupply);
+        vm.stopPrank();
     }
 
     function testMint() public {
@@ -35,7 +44,7 @@ contract PLMTokenTest is Test {
     }
 
     function testFailMintByNonMiner() public {
-        vm.prank(address(10)); //set a diffrent address from minter's address to msg.sender
+        vm.prank(address(100)); //set a diffrent address from minter's address to msg.sender
         token.mint();
     }
 
@@ -70,5 +79,19 @@ contract PLMTokenTest is Test {
         // TODO: to test other members
         assertEq(tokenInfo.level, 1);
         vm.stopPrank();
+    }
+
+    function testUpdateLevel() public {
+        vm.startPrank(minter);
+        uint256 tokenId = token.mint();
+        coin.mint(100000);
+        coin.approve(
+            address(token),
+            data.calcNecessaryExp(token.getCharacterInfo(tokenId))
+        );
+        assertEq(token.getCharacterInfo(tokenId).level, 1, "not initial level");
+        token.updateLevel(tokenId);
+        token.getCharacterInfo(tokenId);
+        assertEq(token.getCharacterInfo(tokenId).level, 2, "level not updated");
     }
 }

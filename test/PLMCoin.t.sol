@@ -8,11 +8,11 @@ contract PLMTokenTest is Test {
     // EOA
     PLMCoin coin;
     uint256 initialMint = 10000;
-    address treasury;
+    address treasury = address(10);
     address user = address(199);
 
     function setUp() public {
-        treasury = address(10);
+        vm.prank(treasury);
         coin = new PLMCoin(initialMint);
     }
 

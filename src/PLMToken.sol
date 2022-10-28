@@ -32,6 +32,8 @@ contract PLMToken is ERC721Enumerable, IPLMToken {
     // address => public key
     mapping(address => bytes32) publicKeys;
 
+    event Log(string);
+
     modifier onlyDealer() {
         require(
             msg.sender == dealer,
@@ -56,12 +58,14 @@ contract PLMToken is ERC721Enumerable, IPLMToken {
         address _minter,
         IPLMSeeder _seeder,
         IPLMData _data,
+        IPLMCoin _coin,
         uint256 _maxSupply
     ) ERC721("Polylemma", "PLM") {
         dealer = msg.sender;
         minter = _minter;
         seeder = _seeder;
         data = _data;
+        coin = _coin;
         maxSupply = _maxSupply;
     }
 
@@ -100,21 +104,31 @@ contract PLMToken is ERC721Enumerable, IPLMToken {
         return allCharacterInfos;
     }
 
-    // Used by Enhancement Contract
+    /// @notice increment level with consuming his coin
     function updateLevel(uint256 tokenId) external returns (uint8) {
         require(
             msg.sender == ownerOf(tokenId),
-            "Permission denied. Sender is not enhancer."
+            "Permission denied. Sender is not owner of this token"
         );
         CharacterInfo memory charInfo = characterInfos[tokenId];
         uint256 necessaryExp = data.calcNecessaryExp(charInfo);
-        require(coin.allowance(msg.sender, address(this)) >= necessaryExp);
-        require(coin.balanceOf(msg.sender) >= necessaryExp);
+        // whether user have delgated this contract to spend coin for levelup
+        require(
+            coin.allowance(msg.sender, address(this)) >= necessaryExp,
+            "not enough Coin allowance"
+        );
+        // whether user have ehough coin to increment level
+        require(
+            coin.balanceOf(msg.sender) >= necessaryExp,
+            "not enough coin to update level"
+        );
+
         try coin.transferFrom(msg.sender, dealer, necessaryExp) {
             characterInfos[tokenId].level += 1;
             emit levelUped(characterInfos[tokenId]);
             return characterInfos[tokenId].level;
-        } catch Error(string memory) {
+        } catch Error(string memory reason) {
+            emit Log(reason);
             return 0;
         }
     }
