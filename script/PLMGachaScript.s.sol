@@ -56,5 +56,6 @@ contract PolylemmagachaScript is Script {
 
         gacha = new PLMGacha(token, coin, gachaPayment);
         token.setMinter(address(gacha));
+        vm.stopBroadcast();
     }
 }
