@@ -6,7 +6,7 @@ import {ERC20} from "openzeppelin-contracts/token/ERC20/ERC20.sol";
 
 contract PLMCoin is ERC20, IPLMCoin {
     address public treasury;
-    event mintDebug(uint256 amount, address user);
+    event mintDebug(uint256 amount, address indexed user);
 
     mapping(address => uint256) subscExpiredPoint;
 
