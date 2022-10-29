@@ -201,7 +201,7 @@ contract PLMToken is ERC721Enumerable, IPLMToken {
         CharacterInfo memory dummyInfo = CharacterInfo("", 0, 0, [0]);
         require(
             blockNumber < block.number,
-            "ERC721Checkpointable::getPriorVotes: not yet determined"
+            "PLMToken::getPriorCharInfo: not yet determined"
         );
 
         uint32 nCheckpoints = numCheckpoints[tokenId];
@@ -219,10 +219,6 @@ contract PLMToken is ERC721Enumerable, IPLMToken {
             return dummyInfo;
         }
 
-        /** メモ: @terapoon
-         * ここに来ている時点で、調べたい得票数は途中の時点でのどこか。
-         * 二部探索によりこれを求める。
-         */
         /// @notice calc the array index where the blockNumber that you want to search is placed by binary search
         uint32 lower = 0;
         uint32 upper = nCheckpoints - 1;
