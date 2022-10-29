@@ -1,14 +1,13 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import {IPLMToken} from "./interfaces/IPLMToken.sol";
-import {IPLMSeeder} from "./interfaces/IPLMSeeder.sol";
-import {IPLMData} from "./interfaces/IPLMData.sol";
-import {IPLMDealer} from "./interfaces/IPLMDealer.sol";
-import {IPLMCoin} from "./interfaces/IPLMCoin.sol";
-import {IPLMBattleField} from "./interfaces/IPLMBattleField.sol";
+import {PLMSeeder} from "../lib/PLMSeeder.sol";
 
 import {ReentrancyGuard} from "openzeppelin-contracts/security/ReentrancyGuard.sol";
+
+import {IPLMToken} from "../interfaces/IPLMToken.sol";
+import {IPLMDealer} from "../interfaces/IPLMDealer.sol";
+import {IPLMBattleField} from "../interfaces/IPLMBattleField.sol";
 
 contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
     /// @notice The number of winning needed to win the match.
@@ -40,15 +39,6 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
 
     /// @notice interface to the characters' information.
     IPLMToken token;
-
-    /// @notice interface to the seeder.
-    IPLMSeeder seeder;
-
-    /// @notice interface to the character data.
-    IPLMData data;
-
-    /// @notice interface to the coin.
-    IPLMCoin coin;
 
     /// @notice state of the battle.
     BattleState battleState;
@@ -166,20 +156,6 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         _;
     }
 
-    constructor(
-        IPLMDealer _dealer,
-        IPLMToken _PLMToken,
-        IPLMSeeder _PLMSeeder,
-        IPLMData _PLMData,
-        IPLMCoin _PLMCoin
-    ) {
-        dealer = _dealer;
-        token = _PLMToken;
-        seeder = _PLMSeeder;
-        data = _PLMData;
-        coin = _PLMCoin;
-    }
-
     /// @notice Commit the player's seed to generate the tokenId for random slot.
     /// @param playerId: the identifier of the player. Alice or Bob.
     /// @param commitString: commitment string calculated by the player designated by playerId
@@ -229,7 +205,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         playerInfoTable[playerId].randomSlot.state = RandomSlotState.Committed;
 
         // Generate nonce after player committed the playerSeed.
-        bytes32 nonce = seeder.generateRandomSlotNonce();
+        bytes32 nonce = PLMSeeder.generateRandomSlotNonce();
 
         // Emit the event that tells frontend that the randomSlotNonce is generated for the player designated
         // by playerId.
@@ -476,7 +452,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         );
         uint8 aliceDamage;
         uint8 bobDamage;
-        (aliceDamage, bobDamage) = data.calcBattleResult(aliceChar, bobChar);
+        (aliceDamage, bobDamage) = token.calcBattleResult(aliceChar, bobChar);
 
         if (aliceDamage > bobDamage) {
             // Alice wins !!
@@ -539,7 +515,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
     /// @dev Ban the account (subtract constant block number from the subscribing period limit.)
     function _banCheater(PlayerId playerId) internal {
         // Reduce the subscribing period to ban the cheater account.
-        coin.banAccount(
+        dealer.banAccount(
             _getPlayerAddress(playerId),
             DAILY_BLOCK_NUM * BAN_DATE_LENGTH_FOR_CHEATER
         );
@@ -552,7 +528,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
     /// @dev Ban the account (subtract constant block number from the subscribing period limit.)
     function _banLazyPlayer(PlayerId playerId) internal {
         // Reduce the subscribing period to ban the cheater account.
-        coin.banAccount(
+        dealer.banAccount(
             _getPlayerAddress(playerId),
             DAILY_BLOCK_NUM * BAN_DATE_LENGTH_FOR_LAZY_ACCOUNT
         );
@@ -636,8 +612,8 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         }
 
         // Get level point for both players.
-        uint8 aliceLevelPoint = data.calcLevelPoint(aliceCharInfos);
-        uint8 bobLevelPoint = data.calcLevelPoint(bobCharInfos);
+        uint8 aliceLevelPoint = token.calcLevelPoint(aliceCharInfos);
+        uint8 bobLevelPoint = token.calcLevelPoint(bobCharInfos);
 
         // Initial state of random slot.
         RandomSlot memory initRandomSlot = RandomSlot(
@@ -729,7 +705,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         uint256 tokenId;
         if (choice == Choice.Random) {
             // Player's choice is random slot.
-            tokenId = seeder.getRandomSlotTokenId(
+            tokenId = PLMSeeder.getRandomSlotTokenId(
                 _getNonce(playerId),
                 _getPlayerSeed(playerId),
                 token
