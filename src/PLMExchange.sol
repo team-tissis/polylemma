@@ -10,7 +10,6 @@ contract PLMExchange is IPLMExchange {
     using SafeMath for uint256;
     address dealer;
     address treasury;
-    uint256 maticAmount;
     IPLMData data;
     IPLMCoin coin;
 
@@ -29,7 +28,6 @@ contract PLMExchange is IPLMExchange {
     //MATICに対して1:1でmintする (叩くのはUser)
     function mintPLMByUser() public payable {
         // TODO: restriction of user minting
-        maticAmount += msg.value;
         coin.mint(msg.value);
         _transferPLMWithPooling(msg.sender, msg.value);
     }
@@ -55,9 +53,15 @@ contract PLMExchange is IPLMExchange {
         return (mintedVolume * tax).mod(100);
     }
 
+    function balanceOfMatic() public view returns (uint256) {
+        return address(this).balance;
+    }
+
     function withdraw(uint256 amount) public onlyDealer {
-        require(amount <= maticAmount, "cannot withdraw over value");
-        payable(dealer).transfer(amount);
+        uint256 maticBalance = address(this).balance;
+        require(amount <= maticBalance, "cannnot withdraw over balance");
+        (bool success, ) = payable(dealer).call{value: amount}("");
+        require(success, "Failed to send Ether");
     }
 
     // For initialMint and emergency mint to treasury,
