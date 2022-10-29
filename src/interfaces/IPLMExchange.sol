@@ -10,7 +10,7 @@ interface IPLMExchange {
 
     function mintForTreasury(uint256 amount) external;
 
-    function balanceOfMativ() external view returns (uint256);
+    function balanceOfMatic() external view returns (uint256);
 
     function withdraw(uint256 amount) external;
 }
