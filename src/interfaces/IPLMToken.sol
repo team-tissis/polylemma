@@ -5,7 +5,7 @@ interface IPLMToken is IERC721, IERC721Enumerable {
     // TODO: factoryに移す。
     struct CharacterInfo {
         string characterType;
-        uint256 mintBlockNum;
+        uint256 fromBlock;
         uint8 level;
         uint8 rarity;
         uint8[1] abilityIds;

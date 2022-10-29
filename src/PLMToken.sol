@@ -100,12 +100,15 @@ contract PLMToken is ERC721Enumerable, IPLMToken {
         return characterInfos[tokenId];
     }
 
-    function getBondLevel(uint256 tokenId) public view returns (uint256) {
-        return block.number - getCharacterInfo(tokenId).mintBlockNum;
+    function getElapsedFromBlock(uint256 tokenId)
+        public
+        view
+        returns (uint256)
+    {
+        return block.number - getCharacterInfo(tokenId).fromBlock;
     }
 
     // TODO: for文回してるのでガス代くそかかる。節約した記述を考える
-
     function getAllCharacterInfo()
         public
         view
@@ -192,6 +195,6 @@ contract PLMToken is ERC721Enumerable, IPLMToken {
     ) internal virtual override {
         super._beforeTokenTransfer(from, to, firstTokenId, batchSize);
         uint256 tokenId = firstTokenId;
-        characterInfos[tokenId].mintBlockNum = block.number;
+        characterInfos[tokenId].fromBlock = block.number;
     }
 }
