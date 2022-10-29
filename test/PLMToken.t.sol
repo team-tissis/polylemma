@@ -2,120 +2,131 @@
 pragma solidity ^0.8.17;
 
 import "forge-std/Test.sol";
-import {PLMToken} from "../src/PLMToken.sol";
+import {PLMDealer} from "../src/PLMDealer.sol";
 import {PLMCoin} from "../src/PLMCoin.sol";
-import {PLMSeeder} from "../src/PLMSeeder.sol";
-import {PLMData} from "../src/PLMData.sol";
-import {PLMExchange} from "../src/PLMExchange.sol";
+import {PLMToken} from "../src/PLMToken.sol";
 
-import {IPLMSeeder} from "../src/interfaces/IPLMSeeder.sol";
-import {IPLMData} from "../src/interfaces/IPLMData.sol";
 import {IPLMCoin} from "../src/interfaces/IPLMCoin.sol";
-import {IPLMExchange} from "../src/interfaces/IPLMExchange.sol";
+import {IPLMToken} from "../src/interfaces/IPLMToken.sol";
 
 contract PLMTokenTest is Test {
-    // EOA
-    address dealer = address(100);
-    address minter = address(10);
-    address tmpTreasury = address(9);
-    address treasury;
-    address user = address(999);
+    address polylemmer = address(10);
+    address user = address(11);
+    uint256 maticForEx = 100000 ether;
+    uint32 currentBlock = 0;
+    PLMDealer dealer;
 
-    uint256 initialMint = 10000000;
-    uint256 subscFee = 100;
-    uint256 subscDuration = 600000;
-
-    PLMSeeder seederContract;
-    PLMData dataContract;
     PLMCoin coinContract;
-    PLMExchange coinExContract;
-    PLMToken token;
-
-    IPLMSeeder seeder;
-    IPLMData data;
+    PLMToken tokenContract;
+    IPLMToken token;
     IPLMCoin coin;
-    IPLMExchange coinEx;
 
     function setUp() public {
-        vm.startPrank(dealer);
-        dataContract = new PLMData();
-        data = IPLMData(address(dataContract));
-        seederContract = new PLMSeeder();
-        coinContract = new PLMCoin(data, tmpTreasury, subscFee, subscDuration);
-        seeder = IPLMSeeder(address(seederContract));
+        // send transaction by deployer
+        vm.startPrank(polylemmer);
+
+        // deploy contract
+        coinContract = new PLMCoin(address(99));
         coin = IPLMCoin(address(coinContract));
-        uint256 maxSupply = 10000;
-        token = new PLMToken(minter, seeder, data, coin, maxSupply);
+        tokenContract = new PLMToken(address(99), coin, 100000);
+        token = IPLMToken(address(tokenContract));
+        dealer = new PLMDealer(token, coin);
 
-        coinExContract = new PLMExchange(data, coin);
-        coinEx = IPLMExchange(address(coinExContract));
-        treasury = address(coinEx);
-        coin.setTreasury(treasury);
-        coinEx.mintForTreasury(100000000);
-        vm.stopPrank();
-    }
+        // set dealer
+        coin.setDealer(address(dealer));
+        token.setDealer(address(dealer));
 
-    function testMint() public {
-        vm.prank(minter);
-        token.mint();
-    }
-
-    function testFailMintByNonMiner() public {
-        vm.prank(address(100)); //set a diffrent address from minter's address to msg.sender
-        token.mint();
-    }
-
-    function testTokenIdIncrement() public {
-        vm.startPrank(minter);
-        uint256 aTokenId = token.totalSupply();
-        token.mint();
-        uint256 nextTokenId = token.totalSupply();
+        // set block number to be enough length
+        currentBlock = dealer.getStaminaMax() + 1000;
+        vm.roll(currentBlock);
         vm.stopPrank();
 
-        assertEq(aTokenId + 1, nextTokenId);
+        // initial mint of PLM
+        uint256 ammount = 100000000000000;
+        vm.prank(polylemmer);
+        dealer.mintAdditionalCoin(ammount);
+
+        // send ether to user address
+        vm.deal(user, 10000000 ether);
+        // (user)  charge MATIC and get PLMcoin
+        vm.prank(user);
+        dealer.charge{value: maticForEx}();
     }
 
-    function testIsCorrectOwnerMint() public {
-        vm.startPrank(minter);
-        token.mint();
-        uint256 latestTokenId = token.totalSupply();
-        address mintedTokenOwner = token.ownerOf(latestTokenId);
-        vm.stopPrank();
+    function testMintWithCheckPoint() public {
+        uint256 tokenId = 1;
 
-        assertEq(mintedTokenOwner, minter);
+        // check empty checkpoint impl
+        PLMToken.CharacterInfo memory checkpointBeforeMint = token
+            .getCurrentCharacterInfo(tokenId);
+
+        assertEq(checkpointBeforeMint.name, "");
+        assertEq(checkpointBeforeMint.characterType, "");
+        assertEq(checkpointBeforeMint.level, 0);
+        assertEq(checkpointBeforeMint.rarity, 0);
+        assertEq(checkpointBeforeMint.abilityIds[0], 0);
+
+        // check impl. of first checkpoint created by mint
+        vm.startPrank(user);
+        coin.approve(address(dealer), dealer.getGachaFee());
+        dealer.gacha("test-mon");
+        PLMToken.CharacterInfo memory checkpointAfterMint = token
+            .getCurrentCharacterInfo(tokenId);
+
+        assertEq(checkpointAfterMint.name, "test-mon");
+        assertEq(checkpointAfterMint.level, 1);
     }
 
-    function testCharacterInfo() public {
-        vm.startPrank(minter);
-        uint256 tokenId = token.mint();
-        PLMToken.CharacterInfo memory tokenInfo = token.getCharacterInfo(
-            tokenId
-        );
-        // check characterInfo initialization
-
-        // TODO: to test other members
-        assertEq(tokenInfo.level, 1);
-        vm.stopPrank();
-    }
-
-    function testUpdateLevel() public {
-        vm.prank(treasury);
-        coin.transfer(user, 10000);
-
-        vm.startPrank(minter);
-        uint256 tokenId = token.mint();
-        token.transferFrom(minter, user, tokenId);
-        vm.stopPrank();
+    function testLevelUpWithCheckPoint() public {
+        uint256 tokenId = 1;
 
         vm.startPrank(user);
-        coin.approve(
-            address(token),
-            data.calcNecessaryExp(token.getCharacterInfo(tokenId))
-        );
-        assertEq(token.getCharacterInfo(tokenId).level, 1, "not initial level");
+        // gacha
+        coin.approve(address(dealer), dealer.getGachaFee());
+        dealer.gacha("test-mon");
+
+        // level Up
+        coin.approve(address(token), token.getNecessaryExp(tokenId));
         token.updateLevel(tokenId);
-        token.getCharacterInfo(tokenId);
-        assertEq(token.getCharacterInfo(tokenId).level, 2, "level not updated");
-        vm.stopPrank();
+
+        assertEq(token.getCurrentCharacterInfo(tokenId).level, 2);
+    }
+
+    function testGetPriorCheckPoint() public {
+        uint256 tokenId = 1;
+
+        vm.startPrank(user);
+        // gacha
+        coin.approve(address(dealer), dealer.getGachaFee());
+        dealer.gacha("test-mon");
+
+        // level Up
+        currentBlock++;
+        vm.roll(currentBlock);
+        coin.approve(address(token), token.getNecessaryExp(tokenId));
+        token.updateLevel(tokenId);
+
+        assertEq(
+            token.getPriorCharacterInfo(tokenId, currentBlock - 1).level,
+            1
+        );
+        assertEq(token.getCurrentCharacterInfo(tokenId).level, 2);
+    }
+
+    function testUpdatelevelSeveralTime() public {
+        uint256 tokenId = 1;
+
+        vm.startPrank(user);
+        // gacha
+        coin.approve(address(dealer), dealer.getGachaFee());
+        dealer.gacha("test-mon");
+
+        // level Up
+        currentBlock++;
+        vm.roll(currentBlock);
+        for (uint256 i = 0; i < 10; i++) {
+            coin.approve(address(token), token.getNecessaryExp(tokenId));
+            token.updateLevel(tokenId);
+        }
     }
 }

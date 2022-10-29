@@ -1,8 +1,7 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import {IPLMData} from "./interfaces/IPLMData.sol";
-import {IPLMToken} from "./interfaces/IPLMToken.sol";
+import {IPLMData} from "../interfaces/IPLMData.sol";
 
 contract PLMData is IPLMData {
     // TODO: monsterblocksのmonster名で仮置きした
@@ -19,10 +18,10 @@ contract PLMData is IPLMData {
     uint8[] public characterTypeOdds = [2, 2, 2, 2, 2];
     uint8[] public abilityOdds = [2, 2, 2];
 
-    uint256[] public taxPercentageTable = [5, 10, 20, 23, 33, 40, 45];
+    uint256[] public poolingPercentageTable = [5, 10, 20, 23, 33, 40, 45];
 
     function getCharacterTypes()
-        external
+        public
         view
         override
         returns (string[] memory)
@@ -34,6 +33,14 @@ contract PLMData is IPLMData {
         return characterTypes.length;
     }
 
+    function getAbilities() external view override returns (string[] memory) {
+        return abilities;
+    }
+
+    function countAbilities() external view override returns (uint256) {
+        return abilities.length;
+    }
+
     function getCharacterTypeOdds()
         external
         view
@@ -43,39 +50,12 @@ contract PLMData is IPLMData {
         return characterTypeOdds;
     }
 
-    function getAbilities() external view override returns (string[] memory) {
-        return abilities;
-    }
-
-    function countAbilities() external view override returns (uint256) {
-        return abilities.length;
+    function numOddsCharacterType() external view returns (uint256) {
+        return characterTypeOdds.length;
     }
 
     function getAbilityOdds() external view override returns (uint8[] memory) {
         return abilityOdds;
-    }
-
-    // TODO: not defined yet
-    function calcRarity(uint8 characterId, uint8[1] calldata abilityIds)
-        external
-        pure
-        override
-        returns (uint8)
-    {
-        return 0;
-    }
-
-    // This logic is derived from Pokemon
-    function calcNecessaryExp(IPLMToken.CharacterInfo calldata charInfo)
-        external
-        pure
-        returns (uint256)
-    {
-        return uint256(charInfo.level)**3;
-    }
-
-    function numOddsCharacterType() external view returns (uint256) {
-        return characterTypeOdds.length;
     }
 
     function numOddsAbility() external view returns (uint256) {
@@ -83,15 +63,16 @@ contract PLMData is IPLMData {
     }
 
     // TODO: 一旦ダメージはそのままレヴェルを返す
+    /// @notice function to simulate the battle and return back result to BattleField contract.
     function calcBattleResult(
-        IPLMToken.CharacterInfo calldata aliceChar,
-        IPLMToken.CharacterInfo calldata bobChar
+        CharacterInfo calldata aliceChar,
+        CharacterInfo calldata bobChar
     ) external pure returns (uint8, uint8) {
         return (aliceChar.level, bobChar.level);
     }
 
     // TODO: 一旦レベルポイントは最大値をそのまま返す。
-    function calcLevelPoint(IPLMToken.CharacterInfo[4] calldata charInfos)
+    function calcLevelPoint(CharacterInfo[4] calldata charInfos)
         external
         pure
         returns (uint8)
@@ -105,22 +86,44 @@ contract PLMData is IPLMData {
         return maxLevel;
     }
 
-    // get a fee for converting from MATIC to coins
-    function getTaxPercentage(uint256 amount) public view returns (uint256) {
+    // get the percentage of pooling of PLMCoins minted when player charged MATIC.
+    function getPoolingPercentage(uint256 amount)
+        public
+        view
+        returns (uint256)
+    {
         if (0 < amount && amount <= 2000 ether) {
-            return taxPercentageTable[0];
+            return poolingPercentageTable[0];
         } else if (2000 ether < amount && amount <= 4000 ether) {
-            return taxPercentageTable[1];
+            return poolingPercentageTable[1];
         } else if (4000 ether < amount && amount <= 5000 ether) {
-            return taxPercentageTable[2];
+            return poolingPercentageTable[2];
         } else if (5000 ether < amount && amount <= 6000 ether) {
-            return taxPercentageTable[3];
+            return poolingPercentageTable[3];
         } else if (6000 ether < amount && amount <= 7000 ether) {
-            return taxPercentageTable[4];
+            return poolingPercentageTable[4];
         } else if (7000 ether < amount && amount <= 8000 ether) {
-            return taxPercentageTable[5];
+            return poolingPercentageTable[5];
         } else {
-            return taxPercentageTable[6];
+            return poolingPercentageTable[6];
         }
+    }
+
+    // TODO: not defined yet
+    function _calcRarity(uint8 characterId, uint8[1] memory abilityIds)
+        internal
+        pure
+        returns (uint8)
+    {
+        return 0;
+    }
+
+    // This logic is derived from Pokemon
+    function _calcNecessaryExp(CharacterInfo memory charInfo)
+        internal
+        pure
+        returns (uint256)
+    {
+        return uint256(charInfo.level)**3;
     }
 }
