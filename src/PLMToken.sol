@@ -263,7 +263,6 @@ contract PLMToken is ERC721Enumerable, IPLMToken {
         );
         // TODO; is it right??
         _mint(to, tokenId);
-        // TODO: event
         return tokenId;
     }
 
