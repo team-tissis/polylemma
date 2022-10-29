@@ -66,9 +66,9 @@ contract PLMToken is ERC721Enumerable, IPLMToken {
     }
 
     // minterにgachaコントラクトアドレスをセットすることで、gachaからしかmintできないようにする。
-    function mint() public onlyMinter returns (uint256) {
+    function mint(bytes32 name) public onlyMinter returns (uint256) {
         currentTokenId++;
-        return _mintTo(minter, currentTokenId);
+        return _mintTo(minter, currentTokenId, name);
     }
 
     function burn(uint256 tokenId) public onlyMinter {
@@ -163,10 +163,15 @@ contract PLMToken is ERC721Enumerable, IPLMToken {
     /// descript how is the token minted
     /// generate token attributes pattern randomly with seeder, if you want to mint defined patterns in defined numbers of pieces,
     ///      you have to edit this function.
-    function _mintTo(address to, uint256 tokenId) internal returns (uint256) {
+    function _mintTo(
+        address to,
+        uint256 tokenId,
+        bytes32 name
+    ) internal returns (uint256) {
         IPLMSeeder.Seed memory seed = seeder.generateSeed(tokenId, data);
         string[] memory characterTypes = data.getCharacterTypes();
         characterInfos[tokenId] = CharacterInfo(
+            name,
             characterTypes[seed.characterType],
             1,
             data.calcRarity(seed.characterType, [seed.ability]),

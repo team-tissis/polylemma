@@ -83,7 +83,8 @@ contract PLMGachaTest is Test {
         vm.prank(user);
         coin.approve(address(gacha), gachaPayment);
         vm.prank(user);
-        gacha.gacha();
+        bytes32 name = "test-mon";
+        gacha.gacha(name);
         uint256 tokenUsers = token.tokenOfOwnerByIndex(user, 0);
         assertEq(tokenUsers, 1);
         assertEq(1, token.totalSupply());
