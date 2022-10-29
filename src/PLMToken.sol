@@ -108,6 +108,10 @@ contract PLMToken is ERC721Enumerable, IPLMToken {
         return characterInfos[tokenId];
     }
 
+    function getBondLevel(uint256 tokenId) public view returns (uint256) {
+        return block.number - getCharacterInfo(tokenId).mintBlockNum;
+    }
+
     // TODO: for文回してるのでガス代くそかかる。節約した記述を考える
 
     function getAllCharacterInfo()
@@ -249,6 +253,7 @@ contract PLMToken is ERC721Enumerable, IPLMToken {
         characterInfos[tokenId] = CharacterInfo(
             name,
             characterTypes[seed.characterType],
+            block.number,
             1,
             data.calcRarity(seed.characterType, [seed.ability]),
             [seed.ability]
@@ -257,5 +262,17 @@ contract PLMToken is ERC721Enumerable, IPLMToken {
         _mint(to, tokenId);
         // TODO: event
         return tokenId;
+    }
+
+    /// @notice reset bondLevel when the token is transfered
+    function _beforeTokenTransfer(
+        address from,
+        address to,
+        uint256 firstTokenId,
+        uint256 batchSize
+    ) internal virtual override {
+        super._beforeTokenTransfer(from, to, firstTokenId, batchSize);
+        uint256 tokenId = firstTokenId;
+        characterInfos[tokenId].mintBlockNum = block.number;
     }
 }
