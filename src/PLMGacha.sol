@@ -32,7 +32,7 @@ contract PLMGacha is IPLMGacha, ReentrancyGuard {
         gachaPayment = _gachaPayment;
     }
 
-    function gacha() public nonReentrant {
+    function gacha(bytes32 name) public nonReentrant {
         require(
             coin.allowance(msg.sender, address(this)) >= gachaPayment,
             "coin allowance insufficient /gacha"
@@ -41,7 +41,7 @@ contract PLMGacha is IPLMGacha, ReentrancyGuard {
             coin.balanceOf(msg.sender) >= gachaPayment,
             "not sufficient balance /gacha"
         );
-        try token.mint() returns (uint256 tokenId) {
+        try token.mint(name) returns (uint256 tokenId) {
             try coin.transferFrom(msg.sender, treasury, gachaPayment) {
                 token.transferFrom(address(this), msg.sender, tokenId);
                 emit CharacterRecievedByUser(
