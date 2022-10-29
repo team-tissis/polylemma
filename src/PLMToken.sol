@@ -21,7 +21,7 @@ contract PLMToken is ERC721Enumerable, IPLMToken {
     IPLMSeeder seeder;
     IPLMCoin coin;
     IPLMData data;
-    CharacterInfo dummyInfo = CharacterInfo("", 0, 0, [0]);
+
     uint256 private currentTokenId = 0;
     /// @notice A checkpoint for marking change of characterInfo from a given block
     struct Checkpoint {
@@ -178,6 +178,7 @@ contract PLMToken is ERC721Enumerable, IPLMToken {
         view
         returns (CharacterInfo memory)
     {
+        CharacterInfo memory dummyInfo = CharacterInfo("", 0, 0, [0]);
         uint32 nCheckpoints = numCheckpoints[tokenId];
         return
             nCheckpoints > 0
@@ -197,6 +198,7 @@ contract PLMToken is ERC721Enumerable, IPLMToken {
         view
         returns (CharacterInfo memory)
     {
+        CharacterInfo memory dummyInfo = CharacterInfo("", 0, 0, [0]);
         require(
             blockNumber < block.number,
             "ERC721Checkpointable::getPriorVotes: not yet determined"
