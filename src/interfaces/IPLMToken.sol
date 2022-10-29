@@ -1,17 +1,18 @@
 import {IERC721} from "openzeppelin-contracts/token/ERC721/IERC721.sol";
 import {IERC721Enumerable} from "openzeppelin-contracts/token/ERC721/extensions/IERC721Enumerable.sol";
+import {IPLMData} from "./IPLMData.sol";
 
-interface IPLMToken is IERC721, IERC721Enumerable {
-    struct CharacterInfo {
-        bytes20 name;
-        string characterType;
+interface IPLMToken is IERC721, IERC721Enumerable, IPLMData {
+    /// @notice A checkpoint for marking change of characterInfo from a given block.
+    struct Checkpoint {
         uint256 fromBlock;
-        uint8 level;
-        uint8 rarity;
-        uint8[1] abilityIds;
+        CharacterInfo charInfo;
     }
 
     event levelUped(CharacterInfo indexed characterInfo);
+
+    // For debug
+    error ErrorWithLog(string reason);
 
     function mint(bytes20 name) external returns (uint256);
 
@@ -24,7 +25,6 @@ interface IPLMToken is IERC721, IERC721Enumerable {
 
     function getAllCharacterInfo() external returns (CharacterInfo[] calldata);
 
-    // TODO: define in PLMToken.sol
     function getCharacterInfo(uint256 tokenId)
         external
         view
@@ -34,7 +34,7 @@ interface IPLMToken is IERC721, IERC721Enumerable {
 
     function getNecessaryExp(uint256 tokenId) external view returns (uint256);
 
-    function setMinter(address newMinter) external;
+    function setDealer(address newDealer) external;
 
     function getCurrentCharInfo(uint256 tokenId)
         external

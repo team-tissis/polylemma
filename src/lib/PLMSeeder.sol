@@ -1,10 +1,15 @@
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import {IPLMSeeder} from "./interfaces/IPLMSeeder.sol";
-import {IPLMData} from "./interfaces/IPLMData.sol";
-import {IPLMToken} from "./interfaces/IPLMToken.sol";
+import {IPLMData} from "../interfaces/IPLMData.sol";
+import {IPLMToken} from "../interfaces/IPLMToken.sol";
 
-contract PLMSeeder is IPLMSeeder {
+library PLMSeeder {
+    struct Seed {
+        uint8 characterType;
+        uint8 ability;
+    }
+
     /// @notice generate seeds for character mint
     /// @dev generate seeds of traits from current-block's hash for to mint character
     /// @param tokenId tokenId to be minted
@@ -12,7 +17,6 @@ contract PLMSeeder is IPLMSeeder {
     function generateSeed(uint256 tokenId, IPLMData data)
         external
         view
-        override
         returns (Seed memory)
     {
         uint256 pseudoRandomness = _generateRandomnessFromBlockHash(tokenId);
@@ -31,12 +35,7 @@ contract PLMSeeder is IPLMSeeder {
 
     /// @notice generate nonce to be used as input of hash for randomSlotTokenId
     /// @dev generate nonce to be used as input of hash for randomSlotTokenId
-    function generateRandomSlotNonce()
-        external
-        view
-        override
-        returns (bytes32)
-    {
+    function generateRandomSlotNonce() external view returns (bytes32) {
         return keccak256(abi.encodePacked(blockhash(block.number - 1)));
     }
 
@@ -61,10 +60,10 @@ contract PLMSeeder is IPLMSeeder {
         bytes32 nonce,
         bytes32 playerSeed,
         IPLMToken token
-    ) external view returns (uint256 tokenId) {
-        tokenId =
-            uint256(keccak256(abi.encodePacked(nonce, playerSeed))) %
-            token.totalSupply();
+    ) external view returns (uint256) {
+        uint256 tokenId = uint256(
+            keccak256(abi.encodePacked(nonce, playerSeed))
+        ) % token.totalSupply();
         return tokenId;
     }
 }

@@ -1,42 +1,47 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import {IPLMToken} from "./interfaces/IPLMToken.sol";
-import {IPLMCoin} from "./interfaces/IPLMCoin.sol";
-import {IPLMSeeder} from "./interfaces/IPLMSeeder.sol";
-import {IPLMData} from "./interfaces/IPLMData.sol";
 import {Counters} from "openzeppelin-contracts/utils/Counters.sol";
+import {PLMSeeder} from "./lib/PLMSeeder.sol";
+
 import {ERC721} from "openzeppelin-contracts/token/ERC721/ERC721.sol";
 import {ERC721Burnable} from "openzeppelin-contracts/token/ERC721/extensions/ERC721Burnable.sol";
 import {ERC721Enumerable} from "openzeppelin-contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import {ERC20} from "openzeppelin-contracts/token/ERC20/ERC20.sol";
+import {PLMData} from "./subcontracts/PLMData.sol";
 
-contract PLMToken is ERC721Enumerable, IPLMToken {
+import {IPLMData} from "./interfaces/IPLMData.sol";
+import {IPLMToken} from "./interfaces/IPLMToken.sol";
+import {IPLMCoin} from "./interfaces/IPLMCoin.sol";
+
+contract PLMToken is ERC721Enumerable, PLMData, IPLMToken {
     using Counters for Counters.Counter;
 
+    address polylemmer;
     address dealer;
-    address minter;
     address enhancer;
     uint256 maxSupply;
-    IPLMSeeder seeder;
     IPLMCoin coin;
-    IPLMData data;
 
     uint256 private currentTokenId = 0;
-    /// @notice A checkpoint for marking change of characterInfo from a given block
-    struct Checkpoint {
-        uint256 fromBlock;
-        CharacterInfo charInfo;
-    }
+
     /// @notice tokenId => characterInfo
     mapping(uint256 => CharacterInfo) characterInfos;
-    /// @notice A record of charInfo checkpoints for each account, by index
+
+    /// @notice A record of charInfo checkpoints for each account, by index.
+    /// @dev The key of this map is tokenId.
     mapping(uint256 => Checkpoint[]) checkpoints;
+
     /// @notice The number of checkpoints for each token
     mapping(uint256 => uint32) public numCheckpoints;
 
-    // for debug
-    event Log(string);
+    modifier onlyPolylemmer() {
+        require(
+            msg.sender == polylemmer,
+            "Permission denied. Sender is not polylemmer."
+        );
+        _;
+    }
 
     modifier onlyDealer() {
         require(
@@ -46,42 +51,27 @@ contract PLMToken is ERC721Enumerable, IPLMToken {
         _;
     }
 
-    modifier onlyMinter() {
-        require(
-            msg.sender == minter,
-            "Permission denied. Sender is not minter."
-        );
-        _;
-    }
-
-    // modifier enoughLeft() {
-    //     require(totalMinted + _quantity < maxSupply + 1, "Not enough left");
-    // }
-
     constructor(
-        address _minter,
-        IPLMSeeder _seeder,
-        IPLMData _data,
+        address _dealer,
         IPLMCoin _coin,
         uint256 _maxSupply
     ) ERC721("Polylemma", "PLM") {
-        dealer = msg.sender;
-        minter = _minter;
-        seeder = _seeder;
-        data = _data;
+        polylemmer = msg.sender;
+        dealer = _dealer;
         coin = _coin;
         maxSupply = _maxSupply;
     }
 
-    // minterにgachaコントラクトアドレスをセットすることで、gachaからしかmintできないようにする。
-    function mint(bytes20 name) public onlyMinter returns (uint256) {
+    // dealerにgachaコントラクトアドレスをセットすることで、gachaからしかmintできないようにする。
+    function mint(bytes20 name) public onlyDealer returns (uint256) {
         currentTokenId++;
-        return _mintTo(minter, currentTokenId, name);
+        return _mintTo(dealer, currentTokenId, name);
     }
 
-    function burn(uint256 tokenId) public onlyMinter {
+    // TODO: Is burn func. required?
+    // If some reasons arise to impl it, yes, it is.
+    function burn(uint256 tokenId) public onlyDealer {
         _burn(tokenId);
-        // TODO: event
     }
 
     function getAllTokenOwned(address account)
@@ -100,22 +90,6 @@ contract PLMToken is ERC721Enumerable, IPLMToken {
         return allTokensOwned;
     }
 
-    function getCharacterInfo(uint256 tokenId)
-        public
-        view
-        returns (CharacterInfo memory)
-    {
-        return characterInfos[tokenId];
-    }
-
-    function getElapsedFromBlock(uint256 tokenId)
-        public
-        view
-        returns (uint256)
-    {
-        return block.number - getCharacterInfo(tokenId).fromBlock;
-    }
-
     // TODO: for文回してるのでガス代くそかかる。節約した記述を考える
     function getAllCharacterInfo()
         public
@@ -131,6 +105,22 @@ contract PLMToken is ERC721Enumerable, IPLMToken {
             allCharacterInfos[i] = characterInfos[i + 1];
         }
         return allCharacterInfos;
+    }
+
+    function getCharacterInfo(uint256 tokenId)
+        public
+        view
+        returns (CharacterInfo memory)
+    {
+        return characterInfos[tokenId];
+    }
+
+    function getElapsedFromBlock(uint256 tokenId)
+        public
+        view
+        returns (uint256)
+    {
+        return block.number - getCharacterInfo(tokenId).fromBlock;
     }
 
     /// @notice increment level with consuming his coin
@@ -152,27 +142,26 @@ contract PLMToken is ERC721Enumerable, IPLMToken {
             "not enough coin to update level"
         );
 
-        try coin.transferFrom(msg.sender, dealer, necessaryExp) {
+        try coin.transferFrom(msg.sender, polylemmer, necessaryExp) {
             characterInfos[tokenId].level += 1;
             emit levelUped(characterInfos[tokenId]);
             return characterInfos[tokenId].level;
         } catch Error(string memory reason) {
-            emit Log(reason);
-            return 0;
+            revert ErrorWithLog(reason);
         }
     }
 
     function getNecessaryExp(uint256 tokenId) public view returns (uint256) {
-        CharacterInfo memory charInfo = characterInfos[tokenId];
-        return data.calcNecessaryExp(charInfo);
+        CharacterInfo memory charInfo = getCharacterInfo(tokenId);
+        return _calcNecessaryExp(charInfo);
     }
 
-    function setMinter(address newMinter) external onlyDealer {
-        minter = newMinter;
+    function setDealer(address newDealer) external onlyPolylemmer {
+        dealer = newDealer;
     }
 
-    function getMinter() public view returns (address) {
-        return minter;
+    function getDealer() public view returns (address) {
+        return dealer;
     }
 
     /**
@@ -185,7 +174,7 @@ contract PLMToken is ERC721Enumerable, IPLMToken {
         view
         returns (CharacterInfo memory)
     {
-        CharacterInfo memory dummyInfo = CharacterInfo("", 0, 0, [0]);
+        CharacterInfo memory dummyInfo = CharacterInfo("", "", 0, 0, 0, [0]);
         uint32 nCheckpoints = numCheckpoints[tokenId];
         return
             nCheckpoints > 0
@@ -205,7 +194,7 @@ contract PLMToken is ERC721Enumerable, IPLMToken {
         view
         returns (CharacterInfo memory)
     {
-        CharacterInfo memory dummyInfo = CharacterInfo("", 0, 0, [0]);
+        CharacterInfo memory dummyInfo = CharacterInfo("", "", 0, 0, 0, [0]);
         require(
             blockNumber < block.number,
             "PLMToken::getPriorCharInfo: not yet determined"
@@ -251,17 +240,19 @@ contract PLMToken is ERC721Enumerable, IPLMToken {
         uint256 tokenId,
         bytes20 name
     ) internal returns (uint256) {
-        IPLMSeeder.Seed memory seed = seeder.generateSeed(tokenId, data);
-        string[] memory characterTypes = data.getCharacterTypes();
+        PLMSeeder.Seed memory seed = PLMSeeder.generateSeed(
+            tokenId,
+            IPLMData(address(this))
+        );
+        string[] memory characterTypes = getCharacterTypes();
         characterInfos[tokenId] = CharacterInfo(
             name,
             characterTypes[seed.characterType],
             block.number,
             1,
-            data.calcRarity(seed.characterType, [seed.ability]),
+            _calcRarity(seed.characterType, [seed.ability]),
             [seed.ability]
         );
-        // TODO; is it right??
         _mint(to, tokenId);
         return tokenId;
     }
