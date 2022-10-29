@@ -21,11 +21,19 @@ contract PLMToken is ERC721Enumerable, IPLMToken {
     IPLMSeeder seeder;
     IPLMCoin coin;
     IPLMData data;
-
+    CharacterInfo dummyInfo = CharacterInfo("", 0, 0, [0]);
     uint256 private currentTokenId = 0;
-
-    // tokenId => characterInfo
+    /// @notice A checkpoint for marking change of characterInfo from a given block
+    struct Checkpoint {
+        uint256 fromBlock;
+        CharacterInfo charInfo;
+    }
+    /// @notice tokenId => characterInfo
     mapping(uint256 => CharacterInfo) characterInfos;
+    /// @notice A record of charInfo checkpoints for each account, by index
+    mapping(uint256 => Checkpoint[]) checkpoints;
+    /// @notice The number of checkpoints for each token
+    mapping(uint256 => uint32) public numCheckpoints;
 
     // for debug
     event Log(string);
@@ -158,6 +166,76 @@ contract PLMToken is ERC721Enumerable, IPLMToken {
 
     function getMinter() public view returns (address) {
         return minter;
+    }
+
+    /**
+     * @notice Gets the current charInfo for `tokenId`
+     * @param tokenId The id of token to get charInfo
+     * @return CharacterInfo for `tokenId`
+     */
+    function getCurrentCharInfo(uint256 tokenId)
+        external
+        view
+        returns (CharacterInfo memory)
+    {
+        uint32 nCheckpoints = numCheckpoints[tokenId];
+        return
+            nCheckpoints > 0
+                ? checkpoints[tokenId][nCheckpoints - 1].charInfo
+                : dummyInfo;
+    }
+
+    /**
+     * @notice Determine the prior charInfo for an tokenId as of a block number
+     * @dev Block number must be a finalized block or else this function will revert to prevent misinformation.
+     * @param tokenId The address of the token to check
+     * @param blockNumber The block number to get the charInfo at
+     * @return CharacterInfo of the token had as of the given block
+     */
+    function getPriorCharInfo(uint256 tokenId, uint256 blockNumber)
+        public
+        view
+        returns (CharacterInfo memory)
+    {
+        require(
+            blockNumber < block.number,
+            "ERC721Checkpointable::getPriorVotes: not yet determined"
+        );
+
+        uint32 nCheckpoints = numCheckpoints[tokenId];
+        if (nCheckpoints == 0) {
+            return dummyInfo;
+        }
+
+        // First check most recent balance
+        if (checkpoints[tokenId][nCheckpoints - 1].fromBlock <= blockNumber) {
+            return checkpoints[tokenId][nCheckpoints - 1].charInfo;
+        }
+
+        // Nest check implicit zero balance
+        if (checkpoints[tokenId][0].fromBlock > blockNumber) {
+            return dummyInfo;
+        }
+
+        /** メモ: @terapoon
+         * ここに来ている時点で、調べたい得票数は途中の時点でのどこか。
+         * 二部探索によりこれを求める。
+         */
+        /// @notice calc the array index where the blockNumber that you want to search is placed by binary search
+        uint32 lower = 0;
+        uint32 upper = nCheckpoints - 1;
+        while (upper > lower) {
+            uint32 center = upper - (upper - lower) / 2; // ceil, avoiding overflow
+            Checkpoint memory cp = checkpoints[tokenId][center];
+            if (cp.fromBlock == blockNumber) {
+                return cp.charInfo;
+            } else if (cp.fromBlock < blockNumber) {
+                lower = center;
+            } else {
+                upper = center - 1;
+            }
+        }
+        return checkpoints[tokenId][lower].charInfo;
     }
 
     /// descript how is the token minted
