@@ -7,7 +7,6 @@ import {IPLMExchange} from "./interfaces/IPLMExchange.sol";
 // manage matic2coin, minting of coin
 contract PLMExchange is IPLMExchange {
     using Math for uint256;
-    using SafeMath for uint256;
     address dealer;
     address treasury;
     IPLMData data;
@@ -50,7 +49,7 @@ contract PLMExchange is IPLMExchange {
     {
         uint256 tax;
         tax = data.getTaxPercentage(mintedVolume);
-        return (mintedVolume * tax).mod(100);
+        return (mintedVolume * tax) / 100;
     }
 
     function balanceOfMatic() public view returns (uint256) {
