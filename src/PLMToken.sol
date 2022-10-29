@@ -1,34 +1,44 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import {IPLMToken} from "./interfaces/IPLMToken.sol";
-import {IPLMCoin} from "./interfaces/IPLMCoin.sol";
-import {IPLMSeeder} from "./interfaces/IPLMSeeder.sol";
-import {IPLMData} from "./interfaces/IPLMData.sol";
 import {Counters} from "openzeppelin-contracts/utils/Counters.sol";
+import {PLMSeeder} from "./lib/PLMSeeder.sol";
+
 import {ERC721} from "openzeppelin-contracts/token/ERC721/ERC721.sol";
 import {ERC721Burnable} from "openzeppelin-contracts/token/ERC721/extensions/ERC721Burnable.sol";
 import {ERC721Enumerable} from "openzeppelin-contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import {ERC20} from "openzeppelin-contracts/token/ERC20/ERC20.sol";
+import {PLMData} from "./subcontracts/PLMData.sol";
 
-contract PLMToken is ERC721Enumerable, IPLMToken {
+import {IPLMData} from "./interfaces/IPLMData.sol";
+import {IPLMToken} from "./interfaces/IPLMToken.sol";
+import {IPLMCoin} from "./interfaces/IPLMCoin.sol";
+
+contract PLMToken is ERC721Enumerable, PLMData, IPLMToken {
     using Counters for Counters.Counter;
 
+    address polylemmer;
     address dealer;
-    address minter;
     address enhancer;
     uint256 maxSupply;
-    IPLMSeeder seeder;
     IPLMCoin coin;
-    IPLMData data;
 
     uint256 private currentTokenId = 0;
 
-    // tokenId => characterInfo
-    mapping(uint256 => CharacterInfo) characterInfos;
+    /// @notice A record of charInfo checkpoints for each account, by index.
+    /// @dev The key of this map is tokenId.
+    mapping(uint256 => mapping(uint32 => Checkpoint)) checkpoints;
 
-    // for debug
-    event Log(string);
+    /// @notice The number of checkpoints for each token
+    mapping(uint256 => uint32) public numCheckpoints;
+
+    modifier onlyPolylemmer() {
+        require(
+            msg.sender == polylemmer,
+            "Permission denied. Sender is not polylemmer."
+        );
+        _;
+    }
 
     modifier onlyDealer() {
         require(
@@ -38,42 +48,27 @@ contract PLMToken is ERC721Enumerable, IPLMToken {
         _;
     }
 
-    modifier onlyMinter() {
-        require(
-            msg.sender == minter,
-            "Permission denied. Sender is not minter."
-        );
-        _;
-    }
-
-    // modifier enoughLeft() {
-    //     require(totalMinted + _quantity < maxSupply + 1, "Not enough left");
-    // }
-
     constructor(
-        address _minter,
-        IPLMSeeder _seeder,
-        IPLMData _data,
+        address _dealer,
         IPLMCoin _coin,
         uint256 _maxSupply
     ) ERC721("Polylemma", "PLM") {
-        dealer = msg.sender;
-        minter = _minter;
-        seeder = _seeder;
-        data = _data;
+        polylemmer = msg.sender;
+        dealer = _dealer;
         coin = _coin;
         maxSupply = _maxSupply;
     }
 
-    // minterにgachaコントラクトアドレスをセットすることで、gachaからしかmintできないようにする。
-    function mint() public onlyMinter returns (uint256) {
+    // dealerにgachaコントラクトアドレスをセットすることで、gachaからしかmintできないようにする。
+    function mint(bytes20 name) public onlyDealer returns (uint256) {
         currentTokenId++;
-        return _mintTo(minter, currentTokenId);
+        return _mintTo(dealer, currentTokenId, name);
     }
 
-    function burn(uint256 tokenId) public onlyMinter {
+    // TODO: Is burn func. required?
+    // If some reasons arise to impl it, yes, it is.
+    function burn(uint256 tokenId) public onlyDealer {
         _burn(tokenId);
-        // TODO: event
     }
 
     function getAllTokenOwned(address account)
@@ -92,16 +87,7 @@ contract PLMToken is ERC721Enumerable, IPLMToken {
         return allTokensOwned;
     }
 
-    function getCharacterInfo(uint256 tokenId)
-        public
-        view
-        returns (CharacterInfo memory)
-    {
-        return characterInfos[tokenId];
-    }
-
     // TODO: for文回してるのでガス代くそかかる。節約した記述を考える
-
     function getAllCharacterInfo()
         public
         view
@@ -113,13 +99,21 @@ contract PLMToken is ERC721Enumerable, IPLMToken {
         );
         for (uint256 i = 0; i < currentTokenId; i++) {
             // tokenIdは one-based, 配列のindexはzero-based
-            allCharacterInfos[i] = characterInfos[i + 1];
+            allCharacterInfos[i] = getCurrentCharacterInfo(i + 1);
         }
         return allCharacterInfos;
     }
 
+    function getElapsedFromBlock(uint256 tokenId)
+        public
+        view
+        returns (uint256)
+    {
+        return block.number - getCurrentCharacterInfo(tokenId).fromBlock;
+    }
+
     /// @notice increment level with consuming his coin
-    function updateLevel(uint256 tokenId) external returns (uint8) {
+    function updateLevel(uint256 tokenId) external {
         require(
             msg.sender == ownerOf(tokenId),
             "Permission denied. Sender is not owner of this token"
@@ -138,44 +132,201 @@ contract PLMToken is ERC721Enumerable, IPLMToken {
             "not enough coin to update level"
         );
 
-        try coin.transferFrom(msg.sender, dealer, necessaryExp) {
-            characterInfos[tokenId].level += 1;
-            emit levelUped(characterInfos[tokenId]);
-            return characterInfos[tokenId].level;
+        try coin.transferFrom(msg.sender, polylemmer, necessaryExp) {
+            _updateLevel(tokenId);
         } catch Error(string memory reason) {
-            emit Log(reason);
-            return 0;
+            revert ErrorWithLog(reason);
         }
     }
 
+    function _updateLevel(uint256 tokenId) internal {
+        uint32 checkNum = numCheckpoints[tokenId];
+        CharacterInfo memory charInfoOld = checkpoints[tokenId][checkNum - 1]
+            .charInfo;
+        CharacterInfo memory charInfoNew = CharacterInfo(
+            charInfoOld.name,
+            charInfoOld.characterType,
+            charInfoOld.fromBlock,
+            charInfoOld.level + 1,
+            charInfoOld.rarity,
+            charInfoOld.abilityIds
+        );
+
+        _writeCheckpoint(tokenId, checkNum, charInfoOld, charInfoNew);
+    }
+
     function getNecessaryExp(uint256 tokenId) public view returns (uint256) {
-        CharacterInfo memory charInfo = characterInfos[tokenId];
-        return data.calcNecessaryExp(charInfo);
+        CharacterInfo memory charInfo = getCurrentCharacterInfo(tokenId);
+        return _calcNecessaryExp(charInfo);
     }
 
-    function setMinter(address newMinter) external onlyDealer {
-        minter = newMinter;
+    function setDealer(address newDealer) external onlyPolylemmer {
+        dealer = newDealer;
     }
 
-    function getMinter() public view returns (address) {
-        return minter;
+    function getDealer() public view returns (address) {
+        return dealer;
+    }
+
+    /**
+     * @notice Gets the current charInfo for `tokenId`
+     * @param tokenId The id of token to get charInfo
+     * @return CharacterInfo for `tokenId`
+     */
+    function getCurrentCharacterInfo(uint256 tokenId)
+        public
+        view
+        returns (CharacterInfo memory)
+    {
+        CharacterInfo memory dummyInfo = CharacterInfo("", "", 0, 0, 0, [0]);
+        uint32 nCheckpoints = numCheckpoints[tokenId];
+        return
+            nCheckpoints > 0
+                ? checkpoints[tokenId][nCheckpoints - 1].charInfo
+                : dummyInfo;
+    }
+
+    /**
+     * @notice Determine the prior charInfo for an tokenId as of a block number
+     * @dev Block number must be a finalized block or else this function will revert to prevent misinformation.
+     * @param tokenId The address of the token to check
+     * @param blockNumber The block number to get the charInfo at
+     * @return CharacterInfo of the token had as of the given block
+     */
+    function getPriorCharacterInfo(uint256 tokenId, uint256 blockNumber)
+        public
+        view
+        returns (CharacterInfo memory)
+    {
+        CharacterInfo memory dummyInfo = CharacterInfo("", "", 0, 0, 0, [0]);
+        require(
+            blockNumber < block.number,
+            "PLMToken::getPriorCharInfo: not yet determined"
+        );
+
+        uint32 nCheckpoints = numCheckpoints[tokenId];
+        if (nCheckpoints == 0) {
+            return dummyInfo;
+        }
+
+        // First check most recent balance
+        if (checkpoints[tokenId][nCheckpoints - 1].fromBlock <= blockNumber) {
+            return checkpoints[tokenId][nCheckpoints - 1].charInfo;
+        }
+
+        // Nest check implicit zero balance
+        if (checkpoints[tokenId][0].fromBlock > blockNumber) {
+            return dummyInfo;
+        }
+
+        /// @notice calc the array index where the blockNumber that you want to search is placed by binary search
+        uint32 lower = 0;
+        uint32 upper = nCheckpoints - 1;
+        while (upper > lower) {
+            uint32 center = upper - (upper - lower) / 2; // ceil, avoiding overflow
+            Checkpoint memory cp = checkpoints[tokenId][center];
+            if (cp.fromBlock == blockNumber) {
+                return cp.charInfo;
+            } else if (cp.fromBlock < blockNumber) {
+                lower = center;
+            } else {
+                upper = center - 1;
+            }
+        }
+        return checkpoints[tokenId][lower].charInfo;
     }
 
     /// descript how is the token minted
     /// generate token attributes pattern randomly with seeder, if you want to mint defined patterns in defined numbers of pieces,
     ///      you have to edit this function.
-    function _mintTo(address to, uint256 tokenId) internal returns (uint256) {
-        IPLMSeeder.Seed memory seed = seeder.generateSeed(tokenId, data);
-        string[] memory characterTypes = data.getCharacterTypes();
-        characterInfos[tokenId] = CharacterInfo(
+    function _mintTo(
+        address to,
+        uint256 tokenId,
+        bytes20 name
+    ) internal returns (uint256) {
+        PLMSeeder.Seed memory seed = PLMSeeder.generateSeed(
+            tokenId,
+            IPLMData(address(this))
+        );
+        string[] memory characterTypes = getCharacterTypes();
+        // TODO: write checkpoint
+        CharacterInfo memory mintedCharInfo = CharacterInfo(
+            name,
             characterTypes[seed.characterType],
+            block.number,
             1,
-            data.calcRarity(seed.characterType, [seed.ability]),
+            _calcRarity(seed.characterType, [seed.ability]),
             [seed.ability]
         );
-        // TODO; is it right??
+
+        // write checkpoint
+        uint32 checkNum = numCheckpoints[tokenId];
+        CharacterInfo memory dummyInfo = CharacterInfo("", "", 0, 0, 0, [0]);
+        _writeCheckpoint(tokenId, checkNum, dummyInfo, mintedCharInfo);
+
+        // mint abiding by ERC721
         _mint(to, tokenId);
-        // TODO: event
         return tokenId;
+    }
+
+    /// @notice reset bondLevel when the token is transfered
+    function _beforeTokenTransfer(
+        address from,
+        address to,
+        uint256 firstTokenId,
+        uint256 batchSize
+    ) internal virtual override {
+        super._beforeTokenTransfer(from, to, firstTokenId, batchSize);
+
+        uint256 tokenId = firstTokenId;
+        uint32 checkNum = numCheckpoints[tokenId];
+        CharacterInfo memory charInfoOld = checkpoints[tokenId][checkNum - 1]
+            .charInfo;
+        CharacterInfo memory charInfoNew = CharacterInfo(
+            charInfoOld.name,
+            charInfoOld.characterType,
+            block.number,
+            charInfoOld.level,
+            charInfoOld.rarity,
+            charInfoOld.abilityIds
+        );
+
+        _writeCheckpoint(tokenId, checkNum, charInfoOld, charInfoNew);
+    }
+
+    function _writeCheckpoint(
+        uint256 tokenId,
+        uint32 nCheckpoints,
+        CharacterInfo memory oldCharacterInfo,
+        CharacterInfo memory newCharacterInfo
+    ) internal {
+        uint32 blockNumber = safe32(
+            block.number,
+            "PLMToken::_writeCheckpoint: block number exceeds 32 bits"
+        );
+
+        if (
+            nCheckpoints > 0 &&
+            checkpoints[tokenId][nCheckpoints - 1].fromBlock == blockNumber
+        ) {
+            checkpoints[tokenId][nCheckpoints - 1].charInfo = newCharacterInfo;
+        } else {
+            checkpoints[tokenId][nCheckpoints] = Checkpoint(
+                blockNumber,
+                newCharacterInfo
+            );
+            numCheckpoints[tokenId] = nCheckpoints + 1;
+        }
+
+        emit CharacterInfoChanged(tokenId, oldCharacterInfo, newCharacterInfo);
+    }
+
+    function safe32(uint256 n, string memory errorMessage)
+        internal
+        pure
+        returns (uint32)
+    {
+        require(n < 2**32, errorMessage);
+        return uint32(n);
     }
 }

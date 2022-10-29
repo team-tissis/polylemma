@@ -1,15 +1,15 @@
 import {IPLMToken} from "./IPLMToken.sol";
 
 interface IPLMGacha {
-    event CharacterRecievedByUser(
+    event CharacterReceivedByUser(
         address indexed account,
         uint256 tokenId,
         IPLMToken.CharacterInfo characterInfo
     );
 
-    function getDealer() external view returns (address);
+    error ErrorWithLog(string reason);
 
-    function getGachaPayment() external view returns (uint256);
+    function getGachaFee() external pure returns (uint256);
 
-    function gacha() external;
+    function gacha(bytes20 name) external;
 }

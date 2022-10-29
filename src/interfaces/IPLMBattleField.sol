@@ -10,6 +10,7 @@ interface IPLMBattleField {
     /// @notice Struct to store player's infomation.
     struct PlayerInfo {
         address addr;
+        uint256 startBlockNum;
         uint256[4] fixedSlots;
         bool[4] slotsUsed;
         RandomSlot randomSlot;
@@ -136,6 +137,8 @@ interface IPLMBattleField {
     function startBattle(
         address aliceAddr,
         address bobAddr,
+        uint256 aliceBlockNum,
+        uint256 bobBlockNum,
         uint256[4] calldata aliceFixedSlots,
         uint256[4] calldata bobFixedSlots
     ) external;
