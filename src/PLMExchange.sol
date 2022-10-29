@@ -1,12 +1,9 @@
-import {Math} from "openzeppelin-contracts/utils/math/math.sol";
-import {SafeMath} from "openzeppelin-contracts/utils/math/SafeMath.sol";
 import {IPLMData} from "./interfaces/IPLMData.sol";
 import {IPLMCoin} from "./interfaces/IPLMCoin.sol";
 import {IPLMExchange} from "./interfaces/IPLMExchange.sol";
 
 // manage matic2coin, minting of coin
 contract PLMExchange is IPLMExchange {
-    using Math for uint256;
     address dealer;
     address treasury;
     IPLMData data;
