@@ -35,5 +35,14 @@ interface IPLMToken is IERC721, IERC721Enumerable {
 
     function setMinter(address newMinter) external;
 
+    function getCurrentCharInfo(uint256 tokenId)
+        external
+        view
+        returns (CharacterInfo memory);
+
+    function getPriorCharInfo(uint256 tokenId, uint256 blockNumber)
+        external
+        view
+        returns (CharacterInfo memory);
     // function burn() external;
 }
