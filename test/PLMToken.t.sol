@@ -56,13 +56,13 @@ contract PLMTokenTest is Test {
     }
 
     function testMint() public {
-        bytes32 name = "test-mon";
+        bytes20 name = "test-mon";
         vm.prank(minter);
         token.mint(name);
     }
 
     function testFailMintByNonMiner() public {
-        bytes32 name = "test-mon";
+        bytes20 name = "test-mon";
         vm.prank(address(100)); //set a diffrent address from minter's address to msg.sender
         token.mint(name);
     }
@@ -70,7 +70,7 @@ contract PLMTokenTest is Test {
     function testTokenIdIncrement() public {
         vm.startPrank(minter);
         uint256 aTokenId = token.totalSupply();
-        bytes32 name = "test-mon";
+        bytes20 name = "test-mon";
         token.mint(name);
         uint256 nextTokenId = token.totalSupply();
         vm.stopPrank();
@@ -80,7 +80,7 @@ contract PLMTokenTest is Test {
 
     function testIsCorrectOwnerMint() public {
         vm.startPrank(minter);
-        bytes32 name = "test-mon";
+        bytes20 name = "test-mon";
         token.mint(name);
         uint256 latestTokenId = token.totalSupply();
         address mintedTokenOwner = token.ownerOf(latestTokenId);
@@ -91,7 +91,7 @@ contract PLMTokenTest is Test {
 
     function testCharacterInfo() public {
         vm.startPrank(minter);
-        bytes32 name = "test-mon";
+        bytes20 name = "test-mon";
         uint256 tokenId = token.mint(name);
         PLMToken.CharacterInfo memory tokenInfo = token.getCharacterInfo(
             tokenId
@@ -108,7 +108,7 @@ contract PLMTokenTest is Test {
         coin.transfer(user, 10000);
 
         vm.startPrank(minter);
-        bytes32 name = "test-mon";
+        bytes20 name = "test-mon";
         uint256 tokenId = token.mint(name);
         token.transferFrom(minter, user, tokenId);
         vm.stopPrank();

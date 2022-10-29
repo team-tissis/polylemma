@@ -4,7 +4,7 @@ import {IERC721Enumerable} from "openzeppelin-contracts/token/ERC721/extensions/
 interface IPLMToken is IERC721, IERC721Enumerable {
     // TODO: factoryに移す。
     struct CharacterInfo {
-        bytes32 name;
+        bytes20 name;
         string characterType;
         uint8 level;
         uint8 rarity;
@@ -13,7 +13,7 @@ interface IPLMToken is IERC721, IERC721Enumerable {
 
     event levelUped(CharacterInfo indexed characterInfo);
 
-    function mint(bytes32 name) external returns (uint256);
+    function mint(bytes20 name) external returns (uint256);
 
     function burn(uint256 tokenId) external;
 
