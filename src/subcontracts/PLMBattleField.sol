@@ -599,6 +599,8 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
     function startBattle(
         address aliceAddr,
         address bobAddr,
+        uint256 aliceBlockNum,
+        uint256 bobBlockNum,
         uint256[4] calldata aliceFixedSlots,
         uint256[4] calldata bobFixedSlots
     ) external readyForBattleStart {
@@ -607,8 +609,14 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
 
         // Retrieve character infomation by tokenId in the fixed slots.
         for (uint8 i = 0; i < 4; i++) {
-            aliceCharInfos[i] = token.getCharacterInfo(aliceFixedSlots[i]);
-            bobCharInfos[i] = token.getCharacterInfo(bobFixedSlots[i]);
+            aliceCharInfos[i] = token.getPriorCharacterInfo(
+                aliceFixedSlots[i],
+                aliceBlockNum
+            );
+            bobCharInfos[i] = token.getPriorCharacterInfo(
+                bobFixedSlots[i],
+                bobBlockNum
+            );
         }
 
         // Get level point for both players.
@@ -626,6 +634,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
 
         PlayerInfo memory aliceInfo = PlayerInfo(
             aliceAddr,
+            aliceBlockNum,
             aliceFixedSlots,
             [false, false, false, false],
             initRandomSlot,
@@ -635,6 +644,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         );
         PlayerInfo memory bobInfo = PlayerInfo(
             bobAddr,
+            bobBlockNum,
             bobFixedSlots,
             [false, false, false, false],
             initRandomSlot,
@@ -672,7 +682,10 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         uint16 totalLevel = 0;
         for (uint8 i = 0; i < 4; i++) {
             totalLevel += token
-                .getCharacterInfo(_getFixedSlotTokenId(playerId, i))
+                .getPriorCharacterInfo(
+                    _getFixedSlotTokenId(playerId, i),
+                    playerInfoTable[playerId].startBlockNum
+                )
                 .level;
         }
         return totalLevel;
@@ -718,8 +731,9 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         }
 
         // Retrieve the character information.
-        IPLMToken.CharacterInfo memory charInfo = token.getCharacterInfo(
-            tokenId
+        IPLMToken.CharacterInfo memory charInfo = token.getPriorCharacterInfo(
+            tokenId,
+            playerInfoTable[playerId].startBlockNum
         );
 
         if (choice == Choice.Random) {

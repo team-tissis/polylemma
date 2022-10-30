@@ -11,6 +11,13 @@ interface IPLMToken is IERC721, IERC721Enumerable, IPLMData {
 
     event levelUped(CharacterInfo indexed characterInfo);
 
+    /// @notice when _checkpoint updated
+    event CharacterInfoChanged(
+        uint256 indexed tokenId,
+        CharacterInfo oldCharacterInfo,
+        CharacterInfo newCharacterInfo
+    );
+
     // For debug
     error ErrorWithLog(string reason);
 
@@ -25,23 +32,18 @@ interface IPLMToken is IERC721, IERC721Enumerable, IPLMData {
 
     function getAllCharacterInfo() external returns (CharacterInfo[] calldata);
 
-    function getCharacterInfo(uint256 tokenId)
+    function getCurrentCharacterInfo(uint256 tokenId)
         external
         view
-        returns (CharacterInfo calldata);
+        returns (CharacterInfo memory);
 
-    function updateLevel(uint256 tokenId) external returns (uint8);
+    function updateLevel(uint256 tokenId) external;
 
     function getNecessaryExp(uint256 tokenId) external view returns (uint256);
 
     function setDealer(address newDealer) external;
 
-    function getCurrentCharInfo(uint256 tokenId)
-        external
-        view
-        returns (CharacterInfo memory);
-
-    function getPriorCharInfo(uint256 tokenId, uint256 blockNumber)
+    function getPriorCharacterInfo(uint256 tokenId, uint256 blockNumber)
         external
         view
         returns (CharacterInfo memory);

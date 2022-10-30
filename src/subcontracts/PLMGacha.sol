@@ -28,7 +28,7 @@ contract PLMGacha is IPLMGacha, ReentrancyGuard {
                 emit CharacterReceivedByUser(
                     msg.sender,
                     tokenId,
-                    token.getCharacterInfo(tokenId)
+                    token.getCurrentCharacterInfo(tokenId)
                 );
             } catch Error(string memory reason) {
                 token.burn(tokenId);
