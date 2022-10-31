@@ -1,6 +1,6 @@
 interface IPLMData {
     struct CharacterInfo {
-        bytes20 name;
+        bytes32 name;
         string characterType;
         uint256 fromBlock;
         uint8 level;
