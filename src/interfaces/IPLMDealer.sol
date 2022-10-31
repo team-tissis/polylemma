@@ -14,7 +14,7 @@ interface IPLMDealer is IPLMGacha {
     );
 
     event AccountCharged(
-        address charger,
+        address indexed charger,
         uint256 chargeAmount,
         uint256 poolingAmount
     );
