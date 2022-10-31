@@ -81,7 +81,7 @@ contract PLMDealer is PLMGacha, IPLMDealer {
     ///////////////////////////////
     // TODO: 飛ぶ
     function initializeStamina(address player) internal {
-        _restStamina(player);
+        _restoreStamina(player);
     }
 
     // TODO: if block number is smaller than STAMINA_MAX, it cannot work.
@@ -124,14 +124,16 @@ contract PLMDealer is PLMGacha, IPLMDealer {
             "player's stamina is full"
         );
         coin.transferFrom(msg.sender, dealer, RESTORE_STAMINA_FEE);
-        _restStamina(player);
+        _restoreStamina(player);
     }
 
-    function _restStamina(address player) internal {
-        staminaFromBlock[player] =
-            block.number -
-            STAMINA_MAX /
-            STAMINA_RESTORE_SPEED;
+    function _restoreStamina(address player) internal {
+        uint256 restAmount = uint256(STAMINA_MAX / STAMINA_RESTORE_SPEED);
+
+        // Deal with underflow.
+        staminaFromBlock[player] = block.number >= restAmount
+            ? block.number - restAmount
+            : 0;
     }
 
     // TODO: public は流石にまずい。
@@ -185,7 +187,10 @@ contract PLMDealer is PLMGacha, IPLMDealer {
     function banAccount(address account, uint256 banPeriod) external {
         uint256 currentExpiredBlock = getSubscExpiredBlock(account);
 
-        subscExpiredBlock[account] -= banPeriod;
+        // Deal with underflow.
+        subscExpiredBlock[account] = subscExpiredBlock[account] >= banPeriod
+            ? subscExpiredBlock[account] - banPeriod
+            : 0;
 
         emit SubscShortened(
             msg.sender,
