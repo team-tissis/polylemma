@@ -16,6 +16,9 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
     /// @notice The number of the maximum round.
     uint8 constant MAX_ROUNDS = 5;
 
+    /// @notice The number of the fixed slots that one player has.
+    uint8 constant FIXEDSLOT_NUM = 4;
+
     /// @notice The number of blocks generated per day.
     uint256 constant DAILY_BLOCK_NUM = 43200;
 
@@ -536,7 +539,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
 
     /// @notice Function to finalize the battle.
     /// @dev reward is paid from dealer to the winner of this battle.
-    function settleBattle() external {
+    function settleBattle() public virtual {
         _settleBattle();
     }
 
@@ -601,14 +604,14 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         address bobAddr,
         uint256 aliceBlockNum,
         uint256 bobBlockNum,
-        uint256[4] calldata aliceFixedSlots,
-        uint256[4] calldata bobFixedSlots
-    ) external readyForBattleStart {
-        IPLMToken.CharacterInfo[4] memory aliceCharInfos;
-        IPLMToken.CharacterInfo[4] memory bobCharInfos;
+        uint256[FIXEDSLOT_NUM] memory aliceFixedSlots,
+        uint256[FIXEDSLOT_NUM] memory bobFixedSlots
+    ) public readyForBattleStart {
+        IPLMToken.CharacterInfo[FIXEDSLOT_NUM] memory aliceCharInfos;
+        IPLMToken.CharacterInfo[FIXEDSLOT_NUM] memory bobCharInfos;
 
         // Retrieve character infomation by tokenId in the fixed slots.
-        for (uint8 i = 0; i < 4; i++) {
+        for (uint8 i = 0; i < FIXEDSLOT_NUM; i++) {
             aliceCharInfos[i] = token.getPriorCharacterInfo(
                 aliceFixedSlots[i],
                 aliceBlockNum
@@ -680,7 +683,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
     /// @param playerId: the identifier of the player. Alice or Bob.
     function _getTotalLevel(PlayerId playerId) internal view returns (uint16) {
         uint16 totalLevel = 0;
-        for (uint8 i = 0; i < 4; i++) {
+        for (uint8 i = 0; i < FIXEDSLOT_NUM; i++) {
             totalLevel += token
                 .getPriorCharacterInfo(
                     _getFixedSlotTokenId(playerId, i),
@@ -808,7 +811,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         view
         returns (uint256)
     {
-        require(fixedSlotIdx < 4, "Invalid fixed slot index.");
+        require(fixedSlotIdx < FIXEDSLOT_NUM, "Invalid fixed slot index.");
         return playerInfoTable[playerId].fixedSlots[fixedSlotIdx];
     }
 
@@ -817,7 +820,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         view
         returns (bool)
     {
-        require(fixedSlotIdx < 4, "Invalid fixed slot index.");
+        require(fixedSlotIdx < FIXEDSLOT_NUM, "Invalid fixed slot index.");
         return playerInfoTable[playerId].slotsUsed[fixedSlotIdx];
     }
 }
