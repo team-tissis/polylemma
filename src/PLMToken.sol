@@ -4,6 +4,7 @@ pragma solidity ^0.8.17;
 import {Counters} from "openzeppelin-contracts/utils/Counters.sol";
 import {PLMSeeder} from "./lib/PLMSeeder.sol";
 
+import {ReentrancyGuard} from "openzeppelin-contracts/security/ReentrancyGuard.sol";
 import {ERC721} from "openzeppelin-contracts/token/ERC721/ERC721.sol";
 import {ERC721Burnable} from "openzeppelin-contracts/token/ERC721/extensions/ERC721Burnable.sol";
 import {ERC721Enumerable} from "openzeppelin-contracts/token/ERC721/extensions/ERC721Enumerable.sol";
@@ -14,7 +15,7 @@ import {IPLMData} from "./interfaces/IPLMData.sol";
 import {IPLMToken} from "./interfaces/IPLMToken.sol";
 import {IPLMCoin} from "./interfaces/IPLMCoin.sol";
 
-contract PLMToken is ERC721Enumerable, PLMData, IPLMToken {
+contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
     using Counters for Counters.Counter;
 
     address polylemmer;
@@ -113,7 +114,7 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken {
     }
 
     /// @notice increment level with consuming his coin
-    function updateLevel(uint256 tokenId) external {
+    function updateLevel(uint256 tokenId) external nonReentrant {
         require(
             msg.sender == ownerOf(tokenId),
             "Permission denied. Sender is not owner of this token"
