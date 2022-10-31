@@ -21,20 +21,33 @@ contract PLMCoinTest is Test {
     IPLMToken token;
 
     function setUp() public {
+        // send transaction by deployer
         vm.startPrank(polylemmer);
+
+        // deploy contract
         coinContract = new PLMCoin(address(99));
         coin = IPLMCoin(address(coinContract));
         tokenContract = new PLMToken(address(99), coin, 100000);
         token = IPLMToken(address(tokenContract));
+
         dealer = new PLMDealer(token, coin);
+
+        // set dealer
         coin.setDealer(address(dealer));
         token.setDealer(address(dealer));
+
+        // set block number to be enough length
         vm.roll(dealer.getStaminaMax() + 1000);
         vm.stopPrank();
+
+        // initial mint of PLM
         uint256 ammount = 100000;
         vm.prank(polylemmer);
         dealer.mintAdditionalCoin(ammount);
+
+        // send ether to user address
         vm.deal(user, 1000 ether);
+        // (user)  charge MATIC and get PLMcoin
         vm.prank(user);
         dealer.charge{value: maticForEx}();
     }
