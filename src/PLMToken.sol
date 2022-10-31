@@ -124,6 +124,7 @@ contract PLMToken is ERC721Enumerable, IPLMToken {
             msg.sender == ownerOf(tokenId),
             "Permission denied. Sender is not owner of this token"
         );
+        require(getCharacterInfo(tokenId).level <= 255, "level is max.");
 
         uint256 necessaryExp = getNecessaryExp(tokenId);
         // whether user have delgated this contract to spend coin for levelup
