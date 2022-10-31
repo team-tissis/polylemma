@@ -13,7 +13,7 @@ contract PLMGacha is IPLMGacha, ReentrancyGuard {
 
     uint256 constant GACHA_FEE = 5;
 
-    function gacha(bytes20 name) public nonReentrant {
+    function gacha(bytes32 name) public nonReentrant {
         require(
             coin.allowance(msg.sender, address(this)) >= GACHA_FEE,
             "coin allowance insufficient /gacha"

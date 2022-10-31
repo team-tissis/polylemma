@@ -21,7 +21,7 @@ interface IPLMToken is IERC721, IERC721Enumerable, IPLMData {
     // For debug
     error ErrorWithLog(string reason);
 
-    function mint(bytes20 name) external returns (uint256);
+    function mint(bytes32 name) external returns (uint256);
 
     function burn(uint256 tokenId) external;
 

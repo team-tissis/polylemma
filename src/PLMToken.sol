@@ -60,7 +60,7 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken {
     }
 
     // dealerにgachaコントラクトアドレスをセットすることで、gachaからしかmintできないようにする。
-    function mint(bytes20 name) public onlyDealer returns (uint256) {
+    function mint(bytes32 name) public onlyDealer returns (uint256) {
         currentTokenId++;
         return _mintTo(dealer, currentTokenId, name);
     }
@@ -242,7 +242,7 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken {
     function _mintTo(
         address to,
         uint256 tokenId,
-        bytes20 name
+        bytes32 name
     ) internal returns (uint256) {
         PLMSeeder.Seed memory seed = PLMSeeder.generateSeed(
             tokenId,

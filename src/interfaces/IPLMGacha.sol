@@ -11,5 +11,5 @@ interface IPLMGacha {
 
     function getGachaFee() external pure returns (uint256);
 
-    function gacha(bytes20 name) external;
+    function gacha(bytes32 name) external;
 }
