@@ -94,8 +94,8 @@ interface IPLMBattleField {
         bool isDraw,
         PlayerId winner,
         PlayerId loser,
-        uint8 winnerDamage,
-        uint8 loserDamage
+        uint32 winnerDamage,
+        uint32 loserDamage
     );
     event BattleResult(
         uint8 numRounds,
