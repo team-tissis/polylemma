@@ -92,88 +92,72 @@ contract PLMData is IPLMData {
     }
 
     /// @notice function to simulate the battle and return back result to BattleField contract.
-    function calcBattleResult(
+    function calcPower(
         uint8 numRounds,
-        CharacterInfo calldata aliceChar,
-        CharacterInfo calldata bobChar,
-        uint8 aliceLevelPoint,
-        uint8 bobLevelPoint
-    ) external pure returns (uint8, uint8) {
+        CharacterInfo calldata player1Char,
+        uint8 player1LevelPoint,
+        CharacterInfo calldata player2Char
+    ) external view returns (uint32) {
         uint32 bigNumber = 4096;
         uint8 basePowerRate = 10;
-
-        uint32[2] memory powers;
-        powers[0] = aliceChar.level * basePowerRate;
-        powers[1] = bobChar.level * basePowerRate;
-
-        CharacterInfo[2] memory chars;
-        chars[0] = aliceChar;
-        chars[1] = bobChar;
-
         uint256 blockPeriod = 10; // TODO: 大きくする
-        uint256[2] memory ownershipPeriod;
-        ownershipPeriod[0] = _mulFloat((block.number - alice.fromBlock), basePowerRate, blockPeriod);
-        ownershipPeriod[1] = _mulFloat((block.number - bob.fromBlock), basePowerRate, blockPeriod);
+        uint256 ownershipPeriod = _mulFloat((block.number - player1Char.fromBlock), basePowerRate, blockPeriod);
 
-        uint8[2] memory levelPoints;
-        levelPoints[0] = aliceLevelPoint;
-        levelPoints[1] = bobLevelPoint;
+        uint256 denominator;
+        uint256 numerator;
+        (denominator, numerator) = _typeCompatibility(player1Char.characterType, player2Char.characterType);
 
-        for (uint8 i = 0; i < 2; i++) {
-            uint256 denominator;
-            uint256 numerator;
-            (denominator, numerator) = _typeCompatibility(chars[i].characterType, chars[1-i].characterType);
-            if (Chars[i].attributeIds[0] == 0) {
-                powers[i] += ownershipPeriod[i];
-                powers[i] += levelPoints[i] * basePowerRate;
-                powers[i] = _mulFloat(powers[i], denominator, numerator);
-            } else if (Chars[i].attributeIds[0] == 1) {
-                powers[i] += ownershipPeriod[i];
-                powers[i] += levelPoints[i] * basePowerRate;
-                if (chars[0].level == chars[1].level) {
-                    denominator += bigNumber;
-                }
-                powers[i] = _mulFloat(powers[i], denominator, numerator);
-            } else if (Chars[i].attributeIds[0] == 2) {
-                powers[i] += ownershipPeriod[i];
-                powers[i] += levelPoints[i] * basePowerRate;
-                if (_rate(30)) {
-                    denominator *= 15 - numRounds;
-                    numerator *= 10;
-                }
-                powers[i] = _mulFloat(powers[i], denominator, numerator);
-            } else if (Chars[i].attributeIds[0] == 3) {
-                powers[i] += ownershipPeriod[i];
-                powers[i] += levelPoints[i] * basePowerRate;
-                powers[i] = _mulFloat(powers[i], denominator, numerator);
-                // TODO: 得られるコインを増やす
-            } else if (Chars[i].attributeIds[0] == 4) {
-                powers[i] += ownershipPeriod[i];
-                powers[i] = _mulFloat(powers[i], denominator, numerator);
-                powers[i] += _mulFloat(levelPoints[i] * basePowerRate, 15 * denominator, 10 * numerator);
-            } else if (Chars[i].attributeIds[0] == 5) {
-                powers[i] += ownershipPeriod[i];
-                powers[i] += levelPoints[i] * basePowerRate;
-                if (_rate(20)) {
-                    denominator *= 12;
-                    numerator *= 10;
-                }
-                powers[i] = _mulFloat(powers[i], denominator, numerator);
-            } else if (Chars[i].attributeIds[0] == 6) {
-                powers[i] += ownershipPeriod[i];
-                powers[i] += levelPoints[i] * basePowerRate;
-            } else if (Chars[i].attributeIds[0] == 7) {
-                powers[i] += ownershipPeriod[i];
-                powers[i] += levelPoints[i] * basePowerRate;
-                if (_rate(5)) {
-                    denominator *= bigNumber;
-                }
-                powers[i] = _mulFloat(powers[i], denominator, numerator);
-            } else {
-                // TODO: Error handling
+        uint32 power = player1Char.level * basePowerRate;
+        if (player1Char.attributeIds[0] == 0) {
+            power += ownershipPeriod;
+            power += player1LevelPoint * basePowerRate;
+            power = _mulFloat(power, denominator, numerator);
+        } else if (player1Char.attributeIds[0] == 1) {
+            power += ownershipPeriod;
+            power += player1LevelPoint * basePowerRate;
+            if (player1Char.level == player2Char.level) {
+                denominator += bigNumber;
             }
+            power = _mulFloat(power, denominator, numerator);
+        } else if (player1Char.attributeIds[0] == 2) {
+            power += ownershipPeriod;
+            power += player1LevelPoint * basePowerRate;
+            if (_rate(30)) {
+                denominator *= 15 - numRounds;
+                numerator *= 10;
+            }
+            power = _mulFloat(power, denominator, numerator);
+        } else if (player1Char.attributeIds[0] == 3) {
+            power += ownershipPeriod;
+            power += player1LevelPoint * basePowerRate;
+            power = _mulFloat(power, denominator, numerator);
+            // TODO: 得られるコインを増やす
+        } else if (player1Char.attributeIds[0] == 4) {
+            power += ownershipPeriod;
+            power = _mulFloat(power, denominator, numerator);
+            power += _mulFloat(player1LevelPoint * basePowerRate, 15 * denominator, 10 * numerator);
+        } else if (player1Char.attributeIds[0] == 5) {
+            power += ownershipPeriod;
+            power += player1LevelPoint * basePowerRate;
+            if (_rate(20)) {
+                denominator *= 12;
+                numerator *= 10;
+            }
+            power = _mulFloat(power, denominator, numerator);
+        } else if (player1Char.attributeIds[0] == 6) {
+            power += ownershipPeriod;
+            power += player1LevelPoint * basePowerRate;
+        } else if (player1Char.attributeIds[0] == 7) {
+            power += ownershipPeriod;
+            power += player1LevelPoint * basePowerRate;
+            if (_rate(5)) {
+                denominator *= bigNumber;
+            }
+            power = _mulFloat(power, denominator, numerator);
+        } else {
+            // TODO: Error handling
         }
-        return (powers[0], powers[1]);
+        return power;
     }
 
     // TODO: 一旦レベルポイントは最大値をそのまま返す。
