@@ -27,13 +27,12 @@ interface IPLMData {
 
     function numOddsAttribute() external view returns (uint256);
 
-    function calcBattleResult(
+    function calcPower(
         uint8 numRounds,
-        CharacterInfo calldata aliceChar,
-        CharacterInfo calldata bobChar,
-        uint8 aliceLevelPoint,
-        uint8 bobLevelPoint
-    ) external pure returns (uint8, uint8);
+        CharacterInfo calldata player1Char,
+        uint8 player1LevelPoint,
+        CharacterInfo calldata player2Char
+    ) external view returns (uint32);
 
     function calcLevelPoint(CharacterInfo[4] calldata charInfos)
         external

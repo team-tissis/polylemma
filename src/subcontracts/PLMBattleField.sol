@@ -545,17 +545,20 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         IPLMToken.CharacterInfo memory bobChar = _getChosenCharacterInfo(
             PlayerId.Bob
         );
-        uint8 aliceDamage;
-        uint8 bobDamage;
-        (aliceDamage, bobDamage) = token.calcBattleResult(
+        uint32 alicePower = token.calcBattleResult(
             numRounds,
             aliceChar,
-            bobChar,
             choiceCommitLog[numRounds][PlayerId.Alice].levelPoint,
+            bobChar
+        );
+        uint32 bobPower = token.calcBattleResult(
+            numRounds,
+            bobChar,
             choiceCommitLog[numRounds][PlayerId.Bob].levelPoint
+            aliceChar
         );
 
-        if (aliceDamage > bobDamage) {
+        if (alicePower > bobPower) {
             // Alice wins !!
             playerInfoTable[PlayerId.Alice].winCount++;
 
@@ -564,10 +567,10 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
                 false,
                 PlayerId.Alice,
                 PlayerId.Bob,
-                aliceDamage,
-                bobDamage
+                alicePower,
+                bobPower
             );
-        } else if (aliceDamage < bobDamage) {
+        } else if (alicePower < bobPower) {
             // Bob wins !!
             playerInfoTable[PlayerId.Bob].winCount++;
 
@@ -576,8 +579,8 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
                 false,
                 PlayerId.Bob,
                 PlayerId.Alice,
-                bobDamage,
-                aliceDamage
+                bobPower,
+                alicePower
             );
         } else {
             // Draw !!
@@ -586,8 +589,8 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
                 true,
                 PlayerId.Alice,
                 PlayerId.Bob,
-                aliceDamage,
-                bobDamage
+                alicePower,
+                bobPower
             );
         }
 
