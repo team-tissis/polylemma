@@ -6,6 +6,7 @@ import "forge-std/Script.sol";
 import {PLMCoin} from "src/PLMCoin.sol";
 import {PLMToken} from "src/PLMToken.sol";
 import {PLMDealer} from "src/PLMDealer.sol";
+import {PLMMatchOrganizer} from "src/PLMMatchOrganizer.sol";
 
 import {IPLMToken} from "../src/interfaces/IPLMToken.sol";
 import {IPLMCoin} from "../src/interfaces/IPLMCoin.sol";
@@ -15,6 +16,7 @@ contract PolylemmagachaScript is Script {
     PLMToken tokenContract;
     PLMCoin coinContract;
     PLMDealer dealerContract;
+    PLMMatchOrganizer matchOrganizer;
 
     IPLMToken token;
     IPLMCoin coin;
@@ -41,6 +43,7 @@ contract PolylemmagachaScript is Script {
         token = IPLMToken(address(tokenContract));
 
         dealer = new PLMDealer(token, coin);
+        matchOrganizer = new PLMMatchOrganizer(dealer, token);
 
         coin.setDealer(address(dealer));
         token.setDealer(address(dealer));
