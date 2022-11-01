@@ -180,6 +180,10 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             "The playerSeed has already set."
         );
 
+        PlayerId enemyId = playerId == PlayerId.Alice
+            ? PlayerId.Bob
+            : PlayerId.Alice;
+
         // Check that player seed commitment is in time.
         if (
             block.number >
@@ -189,6 +193,11 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
 
             // ban the lazy player.
             _banLazyPlayer(playerId);
+
+            if (_getPlayerState(enemyId) == PlayerState.Preparing) {
+                // enemy player is a lazy player too. ban the enemy player.
+                _banLazyPlayer(enemyId);
+            }
 
             // Cancel this battle.
             battleState = BattleState.Settled;
@@ -218,9 +227,6 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         playerInfoTable[playerId].randomSlot.nonceSet = true;
 
         // If both players have already committed their player seeds, start the battle.
-        PlayerId enemyId = playerId == PlayerId.Alice
-            ? PlayerId.Bob
-            : PlayerId.Alice;
         if (_getRandomSlotState(enemyId) == RandomSlotState.Committed) {
             battleState = BattleState.RoundStarted;
         }
@@ -290,6 +296,10 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             "This player is not in the state to commit in this round."
         );
 
+        PlayerId enemyId = playerId == PlayerId.Alice
+            ? PlayerId.Bob
+            : PlayerId.Alice;
+
         // Check that choice commitment is in time.
         if (
             block.number >
@@ -299,6 +309,11 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
 
             // ban the lazy player.
             _banLazyPlayer(playerId);
+
+            if (_getPlayerState(enemyId) == PlayerState.Preparing) {
+                // enemy player is a lazy player too. ban the enemy player.
+                _banLazyPlayer(enemyId);
+            }
 
             // Cancel this battle.
             battleState = BattleState.Settled;
@@ -318,9 +333,6 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         // Update the state of the commit player to be committed.
         playerInfoTable[playerId].state = PlayerState.Committed;
 
-        PlayerId enemyId = playerId == PlayerId.Alice
-            ? PlayerId.Bob
-            : PlayerId.Alice;
         if (_getPlayerState(enemyId) == PlayerState.Committed) {
             // both players have already committed.
             choiceRevealStartPoints[numRounds] = block.number;
@@ -352,6 +364,10 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             "Choice.Secret is not allowed when revealing."
         );
 
+        PlayerId enemyId = playerId == PlayerId.Alice
+            ? PlayerId.Bob
+            : PlayerId.Alice;
+
         // Check that choice revealment is in time.
         if (
             block.number >
@@ -362,9 +378,22 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             // ban the lazy player.
             _banLazyPlayer(playerId);
 
+            if (_getPlayerState(enemyId) == PlayerState.Preparing) {
+                // enemy player is a lazy player too. ban the enemy player.
+                _banLazyPlayer(enemyId);
+            }
+
             // Cancel this battle.
             battleState = BattleState.Settled;
             revert BattleCanceled(playerId);
+        }
+
+        // If the choice is the random slot, then random slot must have already been revealed.
+        if (choice == Choice.Random) {
+            require(
+                _getRandomSlotState(playerId) == RandomSlotState.Revealed,
+                "Random slot cannot be used because player seed is not revealed yet."
+            );
         }
 
         // The pointer to the commit log of the player designated by playerId.
@@ -427,9 +456,6 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         // Update the state of the reveal player to be Revealed.
         playerInfoTable[playerId].state = PlayerState.Revealed;
 
-        PlayerId enemyId = playerId == PlayerId.Alice
-            ? PlayerId.Bob
-            : PlayerId.Alice;
         if (_getPlayerState(enemyId) == PlayerState.Revealed) {
             _stepRound();
         }
