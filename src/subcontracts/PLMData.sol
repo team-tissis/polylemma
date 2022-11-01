@@ -10,14 +10,14 @@ contract PLMData is IPLMData {
     string[] public characterTypes = [
         "fire",
         "grass",
-        "water",
+        "water"
         // "dark",
         // "light"
     ];
-    
+
     uint8[] public characterTypeOdds = [0, 1, 2];
     uint256 numImg = 38;
-    string[] public attributes = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+    string[] public attributes = ["0", "1", "2", "3", "4", "5", "6", "7", "8"];
     uint8[] public attributeRarities = [1, 4, 3, 3, 3, 2, 2, 1, 4];
     // レア度 -> 確率: 1 -> 35, 2 -> 30, 3 -> 20, 4 -> 10, 5 -> 5
     uint8[] public attributeOdds = [18, 5, 7, 7, 6, 15, 15, 17, 5];
@@ -50,7 +50,12 @@ contract PLMData is IPLMData {
         return attributes;
     }
 
-    function getAttributeRarities() external view override returns (uint8[] memory) {
+    function getAttributeRarities()
+        external
+        view
+        override
+        returns (uint8[] memory)
+    {
         return attributeRarities;
     }
 
@@ -62,7 +67,12 @@ contract PLMData is IPLMData {
         return characterTypeOdds.length;
     }
 
-    function getAttributeOdds() external view override returns (uint8[] memory) {
+    function getAttributeOdds()
+        external
+        view
+        override
+        returns (uint8[] memory)
+    {
         return attributeOdds;
     }
 
@@ -70,25 +80,44 @@ contract PLMData is IPLMData {
         return attributeOdds.length;
     }
 
+    function countImg() external view returns (uint256) {
+        return numImg;
+    }
 
-    function _mulFloat(uint32 x, uint256 denominator, uint256 numerator) internal pure returns (uint32) {
-        return (x * denominator) / numerator;
+    function _mulFloat(
+        uint32 x,
+        uint256 denominator,
+        uint256 numerator
+    ) internal pure returns (uint32) {
+        return uint32((x * denominator) / numerator);
     }
 
     function _rate(uint8 x) internal view returns (bool) {
-        return PLMSeeder.generateRandomSlotNonce() % 100 < y;
+        return uint256(PLMSeeder.generateRandomSlotNonce()) % 100 < x;
     }
 
-    function _typeCompatibility(string player1Type, string player2Type) internal pure returns (uint8, uint8) {
-        if (player1Type == player2Type) {
+    function _typeCompatibility(
+        string calldata player1Type,
+        string calldata player2Type
+    ) internal pure returns (uint8, uint8) {
+        bytes32 player1TypeBytes = keccak256(abi.encodePacked(player1Type));
+        bytes32 player2TypeBytes = keccak256(abi.encodePacked(player2Type));
+        bytes32 fire = keccak256(abi.encodePacked("fire"));
+        bytes32 grass = keccak256(abi.encodePacked("grass"));
+        bytes32 water = keccak256(abi.encodePacked("water"));
+        if (player1TypeBytes == player2TypeBytes) {
             return (1, 1);
-        } else if ((player1Type == "fire" && player2Type == "grass")
-                || (player1Type == "grass" && player2Type == "water")
-                || (player1Type == "water" && player2Type == "fire")) {
+        } else if (
+            (player1TypeBytes == fire && player2TypeBytes == grass) ||
+            (player1TypeBytes == grass && player2TypeBytes == water) ||
+            (player1TypeBytes == water && player2TypeBytes == fire)
+        ) {
             return (12, 10);
-        } else if ((player2Type == "fire" && player1Type == "grass")
-                || (player2Type == "grass" && player1Type == "water")
-                || (player2Type == "water" && player1Type == "fire")) {
+        } else if (
+            (player2TypeBytes == fire && player1TypeBytes == grass) ||
+            (player2TypeBytes == grass && player1TypeBytes == water) ||
+            (player2TypeBytes == water && player1TypeBytes == fire)
+        ) {
             return (8, 10);
         } else {
             // TODO: Error handling
@@ -106,11 +135,18 @@ contract PLMData is IPLMData {
         uint32 bigNumber = 4096;
         uint8 basePowerRate = 10;
         uint256 blockPeriod = 10; // TODO: 大きくする
-        uint256 ownershipPeriod = _mulFloat((block.number - player1Char.fromBlock), basePowerRate, blockPeriod);
+        uint32 ownershipPeriod = _mulFloat(
+            uint32(block.number - player1Char.fromBlock),
+            basePowerRate,
+            blockPeriod
+        );
 
         uint256 denominator;
         uint256 numerator;
-        (denominator, numerator) = _typeCompatibility(player1Char.characterType, player2Char.characterType);
+        (denominator, numerator) = _typeCompatibility(
+            player1Char.characterType,
+            player2Char.characterType
+        );
 
         uint32 power = player1Char.level * basePowerRate;
         if (player1Char.attributeIds[0] == 0) {
@@ -140,7 +176,11 @@ contract PLMData is IPLMData {
         } else if (player1Char.attributeIds[0] == 4) {
             power += ownershipPeriod;
             power = _mulFloat(power, denominator, numerator);
-            power += _mulFloat(player1LevelPoint * basePowerRate, 15 * denominator, 10 * numerator);
+            power += _mulFloat(
+                player1LevelPoint * basePowerRate,
+                15 * denominator,
+                10 * numerator
+            );
         } else if (player1Char.attributeIds[0] == 5) {
             power += ownershipPeriod;
             power += player1LevelPoint * basePowerRate;
@@ -224,7 +264,7 @@ contract PLMData is IPLMData {
     // TODO: not defined yet
     function _calcRarity(uint8 characterId, uint8[1] memory attributeIds)
         internal
-        pure
+        view
         returns (uint8)
     {
         return attributeRarities[attributeIds[0]];

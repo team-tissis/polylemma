@@ -545,16 +545,16 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         IPLMToken.CharacterInfo memory bobChar = _getChosenCharacterInfo(
             PlayerId.Bob
         );
-        uint32 alicePower = token.calcBattleResult(
+        uint32 alicePower = token.calcPower(
             numRounds,
             aliceChar,
             choiceCommitLog[numRounds][PlayerId.Alice].levelPoint,
             bobChar
         );
-        uint32 bobPower = token.calcBattleResult(
+        uint32 bobPower = token.calcPower(
             numRounds,
             bobChar,
-            choiceCommitLog[numRounds][PlayerId.Bob].levelPoint
+            choiceCommitLog[numRounds][PlayerId.Bob].levelPoint,
             aliceChar
         );
 
