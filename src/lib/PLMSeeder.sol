@@ -8,7 +8,7 @@ library PLMSeeder {
     struct Seed {
         uint256 imgId;
         uint8 characterType;
-        uint8 ability;
+        uint8 attribute;
     }
 
     /// @notice generate seeds for character mint
@@ -23,22 +23,23 @@ library PLMSeeder {
         uint256 pseudoRandomness = _generateRandomnessFromBlockHash(tokenId);
         uint256 numImg = data.getNumImg();
         uint256 numOddsCharacterType = data.getNumOddsCharacterType();
-        uint256 numOddsAbility = data.getNumOddsAbility();
         // TODO: 画像は属性や特性と比較して総数が多いため、現行の実装を踏襲するとものによって排出確率を変更する実装が汚くなってしまうから、一旦一様分布で対応する。
+        uint256 numOddsAttribute = data.numOddsAttribute();
         uint8[] memory characterTypeOdds = data.getCharacterTypeOdds();
-        uint8[] memory abilityOdds = data.getAbilityOdds();
+        uint8[] memory attributeOdds = data.getAttributeOdds();
         return
             Seed({
                 imgId: (pseudoRandomness % numImg) + 1,
                 characterType: characterTypeOdds[
                     pseudoRandomness % numOddsCharacterType
                 ],
-                ability: abilityOdds[pseudoRandomness % numOddsAbility]
+                attribute: attributeOdds[pseudoRandomness % numOddsAttribute]
             });
     }
 
     /// @notice generate nonce to be used as input of hash for randomSlotTokenId
     /// @dev generate nonce to be used as input of hash for randomSlotTokenId
+    /// TODO: 関数名変える
     function generateRandomSlotNonce() external view returns (bytes32) {
         return keccak256(abi.encodePacked(blockhash(block.number - 1)));
     }
