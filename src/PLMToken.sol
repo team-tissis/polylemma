@@ -157,7 +157,7 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
             charInfoOld.characterType,
             charInfoOld.level + 1,
             charInfoOld.rarity,
-            charInfoOld.abilityIds
+            charInfoOld.attributeIds
         );
 
         _writeCharInfoCheckpoint(tokenId, checkNum, charInfoOld, charInfoNew);
@@ -350,8 +350,8 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
             block.number,
             characterTypes[seed.characterType],
             1,
-            _calcRarity(seed.characterType, [seed.ability]),
-            [seed.ability]
+            _calcRarity(seed.characterType, [seed.attribute]),
+            [seed.attribute]
         );
 
         // write character info checkpoint
@@ -407,7 +407,7 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
             charInfoOld.characterType,
             charInfoOld.level,
             charInfoOld.rarity,
-            charInfoOld.abilityIds
+            charInfoOld.attributeIds
         );
 
         _writeCharInfoCheckpoint(

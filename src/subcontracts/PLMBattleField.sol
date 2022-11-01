@@ -547,7 +547,12 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         );
         uint8 aliceDamage;
         uint8 bobDamage;
-        (aliceDamage, bobDamage) = token.calcBattleResult(aliceChar, bobChar);
+        (aliceDamage, bobDamage) = token.calcBattleResult(
+            aliceChar,
+            bobChar,
+            choiceCommitLog[numRounds][PlayerId.Alice].levelPoint,
+            choiceCommitLog[numRounds][PlayerId.Bob].levelPoint
+        );
 
         if (aliceDamage > bobDamage) {
             // Alice wins !!
