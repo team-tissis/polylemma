@@ -138,6 +138,7 @@ contract PLMMatchOrganizer is
             fixedSlotsOfChallenger,
             block.number - 1
         );
+
         emit RequestedBattle(
             proposal.lowerBound,
             proposal.upperBound,
@@ -151,15 +152,14 @@ contract PLMMatchOrganizer is
             "not satisfy the level condition."
         );
 
-        // TODO: when you test BattleField, you have to decomment-out
-        // startBattle(
-        //     proposer,
-        //     msg.sender,
-        //     address2Proposal[proposer].startBlockNum,
-        //     block.number-1,
-        //     proposal.fixedSlots,
-        //     fixedSlotsOfChallenger
-        // );
+        startBattle(
+            proposer,
+            msg.sender,
+            address2Proposal[proposer].startBlockNum,
+            block.number - 1,
+            proposal.fixedSlots,
+            fixedSlotsOfChallenger
+        );
 
         // udapte Status
         matchStates[proposer] = MatchState.InBattle;
@@ -169,8 +169,8 @@ contract PLMMatchOrganizer is
     }
 
     // TODO: not tested yet
-    function settleBattle() public override(IPLMBattleField, PLMBattleField) {
-        super.settleBattle();
+    function _settleBattle() internal override(PLMBattleField) {
+        super._settleBattle();
         matchStates[playerInfoTable[PlayerId.Alice].addr] = MatchState
             .NonProposal;
         matchStates[playerInfoTable[PlayerId.Bob].addr] = MatchState

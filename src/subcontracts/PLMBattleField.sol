@@ -104,10 +104,13 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             _getRandomSlotState(playerId) == RandomSlotState.Committed,
             "The commit of random slot has already been revealed."
         );
+        PlayerId enemyId = playerId == PlayerId.Alice
+            ? PlayerId.Bob
+            : PlayerId.Alice;
         require(
-            _getPlayerState(playerId) == PlayerState.Revealed &&
-                choiceCommitLog[numRounds][playerId].choice == Choice.Random,
-            "The choice of the player has not been revealed or it is not randomSlot."
+            _getPlayerState(playerId) == PlayerState.Committed &&
+                _getPlayerState(enemyId) == PlayerState.Committed,
+            "Alice or Bob has not committed his/her choice yet."
         );
         _;
     }
@@ -461,6 +464,18 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         }
     }
 
+    function getBattleState() external view returns (BattleState) {
+        return battleState;
+    }
+
+    function getRemainingLevel(PlayerId playerId)
+        external
+        view
+        returns (uint256)
+    {
+        return playerInfoTable[playerId].remainingLevelPoint;
+    }
+
     /// @notice Function to execute the current round.
     function _stepRound()
         internal
@@ -563,14 +578,8 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         );
     }
 
-    /// @notice Function to finalize the battle.
-    /// @dev reward is paid from dealer to the winner of this battle.
-    function settleBattle() public virtual {
-        _settleBattle();
-    }
-
     /// @notice Core logic to finalization of the battle.
-    function _settleBattle() internal nonReentrant readyForBattleSettlement {
+    function _settleBattle() internal virtual readyForBattleSettlement {
         uint8 aliceWinCount = _getWinCount(PlayerId.Alice);
         uint8 bobWinCount = _getWinCount(PlayerId.Bob);
 
