@@ -154,6 +154,11 @@ contract PLMData is IPLMData {
                 denominator *= bigNumber;
             }
             power = _mulFloat(power, denominator, numerator);
+        } else if (player1Char.attributeIds[0] == 8) {
+            power += ownershipPeriod;
+            power += player1LevelPoint * basePowerRate;
+            power = _mulFloat(power, denominator, numerator);
+            // TODO: RS でレア度が高いキャラが出やすいようにする
         } else {
             // TODO: Error handling
         }
