@@ -65,7 +65,32 @@ contract PLMData is IPLMData {
         return attributeOdds.length;
     }
 
-    // TODO: 一旦ダメージはそのままレヴェルを返す
+
+    function _mulFloat(uint32 x, uint256 denominator, uint256 numerator) internal pure returns (uint32) {
+        return (x * denominator) / numerator;
+    }
+
+    function _rate(uint8 x) internal view returns (bool) {
+        return PLMSeeder.generateRandomSlotNonce() % 100 < y;
+    }
+
+    function _typeCompatibility(string player1Type, string player2Type) internal pure returns (uint8, uint8) {
+        if (player1Type == player2Type) {
+            return (1, 1);
+        } else if ((player1Type == "fire" && player2Type == "grass")
+                || (player1Type == "grass" && player2Type == "water")
+                || (player1Type == "water" && player2Type == "fire")) {
+            return (12, 10);
+        } else if ((player2Type == "fire" && player1Type == "grass")
+                || (player2Type == "grass" && player1Type == "water")
+                || (player2Type == "water" && player1Type == "fire")) {
+            return (8, 10);
+        } else {
+            // TODO: Error handling
+            return (1, 1);
+        }
+    }
+
     /// @notice function to simulate the battle and return back result to BattleField contract.
     function calcBattleResult(
         uint8 numRounds,
