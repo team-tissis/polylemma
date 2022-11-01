@@ -150,6 +150,18 @@ contract PLMTokenTest is Test {
         assertEq(mo.getProposalList()[0].proposer, address(0), "cc");
     }
 
+    function testACancelProposal() public {
+        _createProposalByUser1();
+
+        assertTrue(mo.isInProposal(user1));
+
+        vm.prank(user1);
+        mo.cancelProposal();
+        assertTrue(mo.isNonProposal(user1));
+
+        _createProposalByUser1();
+    }
+
     function _createProposalByUser1() internal {
         // user1(Proposer) fixedslot
         uint256[4] memory fixedSlotsOfProposer;
