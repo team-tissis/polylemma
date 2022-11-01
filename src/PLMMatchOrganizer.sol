@@ -126,6 +126,7 @@ contract PLMMatchOrganizer is
                 token.ownerOf(address2Proposal[proposer].fixedSlots[i])
             ) {
                 _deleteProposal(proposer);
+                matchStates[proposer] = MatchState.NonProposal;
                 revert ProposerIsNotOwner(
                     "submitted characters contains not sender's tokenId"
                 );
@@ -178,6 +179,7 @@ contract PLMMatchOrganizer is
 
     function cancelProposal() external {
         _deleteProposal(msg.sender);
+        matchStates[msg.sender] = MatchState.NonProposal;
     }
 
     function _createProposal(address proposer, BattleProposal memory proposal)
