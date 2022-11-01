@@ -15,8 +15,8 @@ contract PLMData is IPLMData {
     ];
 
     string[] public abilities = ["mouka", "shinryoku", "gekiryu"];
-    uint8[] public characterTypeOdds = [2, 2, 2, 2, 2];
-    uint8[] public abilityOdds = [2, 2, 2];
+    uint8[] public characterTypeOdds = [0, 1, 2];
+    uint8[] public abilityOdds = [0, 1, 2];
 
     uint256[] public poolingPercentageTable = [5, 10, 20, 23, 33, 40, 45];
 

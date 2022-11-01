@@ -250,7 +250,6 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
             IPLMData(address(this))
         );
         string[] memory characterTypes = getCharacterTypes();
-        // TODO: write checkpoint
         CharacterInfo memory mintedCharInfo = CharacterInfo(
             name,
             characterTypes[seed.characterType],
