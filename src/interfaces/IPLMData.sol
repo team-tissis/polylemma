@@ -13,11 +13,13 @@ interface IPLMData {
 
     function countCharacterType() external view returns (uint256);
 
+    function getCharacterTypeOdds() external view returns (uint8[] calldata);
+
     function getAttributes() external view returns (string[] memory);
 
-    function countAttributes() external view returns (uint256);
+    function getAttributeRarities() external view returns (uint8[] calldata);
 
-    function getCharacterTypeOdds() external view returns (uint8[] calldata);
+    function countAttributes() external view returns (uint256);
 
     function getNumOddsCharacterType() external view returns (uint256);
 
