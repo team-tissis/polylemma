@@ -14,12 +14,13 @@ contract PLMData is IPLMData {
         // "dark",
         // "light"
     ];
-    uint8[] public characterTypeOdds = [2, 2, 2];
-
+    
     uint8[] public characterTypeOdds = [0, 1, 2];
     uint256 numImg = 38;
-    string[] public attributes = [0, 1, 2, 3, 4, 5, 6, 7];
-    uint8[] public attributeRarities = [1, 4, 3, 3, 3, 2, 2, 1];
+    string[] public attributes = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+    uint8[] public attributeRarities = [1, 4, 3, 3, 3, 2, 2, 1, 4];
+    // レア度 -> 確率: 1 -> 35, 2 -> 30, 3 -> 20, 4 -> 10, 5 -> 5
+    uint8[] public attributeOdds = [18, 5, 7, 7, 6, 15, 15, 17, 5];
 
     uint256[] public poolingPercentageTable = [5, 10, 20, 23, 33, 40, 45];
 
@@ -36,14 +37,6 @@ contract PLMData is IPLMData {
         return characterTypes.length;
     }
 
-    function getAttributes() external view override returns (string[] memory) {
-        return attributes;
-    }
-
-    function countAttributes() external view override returns (uint256) {
-        return attributes.length;
-    }
-
     function getCharacterTypeOdds()
         external
         view
@@ -51,6 +44,18 @@ contract PLMData is IPLMData {
         returns (uint8[] memory)
     {
         return characterTypeOdds;
+    }
+
+    function getAttributes() external view override returns (string[] memory) {
+        return attributes;
+    }
+
+    function getAttributeRarities() external view override returns (uint8[] memory) {
+        return attributeRarities;
+    }
+
+    function countAttributes() external view override returns (uint256) {
+        return attributes.length;
     }
 
     function getNumOddsCharacterType() external view returns (uint256) {
@@ -222,7 +227,7 @@ contract PLMData is IPLMData {
         pure
         returns (uint8)
     {
-        return 0;
+        return attributeRarities[attributeIds[0]];
     }
 
     // This logic is derived from Pokemon
