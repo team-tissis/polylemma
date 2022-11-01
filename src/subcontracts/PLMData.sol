@@ -10,14 +10,20 @@ contract PLMData is IPLMData {
         "fire",
         "grass",
         "water",
-        "dark",
-        "light"
+        // "dark",
+        // "light"
     ];
 
+<<<<<<< HEAD
     string[] public abilities = ["mouka", "shinryoku", "gekiryu"];
     uint8[] public characterTypeOdds = [0, 1, 2];
     uint8[] public abilityOdds = [0, 1, 2];
     uint256 numImg = 38;
+=======
+    string[] public attributes = ["mouka", "shinryoku", "gekiryu"];
+    uint8[] public characterTypeOdds = [2, 2, 2, 2, 2];
+    uint8[] public attributeOdds = [2, 2, 2];
+>>>>>>> 6126266 (MOD: ability -> attribute)
 
     uint256[] public poolingPercentageTable = [5, 10, 20, 23, 33, 40, 45];
 
@@ -34,12 +40,12 @@ contract PLMData is IPLMData {
         return characterTypes.length;
     }
 
-    function getAbilities() external view override returns (string[] memory) {
-        return abilities;
+    function getAttributes() external view override returns (string[] memory) {
+        return attributes;
     }
 
-    function countAbilities() external view override returns (uint256) {
-        return abilities.length;
+    function countAttributes() external view override returns (uint256) {
+        return attributes.length;
     }
 
     function getCharacterTypeOdds()
@@ -55,12 +61,12 @@ contract PLMData is IPLMData {
         return characterTypeOdds.length;
     }
 
-    function getAbilityOdds() external view override returns (uint8[] memory) {
-        return abilityOdds;
+    function getAttributeOdds() external view override returns (uint8[] memory) {
+        return attributeOdds;
     }
 
-    function getNumOddsAbility() external view returns (uint256) {
-        return abilityOdds.length;
+    function numOddsAttribute() external view returns (uint256) {
+        return attributeOdds.length;
     }
 
     function getNumImg() external view returns (uint256) {
@@ -71,7 +77,9 @@ contract PLMData is IPLMData {
     /// @notice function to simulate the battle and return back result to BattleField contract.
     function calcBattleResult(
         CharacterInfo calldata aliceChar,
-        CharacterInfo calldata bobChar
+        CharacterInfo calldata bobChar,
+        uint8 aliceLevelPoint,
+        uint8 bobLevelPoint
     ) external pure returns (uint8, uint8) {
         return (aliceChar.level, bobChar.level);
     }
@@ -128,7 +136,7 @@ contract PLMData is IPLMData {
     }
 
     // TODO: not defined yet
-    function _calcRarity(uint8 characterId, uint8[1] memory abilityIds)
+    function _calcRarity(uint8 characterId, uint8[1] memory attributeIds)
         internal
         pure
         returns (uint8)

@@ -64,7 +64,7 @@ contract PLMTokenTest is Test {
         assertEq(checkpointBeforeMint.characterType, "");
         assertEq(checkpointBeforeMint.level, 0);
         assertEq(checkpointBeforeMint.rarity, 0);
-        assertEq(checkpointBeforeMint.abilityIds[0], 0);
+        assertEq(checkpointBeforeMint.attributeIds[0], 0);
 
         // check impl. of first checkpoint created by mint
         vm.startPrank(user);

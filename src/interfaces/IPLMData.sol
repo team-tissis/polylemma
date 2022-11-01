@@ -6,26 +6,26 @@ interface IPLMData {
         string characterType;
         uint8 level;
         uint8 rarity;
-        uint8[1] abilityIds;
+        uint8[1] attributeIds;
     }
 
     function getCharacterTypes() external view returns (string[] memory);
 
     function countCharacterType() external view returns (uint256);
 
-    function getAbilities() external view returns (string[] memory);
+    function getAttributes() external view returns (string[] memory);
 
-    function countAbilities() external view returns (uint256);
+    function countAttributes() external view returns (uint256);
 
     function getCharacterTypeOdds() external view returns (uint8[] calldata);
 
     function getNumOddsCharacterType() external view returns (uint256);
 
-    function getAbilityOdds() external view returns (uint8[] calldata);
-
-    function getNumOddsAbility() external view returns (uint256);
+    function getAttributeOdds() external view returns (uint8[] calldata);
 
     function getNumImg() external view returns (uint256);
+
+    function numOddsAttribute() external view returns (uint256);
 
     function calcBattleResult(
         CharacterInfo calldata aliceChar,
