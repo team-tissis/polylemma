@@ -1,10 +1,10 @@
 interface IPLMBattleField {
     /// @notice Enum to represent battle's state.
     enum BattleState {
-        Preparing, // 0
-        RoundStarted, // 1
-        RoundSettled, // 2
-        Settled // 3
+        Settled, // 0
+        Preparing, // 1
+        RoundStarted, // 2
+        RoundSettled // 3
     }
 
     /// @notice Struct to store player's infomation.
@@ -142,6 +142,4 @@ interface IPLMBattleField {
         uint256[4] calldata aliceFixedSlots,
         uint256[4] calldata bobFixedSlots
     ) external;
-
-    function settleBattle() external;
 }

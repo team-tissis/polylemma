@@ -6,10 +6,12 @@ import {PLMDealer} from "../src/PLMDealer.sol";
 import {PLMCoin} from "../src/PLMCoin.sol";
 import {PLMToken} from "../src/PLMToken.sol";
 import {PLMMatchOrganizer} from "../src/PLMMatchOrganizer.sol";
+import {PLMBattleField} from "../src/subcontracts/PLMBattleField.sol";
 
 import {IPLMCoin} from "../src/interfaces/IPLMCoin.sol";
 import {IPLMToken} from "../src/interfaces/IPLMToken.sol";
 import {IPLMDealer} from "../src/interfaces/IPLMDealer.sol";
+import {IPLMBattleField} from "../src/interfaces/IPLMBattleField.sol";
 
 contract PLMTokenTest is Test {
     uint32 currentBlock = 0;
@@ -30,6 +32,13 @@ contract PLMTokenTest is Test {
     IPLMDealer dealer;
 
     PLMMatchOrganizer mo;
+
+    /// for battle
+    bytes32 bindingFactor1 = bytes32("sdaskfjdiopfvj0pr2904738cdf");
+    bytes32 bindingFactor2 = bytes32("sdasfjdiopfvj0pr2904738cdf");
+
+    bytes32 playerSeed1 = bytes32("sdaskfkfjdiopasdasdasdasds738cdf");
+    bytes32 playerSeed2 = bytes32("sdakfj34879346fvdsdasds738cdf");
 
     function setUp() public {
         // send transaction by deployer
@@ -87,10 +96,15 @@ contract PLMTokenTest is Test {
         for (uint256 i = 0; i < names3.length; i++) {
             _createCharacter(levels3[i], names3[i], user3);
         }
+
+        /// blindfactor
     }
 
+    ////////////////////////////////
+    /// TESTS ABOUT MATCHMAKE    ///
+    ////////////////////////////////
     function testProposeBattle() public {
-        _createProposalByUser1();
+        _createProposalByUser1(10, 20);
 
         // get proposal
         vm.prank(user2);
@@ -108,7 +122,7 @@ contract PLMTokenTest is Test {
     event Log(PLMMatchOrganizer.BattleProposal[] props);
 
     function testChallenge() public {
-        _createProposalByUser1();
+        _createProposalByUser1(10, 20);
 
         uint256[4] memory fixedSlotsOfChallenger;
         for (uint256 i = 0; i < token.balanceOf(user2); i++) {
@@ -130,7 +144,7 @@ contract PLMTokenTest is Test {
 
     // fail test because of level condition
     function testFailChallenge() public {
-        _createProposalByUser1();
+        _createProposalByUser1(10, 20);
 
         uint256[4] memory fixedSlotsOfChallenger;
         for (uint256 i = 0; i < token.balanceOf(user3); i++) {
@@ -151,7 +165,7 @@ contract PLMTokenTest is Test {
     }
 
     function testACancelProposal() public {
-        _createProposalByUser1();
+        _createProposalByUser1(10, 20);
 
         assertTrue(mo.isInProposal(user1));
 
@@ -159,15 +173,88 @@ contract PLMTokenTest is Test {
         mo.cancelProposal();
         assertTrue(mo.isNonProposal(user1));
 
-        _createProposalByUser1();
+        _createProposalByUser1(10, 20);
     }
 
-    function _createProposalByUser1() internal {
+    ////////////////////////////////
+    /// TESTS ABOUT BATTLE       ///
+    ////////////////////////////////
+
+    // test startBattle func
+    function testStartBattle() public {
+        _createProposalByUser1(10, 20);
+        _requestChallengeByUser2(user1);
+    }
+
+    function testCommitPlayerSeed() public {
+        _createProposalByUser1(10, 20);
+        _requestChallengeByUser2(user1);
+
+        bytes32 commitString1 = "asda23124sdafada121234325u42dq"; //30 chars
+        bytes32 commitString2 = "sddgfsgkhfjlvhdda121dfdsfds2dq"; //30 chars
+        // Alice is proposer, Bob is challenger
+        vm.prank(user1);
+        mo.commitPlayerSeed(IPLMBattleField.PlayerId.Alice, commitString1);
+        vm.prank(user2);
+        mo.commitPlayerSeed(IPLMBattleField.PlayerId.Bob, commitString2);
+
+        // while
+        // aliceCommitChoice = keccak256(
+        //     abi.encodePacked(msg.sender, levelPoint, choice, blindingFactor1)
+        // );
+        // mo.commitChoice(playerId, commitString);
+    }
+
+    // if committing by other user
+    function testFailCommitPlayerSeed() public {
+        _createProposalByUser1(10, 20);
+        _requestChallengeByUser2(user1);
+
+        bytes32 commitString1 = "asda23124sdafada121234325u42dq"; //30 chars
+        bytes32 commitString2 = "sddgfsgkhfjlvhdda121dfdsfds2dq"; //30 chars
+        // Alice is proposer, Bob is challenger
+        vm.prank(user2);
+        mo.commitPlayerSeed(IPLMBattleField.PlayerId.Alice, commitString1);
+        vm.prank(user1);
+        mo.commitPlayerSeed(IPLMBattleField.PlayerId.Bob, commitString2);
+    }
+
+    function testProperBattleFlow() public {
+        _createProposalByUser1(10, 20);
+        _requestChallengeByUser2(user1);
+
+        IPLMBattleField.Choice[5] memory choices1 = [
+            IPLMBattleField.Choice.Fixed1,
+            IPLMBattleField.Choice.Fixed2,
+            IPLMBattleField.Choice.Random,
+            IPLMBattleField.Choice.Fixed3,
+            IPLMBattleField.Choice.Fixed4
+        ];
+        IPLMBattleField.Choice[5] memory choices2 = [
+            IPLMBattleField.Choice.Random,
+            IPLMBattleField.Choice.Fixed1,
+            IPLMBattleField.Choice.Fixed4,
+            IPLMBattleField.Choice.Fixed2,
+            IPLMBattleField.Choice.Fixed3
+        ];
+        uint8[5] memory aliceLevelList = [2, 2, 1, 1, 2];
+        uint8[5] memory bobLevelList = [1, 1, 1, 1, 1];
+
+        _properBattleFlowTester(
+            choices1,
+            choices2,
+            aliceLevelList,
+            bobLevelList
+        );
+    }
+
+    ////////////////////////////////
+    /// UTILS FOR TESTS          ///
+    ////////////////////////////////
+
+    function _createProposalByUser1(uint16 lower, uint16 upper) internal {
         // user1(Proposer) fixedslot
-        uint256[4] memory fixedSlotsOfProposer;
-        for (uint256 i = 0; i < token.balanceOf(user1); i++) {
-            fixedSlotsOfProposer[i] = token.tokenOfOwnerByIndex(user1, i);
-        }
+        uint256[4] memory fixedSlotsOfProposer = _createFixedSlots(user1);
         // pouse to goes by in blocktime
         currentBlock += 1;
         vm.roll(currentBlock);
@@ -176,7 +263,32 @@ contract PLMTokenTest is Test {
 
         // propose battle
         vm.prank(user1);
-        mo.proposeBattle(10, 20, fixedSlotsOfProposer);
+        mo.proposeBattle(lower, upper, fixedSlotsOfProposer);
+    }
+
+    function _requestChallengeByUser2(address proposer) internal {
+        uint256[4] memory fixedSlotsOfChallenger = _createFixedSlots(user2);
+        // pouse to goes by in blocktime
+        currentBlock += 1;
+        vm.roll(currentBlock);
+        currentBlock += 1;
+        vm.roll(currentBlock);
+
+        // request battle
+        vm.prank(user2);
+        mo.requestChallenge(proposer, fixedSlotsOfChallenger);
+    }
+
+    function _createFixedSlots(address user)
+        internal
+        view
+        returns (uint256[4] memory)
+    {
+        uint256[4] memory fixedSlots;
+        for (uint256 i = 0; i < token.balanceOf(user); i++) {
+            fixedSlots[i] = token.tokenOfOwnerByIndex(user, i);
+        }
+        return fixedSlots;
     }
 
     // for test
@@ -191,7 +303,94 @@ contract PLMTokenTest is Test {
             coin.approve(address(token), token.getNecessaryExp(tokenId));
             token.updateLevel(tokenId);
         }
+
         token.transferFrom(address(dealerContract), owner, tokenId);
         vm.stopPrank();
+    }
+
+    function _properBattleFlowTester(
+        IPLMBattleField.Choice[5] memory aliceChoices,
+        IPLMBattleField.Choice[5] memory bobChoices,
+        uint8[5] memory aliceLevelList,
+        uint8[5] memory bobLevelList
+    ) public {
+        PLMBattleField.BattleState currentBattleState;
+        uint256 roundCount = 0;
+
+        IPLMBattleField.PlayerId alice = IPLMBattleField.PlayerId.Alice;
+        IPLMBattleField.PlayerId bob = IPLMBattleField.PlayerId.Bob;
+
+        // pack commit seed string
+        bytes32 commitSeedString1 = keccak256(
+            abi.encodePacked(user1, playerSeed1, bindingFactor1)
+        );
+        bytes32 commitSeedString2 = keccak256(
+            abi.encodePacked(user2, playerSeed2, bindingFactor2)
+        );
+
+        // user1 commit playerSeed
+        vm.prank(user1);
+        mo.commitPlayerSeed(alice, commitSeedString1);
+        // user2 commit playerSeed
+        vm.prank(user2);
+        mo.commitPlayerSeed(bob, commitSeedString2);
+
+        currentBattleState = mo.getBattleState();
+        while (
+            currentBattleState != IPLMBattleField.BattleState.Settled &&
+            roundCount < 5
+        ) {
+            // pack commit string
+            bytes32 commitChoiceString1 = keccak256(
+                abi.encodePacked(
+                    user1,
+                    aliceLevelList[roundCount],
+                    aliceChoices[roundCount],
+                    bindingFactor1
+                )
+            );
+            bytes32 commitChoiceString2 = keccak256(
+                abi.encodePacked(
+                    user2,
+                    bobLevelList[roundCount],
+                    bobChoices[roundCount],
+                    bindingFactor2
+                )
+            );
+
+            // commit choice
+            vm.prank(user1);
+            mo.commitChoice(alice, commitChoiceString1);
+            vm.prank(user2);
+            mo.commitChoice(bob, commitChoiceString2);
+
+            // if choice commit is random slot, revealing of player seed is needed
+            if (aliceChoices[roundCount] == IPLMBattleField.Choice.Random) {
+                vm.prank(user1);
+                mo.revealPlayerSeed(alice, playerSeed1, bindingFactor1);
+            }
+            if (bobChoices[roundCount] == IPLMBattleField.Choice.Random) {
+                vm.prank(user2);
+                mo.revealPlayerSeed(bob, playerSeed2, bindingFactor2);
+            }
+            // reveal choice
+            vm.prank(user1);
+            mo.revealChoice(
+                alice,
+                aliceLevelList[roundCount],
+                aliceChoices[roundCount],
+                bindingFactor1
+            );
+            vm.prank(user2);
+            mo.revealChoice(
+                bob,
+                bobLevelList[roundCount],
+                bobChoices[roundCount],
+                bindingFactor2
+            );
+
+            currentBattleState = mo.getBattleState();
+            roundCount++;
+        }
     }
 }
