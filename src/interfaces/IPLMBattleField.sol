@@ -1,3 +1,5 @@
+import {IPLMToken} from "./IPLMToken.sol";
+
 interface IPLMBattleField {
     /// @notice Enum to represent battle's state.
     enum BattleState {
@@ -71,7 +73,7 @@ interface IPLMBattleField {
         bytes32 playerSeed;
     }
 
-    // alice = proposer, bob =
+    // Alice = proposer, Bob = requester.
     event BattleStarted(address aliceAddr, address bobAddr);
     event PlayerSeedCommitted(PlayerId playerId);
     event RandomSlotNounceGenerated(PlayerId playerId, bytes32 nonce);
@@ -141,5 +143,10 @@ interface IPLMBattleField {
         uint256[4] calldata bobFixedSlots
     ) external;
 
-    function getPlayerNonce(PlayerId playerId) external view returns (bytes32);
+    function getNonce(PlayerId playerId) external view returns (bytes32);
+
+    function getFixedSlotCharInfo(PlayerId playerId)
+        external
+        view
+        returns (IPLMToken.CharacterInfo[4] memory);
 }
