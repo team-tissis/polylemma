@@ -560,6 +560,9 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             _getPlayerAddress(playerId),
             DAILY_BLOCK_NUM * BAN_DATE_LENGTH_FOR_LAZY_ACCOUNT
         );
+
+        // Cancel this battle.
+        _cancelBattle();
     }
 
     /// @notice Core logic to finalization of the battle.
