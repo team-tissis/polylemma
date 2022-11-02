@@ -31,8 +31,8 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
     /// @notice The limit of playerSeed commitment for each player. About 30 seconds.
     uint256 constant PLAYER_SEED_COMMIT_TIME_LIMIT = 15;
 
-    /// @notice The limit of commitment for each player. About 30 seconds.
-    uint256 constant CHOICE_COMMIT_TIME_LIMIT = 15;
+    /// @notice The limit of commitment for each player. About 60 seconds.
+    uint256 constant CHOICE_COMMIT_TIME_LIMIT = 30;
 
     /// @notice The limit of revealment for each player. About 30 seconds.
     uint256 constant CHOICE_REVEAL_TIME_LIMIT = 15;
