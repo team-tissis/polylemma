@@ -169,6 +169,15 @@ contract PLMMatchOrganizer is
     }
 
     // TODO: not tested yet
+    function _cancelBattle() internal override(PLMBattleField) {
+        super._cancelBattle();
+        matchStates[playerInfoTable[PlayerId.Alice].addr] = MatchState
+            .NonProposal;
+        matchStates[playerInfoTable[PlayerId.Bob].addr] = MatchState
+            .NonProposal;
+    }
+
+    // TODO: not tested yet
     function _settleBattle() internal override(PLMBattleField) {
         super._settleBattle();
         matchStates[playerInfoTable[PlayerId.Alice].addr] = MatchState
