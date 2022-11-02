@@ -165,7 +165,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
     /// @notice Commit the player's seed to generate the tokenId for random slot.
     /// @param playerId: the identifier of the player. Alice or Bob.
     /// @param commitString: commitment string calculated by the player designated by playerId
-    ///                      as keccak256(abi.encodePacked(msg.sender, levelPoint, choice, blindingFactor)).
+    ///                      as keccak256(abi.encodePacked(msg.sender, playerSeed)).
     function commitPlayerSeed(PlayerId playerId, bytes32 commitString)
         external
         nonReentrant
@@ -241,14 +241,9 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
     /// @param playerId: the identifier of the player. Alice or Bob.
     /// @param playerSeed: the choice the player designated by playerId committed in this round.
     ///                    bytes32(0) is not allowed.
-    /// @param bindingFactor: the secret factor (one-time) used in the generation of the commitment.
     /// @dev bindingFactor should be used only once. Reusing bindingFactor results in the security
     ///      vulnerability.
-    function revealPlayerSeed(
-        PlayerId playerId,
-        bytes32 playerSeed,
-        bytes32 bindingFactor
-    )
+    function revealPlayerSeed(PlayerId playerId, bytes32 playerSeed)
         external
         roundStarted
         onlyPlayerOfIdx(playerId)
@@ -267,9 +262,8 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
 
         // Check the commit has coincides with the one stored on chain.
         require(
-            keccak256(
-                abi.encodePacked(msg.sender, playerSeed, bindingFactor)
-            ) == playerSeedCommitment.commitString,
+            keccak256(abi.encodePacked(msg.sender, playerSeed)) ==
+                playerSeedCommitment.commitString,
             "Commit hash doesn't coincide."
         );
 

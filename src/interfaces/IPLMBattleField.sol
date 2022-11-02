@@ -71,6 +71,8 @@ interface IPLMBattleField {
         bytes32 playerSeed;
     }
 
+    // alice = proposer, bob =
+    event BattleStarted(address aliceAddr, address bobAddr);
     event PlayerSeedCommitted(PlayerId playerId);
     event RandomSlotNounceGenerated(PlayerId playerId, bytes32 nonce);
     event PlayerSeedRevealed(
@@ -119,11 +121,7 @@ interface IPLMBattleField {
 
     function commitPlayerSeed(PlayerId playerId, bytes32 commitString) external;
 
-    function revealPlayerSeed(
-        PlayerId playerId,
-        bytes32 playerSeed,
-        bytes32 bindingFactor
-    ) external;
+    function revealPlayerSeed(PlayerId playerId, bytes32 playerSeed) external;
 
     function commitChoice(PlayerId playerId, bytes32 commitString) external;
 
