@@ -858,4 +858,12 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         require(fixedSlotIdx < FIXEDSLOT_NUM, "Invalid fixed slot index.");
         return playerInfoTable[playerId].slotsUsed[fixedSlotIdx];
     }
+
+    function getPlayerNonce(PlayerId playerId) public view returns (bytes32) {
+        require(
+            playerInfoTable[playerId].randomSlot.nonceSet,
+            "Nonce has not been set yet."
+        );
+        return playerInfoTable[playerId].randomSlot.nonce;
+    }
 }
