@@ -142,4 +142,6 @@ interface IPLMBattleField {
         uint256[4] calldata aliceFixedSlots,
         uint256[4] calldata bobFixedSlots
     ) external;
+
+    function getPlayerNonce(PlayerId playerId) external view returns (bytes32);
 }
