@@ -199,7 +199,8 @@ contract PLMMatchOrganizer is
         }
 
         BattleProposal memory tmpProp = proposalsBoard[ind];
-        delete proposalsBoard[ind];
+        proposalsBoard[ind] = proposalsBoard[proposalsBoard.length - 1];
+        proposalsBoard.pop();
 
         emit ProposalDeleted(proposer, tmpProp);
     }
