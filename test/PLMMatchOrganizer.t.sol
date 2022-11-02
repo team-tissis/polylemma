@@ -322,10 +322,10 @@ contract PLMTokenTest is Test {
 
         // pack commit seed string
         bytes32 commitSeedString1 = keccak256(
-            abi.encodePacked(user1, playerSeed1, bindingFactor1)
+            abi.encodePacked(user1, playerSeed1)
         );
         bytes32 commitSeedString2 = keccak256(
-            abi.encodePacked(user2, playerSeed2, bindingFactor2)
+            abi.encodePacked(user2, playerSeed2)
         );
 
         // user1 commit playerSeed
@@ -367,11 +367,11 @@ contract PLMTokenTest is Test {
             // if choice commit is random slot, revealing of player seed is needed
             if (aliceChoices[roundCount] == IPLMBattleField.Choice.Random) {
                 vm.prank(user1);
-                mo.revealPlayerSeed(alice, playerSeed1, bindingFactor1);
+                mo.revealPlayerSeed(alice, playerSeed1);
             }
             if (bobChoices[roundCount] == IPLMBattleField.Choice.Random) {
                 vm.prank(user2);
-                mo.revealPlayerSeed(bob, playerSeed2, bindingFactor2);
+                mo.revealPlayerSeed(bob, playerSeed2);
             }
             // reveal choice
             vm.prank(user1);
