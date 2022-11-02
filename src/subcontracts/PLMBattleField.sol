@@ -694,6 +694,8 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
 
         // Set the block number when the battle has started.
         playerSeedCommitStartPoint = block.number;
+
+        emit BattleStarted(aliceAddr, bobAddr);
     }
 
     /// @notice Function to mark the slot used in the current round as used.
@@ -751,7 +753,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         if (choice == Choice.Random) {
             // Player's choice is random slot.
             tokenId = PLMSeeder.getRandomSlotTokenId(
-                _getNonce(playerId),
+                getNonce(playerId),
                 _getPlayerSeed(playerId),
                 token
             );
@@ -799,7 +801,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         return playerInfoTable[playerId].randomSlot.used;
     }
 
-    function _getNonce(PlayerId playerId) internal view returns (bytes32) {
+    function getNonce(PlayerId playerId) public view returns (bytes32) {
         require(
             playerInfoTable[playerId].randomSlot.nonceSet,
             "Nonce hasn't been set."
@@ -853,11 +855,26 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         return playerInfoTable[playerId].slotsUsed[fixedSlotIdx];
     }
 
-    function getPlayerNonce(PlayerId playerId) public view returns (bytes32) {
-        require(
-            playerInfoTable[playerId].randomSlot.nonceSet,
-            "Nonce has not been set yet."
-        );
-        return playerInfoTable[playerId].randomSlot.nonce;
+    function _getStartBlockNum(PlayerId playerId)
+        internal
+        view
+        returns (uint256)
+    {
+        return playerInfoTable[playerId].startBlockNum;
+    }
+
+    function getFixedSlotCharInfo(PlayerId playerId)
+        public
+        view
+        returns (IPLMToken.CharacterInfo[FIXEDSLOT_NUM] memory)
+    {
+        IPLMToken.CharacterInfo[FIXEDSLOT_NUM] memory playerCharInfo;
+        for (uint8 i = 0; i < FIXEDSLOT_NUM; i++) {
+            playerCharInfo[i] = token.getPriorCharacterInfo(
+                _getFixedSlotTokenId(playerId, i),
+                _getStartBlockNum(playerId)
+            );
+        }
+        return playerCharInfo;
     }
 }
