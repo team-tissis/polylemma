@@ -202,8 +202,6 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
                 _banLazyPlayer(enemyId);
             }
 
-            // Cancel this battle.
-            battleState = BattleState.Settled;
             revert BattleCanceled(playerId);
         }
 
@@ -312,8 +310,6 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
                 _banLazyPlayer(enemyId);
             }
 
-            // Cancel this battle.
-            battleState = BattleState.Settled;
             revert BattleCanceled(playerId);
         }
 
@@ -380,8 +376,6 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
                 _banLazyPlayer(enemyId);
             }
 
-            // Cancel this battle.
-            battleState = BattleState.Settled;
             revert BattleCanceled(playerId);
         }
 
@@ -418,8 +412,6 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             // End this match and ban the player designated by playerId.
             _banCheater(playerId);
 
-            // Cancel this battle.
-            battleState = BattleState.Settled;
             revert BattleCanceled(playerId);
         }
 
@@ -438,8 +430,6 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             // End this match and ban the player designated by playerId.
             _banCheater(playerId);
 
-            // Cancel this battle.
-            battleState = BattleState.Settled;
             revert BattleCanceled(playerId);
         }
 
@@ -559,7 +549,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         );
 
         // Cancel this battle.
-        battleState = BattleState.Settled;
+        _cancelBattle();
     }
 
     /// @notice Function to ban the lazy player
@@ -588,6 +578,12 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             _payRewardsDraw();
         }
 
+        battleState = BattleState.Settled;
+    }
+
+    /// @notice called in _banCheater function.
+    function _cancelBattle() internal virtual {
+        // TODO: modify here when we implement multislot battle.
         battleState = BattleState.Settled;
     }
 
