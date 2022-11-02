@@ -50,6 +50,11 @@ interface IPLMDealer is IPLMGacha {
         view
         returns (uint256);
 
+    function getSubscRemainingBlockNum(address account)
+        external
+        view
+        returns (uint256);
+
     function subscIsExpired(address account) external view returns (bool);
 
     function extendSubscPeriod() external;

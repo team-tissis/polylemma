@@ -155,6 +155,19 @@ contract PLMDealer is PLMGacha, IPLMDealer {
         return subscExpiredBlock[account];
     }
 
+    /// @notice Function to get the number blocks remained until subscription expired block.
+    function getSubscRemainingBlockNum(address account)
+        public
+        view
+        returns (uint256)
+    {
+        uint256 remainingBlockNum = block.number <=
+            getSubscExpiredBlock(account)
+            ? getSubscExpiredBlock(account) - block.number
+            : 0;
+        return remainingBlockNum;
+    }
+
     /// @notice Function to return whether the account's subscription is expired or not.
     function subscIsExpired(address account) external view returns (bool) {
         return block.number > getSubscExpiredBlock(account);
