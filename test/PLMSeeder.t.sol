@@ -113,8 +113,9 @@ contract PLMTokenTest is Test {
                 .getCharacterTypes();
             IPLMData.CharacterInfo memory minted = IPLMData.CharacterInfo(
                 "a",
-                characterTypes[seed.characterType],
+                1,
                 block.number,
+                characterTypes[seed.characterType],
                 1,
                 1,
                 [seed.ability]

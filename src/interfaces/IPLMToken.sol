@@ -43,6 +43,10 @@ interface IPLMToken is IERC721, IERC721Enumerable, IPLMData {
 
     function setDealer(address newDealer) external;
 
+    function setNumImg(uint256 newImgNum) external;
+
+    function getImgURI(uint256 imgId) external returns (string memory);
+
     function getPriorCharacterInfo(uint256 tokenId, uint256 blockNumber)
         external
         view

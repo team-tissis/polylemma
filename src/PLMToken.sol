@@ -5,6 +5,7 @@ import {Counters} from "openzeppelin-contracts/utils/Counters.sol";
 import {PLMSeeder} from "./lib/PLMSeeder.sol";
 
 import {ReentrancyGuard} from "openzeppelin-contracts/security/ReentrancyGuard.sol";
+import {Strings} from "openzeppelin-contracts/utils/Strings.sol";
 import {ERC721} from "openzeppelin-contracts/token/ERC721/ERC721.sol";
 import {ERC721Burnable} from "openzeppelin-contracts/token/ERC721/extensions/ERC721Burnable.sol";
 import {ERC721Enumerable} from "openzeppelin-contracts/token/ERC721/extensions/ERC721Enumerable.sol";
@@ -17,6 +18,7 @@ import {IPLMCoin} from "./interfaces/IPLMCoin.sol";
 
 contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
     using Counters for Counters.Counter;
+    using Strings for uint256;
 
     address polylemmer;
     address dealer;
@@ -146,8 +148,9 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
             .charInfo;
         CharacterInfo memory charInfoNew = CharacterInfo(
             charInfoOld.name,
-            charInfoOld.characterType,
+            charInfoOld.imgId,
             charInfoOld.fromBlock,
+            charInfoOld.characterType,
             charInfoOld.level + 1,
             charInfoOld.rarity,
             charInfoOld.abilityIds
@@ -179,7 +182,7 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
         view
         returns (CharacterInfo memory)
     {
-        CharacterInfo memory dummyInfo = CharacterInfo("", "", 0, 0, 0, [0]);
+        CharacterInfo memory dummyInfo = CharacterInfo("", 0, 0, "", 0, 0, [0]);
         uint32 nCheckpoints = numCheckpoints[tokenId];
         return
             nCheckpoints > 0
@@ -199,7 +202,7 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
         view
         returns (CharacterInfo memory)
     {
-        CharacterInfo memory dummyInfo = CharacterInfo("", "", 0, 0, 0, [0]);
+        CharacterInfo memory dummyInfo = CharacterInfo("", 0, 0, "", 0, 0, [0]);
         require(
             blockNumber < block.number,
             "PLMToken::getPriorCharInfo: not yet determined"
@@ -237,6 +240,10 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
         return checkpoints[tokenId][lower].charInfo;
     }
 
+    function setNumImg(uint256 newImgNum) external onlyPolylemmer {
+        imgNum = newImgNum;
+    }
+
     /// descript how is the token minted
     /// generate token attributes pattern randomly with seeder, if you want to mint defined patterns in defined numbers of pieces,
     ///      you have to edit this function.
@@ -252,8 +259,9 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
         string[] memory characterTypes = getCharacterTypes();
         CharacterInfo memory mintedCharInfo = CharacterInfo(
             name,
-            characterTypes[seed.characterType],
+            seed.imgId,
             block.number,
+            characterTypes[seed.characterType],
             1,
             _calcRarity(seed.characterType, [seed.ability]),
             [seed.ability]
@@ -261,12 +269,26 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
 
         // write checkpoint
         uint32 checkNum = numCheckpoints[tokenId];
-        CharacterInfo memory dummyInfo = CharacterInfo("", "", 0, 0, 0, [0]);
+        CharacterInfo memory dummyInfo = CharacterInfo("", 0, 0, "", 0, 0, [0]);
         _writeCheckpoint(tokenId, checkNum, dummyInfo, mintedCharInfo);
 
         // mint abiding by ERC721
         _mint(to, tokenId);
         return tokenId;
+    }
+
+    /// @notice get URL of storage where image png file specifid with imgId is stored
+    function getImgURI(uint256 imgId) external view returns (string memory) {
+        string memory baseImgURI = _baseImgURI();
+        return
+            bytes(baseImgURI).length > 0
+                ? string(abi.encodePacked(baseImgURI, imgId.toString(), ".png"))
+                : "";
+    }
+
+    function _baseImgURI() internal view returns (string memory) {
+        return
+            "https://raw.githubusercontent.com/theChainInsight/polylemma-img/main/images/";
     }
 
     /// @notice reset bondLevel when the token is transfered
@@ -284,8 +306,9 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
             .charInfo;
         CharacterInfo memory charInfoNew = CharacterInfo(
             charInfoOld.name,
-            charInfoOld.characterType,
+            charInfoOld.imgId,
             block.number,
+            charInfoOld.characterType,
             charInfoOld.level,
             charInfoOld.rarity,
             charInfoOld.abilityIds

@@ -6,6 +6,7 @@ import {IPLMToken} from "../interfaces/IPLMToken.sol";
 
 library PLMSeeder {
     struct Seed {
+        uint256 imgId;
         uint8 characterType;
         uint8 ability;
     }
@@ -20,12 +21,15 @@ library PLMSeeder {
         returns (Seed memory)
     {
         uint256 pseudoRandomness = _generateRandomnessFromBlockHash(tokenId);
+        uint256 numImg = data.numImg();
         uint256 numOddsCharacterType = data.numOddsCharacterType();
         uint256 numOddsAbility = data.numOddsAbility();
+        // TODO: 画像は属性や特性と比較して総数が多いため、現行の実装を踏襲するとものによって排出確率を変更する実装が汚くなってしまうから、一旦一様分布で対応する。
         uint8[] memory characterTypeOdds = data.getCharacterTypeOdds();
         uint8[] memory abilityOdds = data.getAbilityOdds();
         return
             Seed({
+                imgId: pseudoRandomness % numImg,
                 characterType: characterTypeOdds[
                     pseudoRandomness % numOddsCharacterType
                 ],
