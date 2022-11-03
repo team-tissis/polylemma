@@ -453,7 +453,7 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
                 .totalSupply = totalSupply();
         } else {
             totalSupplyCheckpoints[
-                numTotalSupplyCheckpoints - 1
+                numTotalSupplyCheckpoints
             ] = TotalSupplyCheckpoint(block.number, totalSupply());
             numTotalSupplyCheckpoints++;
         }
