@@ -14,6 +14,8 @@ contract PLMDealer is PLMGacha, IPLMDealer {
 
     address dealer;
     address polylemmer;
+    address matchOrganizer;
+    bool matchOrganizerIsSet = false;
 
     /// @notice subscription Fee (PLMCoin) for one period.
     uint256 constant SUBSC_FEE_PER_UNIT_PERIOD = 10;
@@ -51,6 +53,12 @@ contract PLMDealer is PLMGacha, IPLMDealer {
         _;
     }
 
+    modifier onlyMatchOrganizer() {
+        require(matchOrganizerIsSet, "matchOrganizer has not been set.");
+        require(msg.sender == matchOrganizer, "sender is not matchOrganizer");
+        _;
+    }
+
     ////////////////////////////////
     /// FUNCTIONS ABOUT FINANCES ///
     ////////////////////////////////
@@ -79,7 +87,6 @@ contract PLMDealer is PLMGacha, IPLMDealer {
     ///////////////////////////////
     /// FUNCTIONS ABOUT STAMINA ///
     ///////////////////////////////
-    // TODO: 飛ぶ
     function initializeStamina(address player) internal {
         _restoreStamina(player);
     }
@@ -136,9 +143,14 @@ contract PLMDealer is PLMGacha, IPLMDealer {
             : 0;
     }
 
-    // TODO: public は流石にまずい。
-    // -> Match OrganizerやBFから呼び出すはず。コントラクトアドレスでmsg.senderのrequireを実装する予定。
-    function consumeStaminaForBattle(address player) public {
+    function consumeStaminaForBattle(address player) public onlyMatchOrganizer {
+        require(
+            block.number >=
+                staminaFromBlock[player] +
+                    STAMINA_PER_BATTLE /
+                    STAMINA_RESTORE_SPEED,
+            "sender does not have enough stamina"
+        );
         staminaFromBlock[player] += STAMINA_PER_BATTLE / STAMINA_RESTORE_SPEED;
     }
 
@@ -285,5 +297,16 @@ contract PLMDealer is PLMGacha, IPLMDealer {
 
     function _payReward(address winner, uint256 amount) internal {
         coin.transfer(winner, amount);
+    }
+
+    ////////////////////////////
+    /// FUNCTIONS FOR CONFIG ///
+    ////////////////////////////
+    function setMatchOrganizer(address _matchOrganizer)
+        external
+        onlyPolylemmer
+    {
+        matchOrganizerIsSet = true;
+        matchOrganizer = _matchOrganizer;
     }
 }
