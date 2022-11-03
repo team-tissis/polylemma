@@ -75,7 +75,6 @@ contract PLMMatchOrganizer is
     }
 
     function getProposalList() public view returns (BattleProposal[] memory) {
-        //TODO gilterling
         return proposalsBoard;
     }
 
