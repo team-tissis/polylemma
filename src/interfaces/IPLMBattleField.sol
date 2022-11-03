@@ -148,4 +148,9 @@ interface IPLMBattleField {
         external
         view
         returns (IPLMToken.CharacterInfo[4] memory);
+
+    function getPlayerIdFromAddress(address playerAddr)
+        external
+        view
+        returns (PlayerId);
 }
