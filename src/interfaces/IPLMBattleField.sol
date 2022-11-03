@@ -163,4 +163,6 @@ interface IPLMBattleField {
         external
         view
         returns (PlayerId);
+
+    function getTotalSupplyAtBattleStart() external view returns (uint256);
 }
