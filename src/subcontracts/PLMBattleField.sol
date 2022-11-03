@@ -104,9 +104,13 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             _getRandomSlotState(playerId) == RandomSlotState.Committed,
             "The commit of random slot has already been revealed."
         );
+
+        PlayerId enemyId = _enemyId(playerId);
+
         require(
             _getPlayerState(playerId) == PlayerState.Committed &&
-                _getPlayerState(_enemyId(playerId)) == PlayerState.Committed,
+                (_getPlayerState(enemyId) == PlayerState.Committed ||
+                    _getPlayerState(enemyId) == PlayerState.Revealed),
             "Alice or Bob has not committed his/her choice yet."
         );
         _;
