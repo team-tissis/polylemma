@@ -129,4 +129,10 @@ contract PLMTokenTest is Test {
             token.updateLevel(tokenId);
         }
     }
+
+    function testImgURI() public {
+        uint256 imgId = 1;
+        string memory imgURI = token.getImgURI(imgId);
+        console.log(imgURI);
+    }
 }
