@@ -881,4 +881,25 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         }
         return playerCharInfo;
     }
+
+    function getPlayerIdFromAddress(address playerAddr)
+        public
+        view
+        returns (PlayerId)
+    {
+        bytes32 playerAddrBytes = keccak256(abi.encodePacked(playerAddr));
+        bytes32 aliceAddrBytes = keccak256(
+            abi.encodePacked(playerInfoTable[PlayerId.Alice].addr)
+        );
+        bytes32 bobAddrBytes = keccak256(
+            abi.encodePacked(playerInfoTable[PlayerId.Bob].addr)
+        );
+        require(
+            playerAddrBytes == aliceAddrBytes ||
+                playerAddrBytes == bobAddrBytes,
+            "The player designated by playerAddress is not in the battle."
+        );
+        return
+            playerAddrBytes == aliceAddrBytes ? PlayerId.Alice : PlayerId.Bob;
+    }
 }
