@@ -37,6 +37,11 @@ interface IPLMData {
         pure
         returns (uint8);
 
+    function calcRandomSlotLevel(CharacterInfo[4] calldata charInfos)
+        external
+        pure
+        returns (uint8);
+
     function getPoolingPercentage(uint256 amount)
         external
         view

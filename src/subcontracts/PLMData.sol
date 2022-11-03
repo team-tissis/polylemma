@@ -91,6 +91,19 @@ contract PLMData is IPLMData {
         return maxLevel;
     }
 
+    // TODO: 一旦ランダムスロットのレベルは固定スロットの平均値を返す。
+    function calcRandomSlotLevel(CharacterInfo[4] calldata charInfos)
+        external
+        pure
+        returns (uint8)
+    {
+        uint16 sumLevel = 0;
+        for (uint256 i = 0; i < 4; i++) {
+            sumLevel += uint16(charInfos[i].level);
+        }
+        return uint8(sumLevel / 4);
+    }
+
     // get the percentage of pooling of PLMCoins minted when player charged MATIC.
     function getPoolingPercentage(uint256 amount)
         public
