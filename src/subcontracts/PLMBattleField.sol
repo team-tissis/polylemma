@@ -715,6 +715,9 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         // Set the block number when the battle has started.
         playerSeedCommitStartPoint = block.number;
 
+        // Reset round number.
+        numRounds = 0;
+
         emit BattleStarted(aliceAddr, bobAddr);
     }
 
