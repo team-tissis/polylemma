@@ -675,21 +675,29 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         uint8 aliceLevelPoint = token.calcLevelPoint(aliceCharInfos);
         uint8 bobLevelPoint = token.calcLevelPoint(bobCharInfos);
 
-        // Initial state of random slot.
-        RandomSlot memory initRandomSlot = RandomSlot(
-            0,
+        // Initialize random slots.
+        RandomSlot memory aliceRandomSlot = RandomSlot(
+            token.calcRandomSlotLevel(aliceCharInfos),
+            bytes32(0),
+            false,
+            false,
+            RandomSlotState.NotSet
+        );
+        RandomSlot memory bobRandomSlot = RandomSlot(
+            token.calcRandomSlotLevel(bobCharInfos),
             bytes32(0),
             false,
             false,
             RandomSlotState.NotSet
         );
 
+        // Initialize both players' information.
         PlayerInfo memory aliceInfo = PlayerInfo(
             aliceAddr,
             aliceBlockNum,
             aliceFixedSlots,
             [false, false, false, false],
-            initRandomSlot,
+            aliceRandomSlot,
             PlayerState.Preparing,
             0,
             aliceLevelPoint
@@ -699,7 +707,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             bobBlockNum,
             bobFixedSlots,
             [false, false, false, false],
-            initRandomSlot,
+            bobRandomSlot,
             PlayerState.Preparing,
             0,
             bobLevelPoint
