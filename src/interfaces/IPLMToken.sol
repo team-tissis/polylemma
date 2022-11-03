@@ -4,9 +4,15 @@ import {IPLMData} from "./IPLMData.sol";
 
 interface IPLMToken is IERC721, IERC721Enumerable, IPLMData {
     /// @notice A checkpoint for marking change of characterInfo from a given block.
-    struct Checkpoint {
+    struct CharInfoCheckpoint {
         uint256 fromBlock;
         CharacterInfo charInfo;
+    }
+
+    /// @notice A checkpoint for marking change of totalSupply from a given block.
+    struct TotalSupplyCheckpoint {
+        uint256 fromBlock;
+        uint256 totalSupply;
     }
 
     event levelUped(CharacterInfo indexed characterInfo);
@@ -46,6 +52,11 @@ interface IPLMToken is IERC721, IERC721Enumerable, IPLMData {
     function setNumImg(uint256 newImgNum) external;
 
     function getImgURI(uint256 imgId) external returns (string memory);
+
+    function getPriorTotalSupply(uint256 blockNumber)
+        external
+        view
+        returns (uint256);
 
     function getPriorCharacterInfo(uint256 tokenId, uint256 blockNumber)
         external

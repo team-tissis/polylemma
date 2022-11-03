@@ -30,10 +30,16 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
 
     /// @notice A record of charInfo checkpoints for each account, by index.
     /// @dev The key of this map is tokenId.
-    mapping(uint256 => mapping(uint32 => Checkpoint)) checkpoints;
+    mapping(uint256 => mapping(uint32 => CharInfoCheckpoint)) charInfoCheckpoints;
 
-    /// @notice The number of checkpoints for each token
-    mapping(uint256 => uint32) public numCheckpoints;
+    /// @notice The number of characterInfo checkpoints for each token
+    mapping(uint256 => uint32) public numCharInfoCheckpoints;
+
+    /// @notice A record of totalSupply.
+    mapping(uint32 => TotalSupplyCheckpoint) totalSupplyCheckpoints;
+
+    /// @notice The number of totalSupply checkpoints.
+    uint32 numTotalSupplyCheckpoints;
 
     modifier onlyPolylemmer() {
         require(
@@ -143,9 +149,10 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
     }
 
     function _updateLevel(uint256 tokenId) internal {
-        uint32 checkNum = numCheckpoints[tokenId];
-        CharacterInfo memory charInfoOld = checkpoints[tokenId][checkNum - 1]
-            .charInfo;
+        uint32 checkNum = numCharInfoCheckpoints[tokenId];
+        CharacterInfo memory charInfoOld = charInfoCheckpoints[tokenId][
+            checkNum - 1
+        ].charInfo;
         CharacterInfo memory charInfoNew = CharacterInfo(
             charInfoOld.name,
             charInfoOld.imgId,
@@ -156,7 +163,7 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
             charInfoOld.abilityIds
         );
 
-        _writeCheckpoint(tokenId, checkNum, charInfoOld, charInfoNew);
+        _writeCharInfoCheckpoint(tokenId, checkNum, charInfoOld, charInfoNew);
     }
 
     function getNecessaryExp(uint256 tokenId) public view returns (uint256) {
@@ -183,11 +190,34 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
         returns (CharacterInfo memory)
     {
         CharacterInfo memory dummyInfo = CharacterInfo("", 0, 0, "", 0, 0, [0]);
-        uint32 nCheckpoints = numCheckpoints[tokenId];
+        uint32 nCharInfoCheckpoints = numCharInfoCheckpoints[tokenId];
         return
-            nCheckpoints > 0
-                ? checkpoints[tokenId][nCheckpoints - 1].charInfo
+            nCharInfoCheckpoints > 0
+                ? charInfoCheckpoints[tokenId][nCharInfoCheckpoints - 1]
+                    .charInfo
                 : dummyInfo;
+    }
+
+    function getPriorTotalSupply(uint256 blockNumber)
+        public
+        view
+        returns (uint256)
+    {
+        uint256 dummyTotalSupply = 0;
+        require(
+            blockNumber < block.number,
+            "PLMToken::getPriorTokenSupply: not yet determined"
+        );
+
+        (uint32 index, bool found) = _searchTotalSupplyCheckpointIdx(
+            blockNumber
+        );
+
+        if (!found) {
+            return dummyTotalSupply;
+        } else {
+            return totalSupplyCheckpoints[index].totalSupply;
+        }
     }
 
     /**
@@ -208,36 +238,95 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
             "PLMToken::getPriorCharInfo: not yet determined"
         );
 
-        uint32 nCheckpoints = numCheckpoints[tokenId];
-        if (nCheckpoints == 0) {
+        (uint32 index, bool found) = _searchCharInfoCheckpointIdx(
+            tokenId,
+            blockNumber
+        );
+
+        if (!found) {
             return dummyInfo;
+        } else {
+            return charInfoCheckpoints[tokenId][index].charInfo;
+        }
+    }
+
+    function _searchTotalSupplyCheckpointIdx(uint256 blockNumber)
+        internal
+        view
+        returns (uint32, bool)
+    {
+        if (numTotalSupplyCheckpoints == 0) {
+            return (0, false);
         }
 
         // First check most recent balance
-        if (checkpoints[tokenId][nCheckpoints - 1].fromBlock <= blockNumber) {
-            return checkpoints[tokenId][nCheckpoints - 1].charInfo;
+        if (
+            totalSupplyCheckpoints[numTotalSupplyCheckpoints - 1].fromBlock <=
+            blockNumber
+        ) {
+            return (numTotalSupplyCheckpoints - 1, true);
         }
 
-        // Nest check implicit zero balance
-        if (checkpoints[tokenId][0].fromBlock > blockNumber) {
-            return dummyInfo;
+        // Next check implicit zero balance
+        if (totalSupplyCheckpoints[0].fromBlock > blockNumber) {
+            return (0, false);
         }
 
         /// @notice calc the array index where the blockNumber that you want to search is placed by binary search
         uint32 lower = 0;
-        uint32 upper = nCheckpoints - 1;
+        uint32 upper = numTotalSupplyCheckpoints - 1;
         while (upper > lower) {
             uint32 center = upper - (upper - lower) / 2; // ceil, avoiding overflow
-            Checkpoint memory cp = checkpoints[tokenId][center];
+            TotalSupplyCheckpoint memory cp = totalSupplyCheckpoints[center];
             if (cp.fromBlock == blockNumber) {
-                return cp.charInfo;
+                return (center, true);
             } else if (cp.fromBlock < blockNumber) {
                 lower = center;
             } else {
                 upper = center - 1;
             }
         }
-        return checkpoints[tokenId][lower].charInfo;
+        return (lower, true);
+    }
+
+    function _searchCharInfoCheckpointIdx(uint256 tokenId, uint256 blockNumber)
+        internal
+        view
+        returns (uint32, bool)
+    {
+        uint32 nCharInfoCheckpoints = numCharInfoCheckpoints[tokenId];
+        if (nCharInfoCheckpoints == 0) {
+            return (0, false);
+        }
+
+        // First check most recent balance
+        if (
+            charInfoCheckpoints[tokenId][nCharInfoCheckpoints - 1].fromBlock <=
+            blockNumber
+        ) {
+            return (nCharInfoCheckpoints - 1, true);
+        }
+
+        // Nest check implicit zero balance
+        if (charInfoCheckpoints[tokenId][0].fromBlock > blockNumber) {
+            return (0, false);
+        }
+
+        /// @notice calc the array index where the blockNumber that you want to search is placed by binary search
+        uint32 lower = 0;
+        uint32 upper = nCharInfoCheckpoints - 1;
+        while (upper > lower) {
+            uint32 center = upper - (upper - lower) / 2; // ceil, avoiding overflow
+            CharInfoCheckpoint memory cp = charInfoCheckpoints[tokenId][center];
+            if (cp.fromBlock == blockNumber) {
+                return (center, true);
+            } else if (cp.fromBlock < blockNumber) {
+                lower = center;
+            } else {
+                upper = center - 1;
+            }
+        }
+        return (lower, true);
     }
 
     function setNumImg(uint256 _numImg) external onlyPolylemmer {
@@ -267,10 +356,18 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
             [seed.ability]
         );
 
-        // write checkpoint
-        uint32 checkNum = numCheckpoints[tokenId];
+        // write character info checkpoint
+        uint32 charInfoCheckNum = numCharInfoCheckpoints[tokenId];
         CharacterInfo memory dummyInfo = CharacterInfo("", 0, 0, "", 0, 0, [0]);
-        _writeCheckpoint(tokenId, checkNum, dummyInfo, mintedCharInfo);
+        _writeCharInfoCheckpoint(
+            tokenId,
+            charInfoCheckNum,
+            dummyInfo,
+            mintedCharInfo
+        );
+
+        // write total supply checkpoint
+        _writeTotalSupplyCheckpoint();
 
         // mint abiding by ERC721
         _mint(to, tokenId);
@@ -301,9 +398,10 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
         super._beforeTokenTransfer(from, to, firstTokenId, batchSize);
 
         uint256 tokenId = firstTokenId;
-        uint32 checkNum = numCheckpoints[tokenId];
-        CharacterInfo memory charInfoOld = checkpoints[tokenId][checkNum - 1]
-            .charInfo;
+        uint32 charInfoCheckNum = numCharInfoCheckpoints[tokenId];
+        CharacterInfo memory charInfoOld = charInfoCheckpoints[tokenId][
+            charInfoCheckNum - 1
+        ].charInfo;
         CharacterInfo memory charInfoNew = CharacterInfo(
             charInfoOld.name,
             charInfoOld.imgId,
@@ -314,42 +412,46 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
             charInfoOld.abilityIds
         );
 
-        _writeCheckpoint(tokenId, checkNum, charInfoOld, charInfoNew);
+        _writeCharInfoCheckpoint(
+            tokenId,
+            charInfoCheckNum,
+            charInfoOld,
+            charInfoNew
+        );
     }
 
-    function _writeCheckpoint(
+    function _writeCharInfoCheckpoint(
         uint256 tokenId,
-        uint32 nCheckpoints,
+        uint32 nCharInfoCheckpoints,
         CharacterInfo memory oldCharacterInfo,
         CharacterInfo memory newCharacterInfo
     ) internal {
-        uint32 blockNumber = safe32(
-            block.number,
-            "PLMToken::_writeCheckpoint: block number exceeds 32 bits"
-        );
-
         if (
-            nCheckpoints > 0 &&
-            checkpoints[tokenId][nCheckpoints - 1].fromBlock == blockNumber
+            nCharInfoCheckpoints > 0 &&
+            charInfoCheckpoints[tokenId][nCharInfoCheckpoints - 1].fromBlock ==
+            block.number
         ) {
-            checkpoints[tokenId][nCheckpoints - 1].charInfo = newCharacterInfo;
+            charInfoCheckpoints[tokenId][nCharInfoCheckpoints - 1]
+                .charInfo = newCharacterInfo;
         } else {
-            checkpoints[tokenId][nCheckpoints] = Checkpoint(
-                blockNumber,
-                newCharacterInfo
-            );
-            numCheckpoints[tokenId] = nCheckpoints + 1;
+            charInfoCheckpoints[tokenId][
+                nCharInfoCheckpoints
+            ] = CharInfoCheckpoint(block.number, newCharacterInfo);
+            numCharInfoCheckpoints[tokenId] = nCharInfoCheckpoints + 1;
         }
 
         emit CharacterInfoChanged(tokenId, oldCharacterInfo, newCharacterInfo);
     }
 
-    function safe32(uint256 n, string memory errorMessage)
-        internal
-        pure
-        returns (uint32)
-    {
-        require(n < 2**32, errorMessage);
-        return uint32(n);
+    function _writeTotalSupplyCheckpoint() internal {
+        if (
+            numTotalSupplyCheckpoints > 0 &&
+            totalSupplyCheckpoints[numTotalSupplyCheckpoints - 1].fromBlock ==
+            block.number
+        ) {
+            totalSupplyCheckpoints[numTotalSupplyCheckpoints - 1]
+                .totalSupply = totalSupply();
+            numTotalSupplyCheckpoints++;
+        }
     }
 }
