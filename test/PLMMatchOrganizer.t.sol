@@ -104,6 +104,8 @@ contract PLMTokenTest is Test {
     /// TESTS ABOUT MATCHMAKE    ///
     ////////////////////////////////
     function testProposeBattle() public {
+        _freeSubscribe(user1);
+        _freeSubscribe(user2);
         _createProposalByUser1(10, 20);
 
         // get proposal
@@ -119,9 +121,13 @@ contract PLMTokenTest is Test {
         assertTrue(mo.isInProposal(user1));
     }
 
-    event Log(PLMMatchOrganizer.BattleProposal[] props);
+    function testFailProposalByNonSubscPlayer() public {
+        _createProposalByUser1(10, 20);
+    }
 
     function testChallenge() public {
+        _freeSubscribe(user1);
+        _freeSubscribe(user2);
         _createProposalByUser1(10, 20);
 
         uint256[4] memory fixedSlotsOfChallenger;
@@ -142,8 +148,49 @@ contract PLMTokenTest is Test {
         assertEq(mo.getProposalList()[0].proposer, address(0), "cc");
     }
 
+    function testFailChallengeByNonSubscPlayer() public {
+        _freeSubscribe(user1);
+        _createProposalByUser1(10, 20);
+
+        uint256[4] memory fixedSlotsOfChallenger;
+        for (uint256 i = 0; i < token.balanceOf(user2); i++) {
+            fixedSlotsOfChallenger[i] = token.tokenOfOwnerByIndex(user2, i);
+        }
+        // pouse to goes by in blocktime
+        currentBlock += 1;
+        vm.roll(currentBlock);
+        currentBlock += 1;
+        vm.roll(currentBlock);
+
+        vm.prank(user2);
+        mo.requestChallenge(user1, fixedSlotsOfChallenger);
+    }
+
+    function testChallengeBecauseOfExpiredProposal() public {
+        _freeSubscribe(user1);
+        vm.roll(currentBlock + dealer.getSubscUnitPeriodBlockNum() + 1);
+        _freeSubscribe(user2);
+        _createProposalByUser1(10, 20);
+
+        uint256[4] memory fixedSlotsOfChallenger;
+        for (uint256 i = 0; i < token.balanceOf(user2); i++) {
+            fixedSlotsOfChallenger[i] = token.tokenOfOwnerByIndex(user2, i);
+        }
+        // pouse to goes by in blocktime
+        currentBlock += 1;
+        vm.roll(currentBlock);
+        currentBlock += 1;
+        vm.roll(currentBlock);
+
+        vm.prank(user2);
+        mo.requestChallenge(user1, fixedSlotsOfChallenger);
+        // TODO: ensure deleting proposal.
+    }
+
     // fail test because of level condition
-    function testFailChallenge() public {
+    function testFailChallengeBecauseOfLevel() public {
+        _freeSubscribe(user1);
+        _freeSubscribe(user2);
         _createProposalByUser1(10, 20);
 
         uint256[4] memory fixedSlotsOfChallenger;
@@ -164,7 +211,9 @@ contract PLMTokenTest is Test {
         assertEq(mo.getProposalList()[0].proposer, address(0), "cc");
     }
 
-    function testACancelProposal() public {
+    function testCancelProposal() public {
+        _freeSubscribe(user1);
+        _freeSubscribe(user2);
         _createProposalByUser1(10, 20);
 
         assertTrue(mo.isInProposal(user1));
@@ -182,11 +231,15 @@ contract PLMTokenTest is Test {
 
     // test startBattle func
     function testStartBattle() public {
+        _freeSubscribe(user1);
+        _freeSubscribe(user2);
         _createProposalByUser1(10, 20);
         _requestChallengeByUser2(user1);
     }
 
     function testCommitPlayerSeed() public {
+        _freeSubscribe(user1);
+        _freeSubscribe(user2);
         _createProposalByUser1(10, 20);
         _requestChallengeByUser2(user1);
 
@@ -207,6 +260,8 @@ contract PLMTokenTest is Test {
 
     // if committing by other user
     function testFailCommitPlayerSeed() public {
+        _freeSubscribe(user1);
+        _freeSubscribe(user2);
         _createProposalByUser1(10, 20);
         _requestChallengeByUser2(user1);
 
@@ -220,6 +275,8 @@ contract PLMTokenTest is Test {
     }
 
     function testProperBattleFlow() public {
+        _freeSubscribe(user1);
+        _freeSubscribe(user2);
         _createProposalByUser1(10, 20);
         _requestChallengeByUser2(user1);
 
@@ -291,7 +348,6 @@ contract PLMTokenTest is Test {
         return fixedSlots;
     }
 
-    // for test
     function _createCharacter(
         uint256 lev,
         bytes20 name,
@@ -305,6 +361,20 @@ contract PLMTokenTest is Test {
         }
 
         token.transferFrom(address(dealerContract), owner, tokenId);
+        vm.stopPrank();
+    }
+
+    function _freeSubscribe(address user) internal {
+        vm.startPrank(address(dealerContract));
+        coin.transfer(user, dealer.getSubscFeePerUnitPeriod());
+        vm.stopPrank();
+
+        vm.startPrank(user);
+        coin.approve(
+            address(dealerContract),
+            dealer.getSubscFeePerUnitPeriod()
+        );
+        dealer.extendSubscPeriod();
         vm.stopPrank();
     }
 
