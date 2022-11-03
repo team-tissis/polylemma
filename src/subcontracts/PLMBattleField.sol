@@ -741,7 +741,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             totalLevel += token
                 .getPriorCharacterInfo(
                     _getFixedSlotTokenId(playerId, i),
-                    playerInfoTable[playerId].startBlockNum
+                    _getStartBlockNum(playerId)
                 )
                 .level;
         }
@@ -772,32 +772,15 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
 
         Choice choice = choiceCommitLog[numRounds][playerId].choice;
 
-        uint256 tokenId;
         if (choice == Choice.Random) {
-            // Player's choice is random slot.
-            tokenId = PLMSeeder.getRandomSlotTokenId(
-                getNonce(playerId),
-                _getPlayerSeed(playerId),
-                token
-            );
+            // Player's choice is in a random slot.
+            return getRandomSlotCharInfo(playerId);
         } else if (choice == Choice.Secret) {
             revert("Unreachable !");
         } else {
             // Player's choice is in fixed slots.
-            tokenId = _getFixedSlotTokenId(playerId, uint8(choice));
+            return _getFixedSlotCharInfoOfIdx(playerId, uint8(choice));
         }
-
-        // Retrieve the character information.
-        IPLMToken.CharacterInfo memory charInfo = token.getPriorCharacterInfo(
-            tokenId,
-            playerInfoTable[playerId].startBlockNum
-        );
-
-        if (choice == Choice.Random) {
-            charInfo.level = _getRandomSlotLevel(playerId);
-        }
-
-        return charInfo;
     }
 
     function _getRandomSlotState(PlayerId playerId)
@@ -886,18 +869,64 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         return playerInfoTable[playerId].startBlockNum;
     }
 
+    function _getFixedSlotCharInfoOfIdx(PlayerId playerId, uint8 fixedSlotIdx)
+        internal
+        view
+        returns (IPLMToken.CharacterInfo memory)
+    {
+        return
+            token.getPriorCharacterInfo(
+                _getFixedSlotTokenId(playerId, fixedSlotIdx),
+                _getStartBlockNum(playerId)
+            );
+    }
+
     function getFixedSlotCharInfo(PlayerId playerId)
         public
         view
         returns (IPLMToken.CharacterInfo[FIXEDSLOT_NUM] memory)
     {
-        IPLMToken.CharacterInfo[FIXEDSLOT_NUM] memory playerCharInfo;
+        IPLMToken.CharacterInfo[FIXEDSLOT_NUM] memory playerCharInfos;
         for (uint8 i = 0; i < FIXEDSLOT_NUM; i++) {
-            playerCharInfo[i] = token.getPriorCharacterInfo(
-                _getFixedSlotTokenId(playerId, i),
-                _getStartBlockNum(playerId)
-            );
+            playerCharInfos[i] = _getFixedSlotCharInfoOfIdx(playerId, i);
         }
+
+        return playerCharInfos;
+    }
+
+    function getVirtualRandomSlotCharInfo(PlayerId playerId, uint256 tokenId)
+        external
+        view
+        returns (IPLMToken.CharacterInfo memory)
+    {
+        IPLMToken.CharacterInfo memory virtualPlayerCharInfo = token
+            .getPriorCharacterInfo(tokenId, _getStartBlockNum(playerId));
+        virtualPlayerCharInfo.level = _getRandomSlotLevel(playerId);
+
+        return virtualPlayerCharInfo;
+    }
+
+    function getRandomSlotCharInfo(PlayerId playerId)
+        public
+        view
+        returns (IPLMToken.CharacterInfo memory)
+    {
+        require(
+            _getRandomSlotState(playerId) == RandomSlotState.Revealed,
+            "Random slot character info has not determined yet."
+        );
+        // Calculate the tokenId of random slot for player designated by PlayerId.
+        uint256 tokenId = PLMSeeder.getRandomSlotTokenId(
+            getNonce(playerId),
+            _getPlayerSeed(playerId),
+            token.getPriorTotalSupply(_getStartBlockNum(playerId)),
+            token
+        );
+
+        IPLMToken.CharacterInfo memory playerCharInfo = token
+            .getPriorCharacterInfo(tokenId, _getStartBlockNum(playerId));
+        playerCharInfo.level = _getRandomSlotLevel(playerId);
+
         return playerCharInfo;
     }
 

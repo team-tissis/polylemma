@@ -149,6 +149,16 @@ interface IPLMBattleField {
         view
         returns (IPLMToken.CharacterInfo[4] memory);
 
+    function getVirtualRandomSlotCharInfo(PlayerId playerId, uint256 tokenId)
+        external
+        view
+        returns (IPLMToken.CharacterInfo memory);
+
+    function getRandomSlotCharInfo(PlayerId playerId)
+        external
+        view
+        returns (IPLMToken.CharacterInfo memory);
+
     function getPlayerIdFromAddress(address playerAddr)
         external
         view
