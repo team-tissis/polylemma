@@ -919,7 +919,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         uint256 tokenId = PLMSeeder.getRandomSlotTokenId(
             getNonce(playerId),
             _getPlayerSeed(playerId),
-            token.getPriorTotalSupply(_getStartBlockNum(playerId)),
+            getTotalSupplyAtBattleStart(),
             token
         );
 
@@ -949,5 +949,10 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         );
         return
             playerAddrBytes == aliceAddrBytes ? PlayerId.Alice : PlayerId.Bob;
+    }
+
+    function getTotalSupplyAtBattleStart() public view returns (uint256) {
+        // Here we assume that Bob is always a requester.
+        return token.getPriorTotalSupply(_getStartBlockNum(PlayerId.Bob));
     }
 }
