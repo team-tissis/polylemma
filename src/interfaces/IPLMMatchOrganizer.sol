@@ -16,13 +16,6 @@ interface IPLMMatchOrganizer is IPLMBattleField {
         InBattle
     }
 
-    event RequestedBattle(
-        uint16 lowerBound,
-        uint16 upperBound,
-        uint16 totalProposer,
-        uint16 totalChallenger
-    );
-
     event ProposalCreated(address indexed proposer, BattleProposal createdProp);
 
     event ProposalDeleted(address indexed proposer, BattleProposal deletedProp);

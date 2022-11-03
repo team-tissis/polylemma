@@ -240,8 +240,8 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
         return checkpoints[tokenId][lower].charInfo;
     }
 
-    function setNumImg(uint256 newImgNum) external onlyPolylemmer {
-        imgNum = newImgNum;
+    function setNumImg(uint256 _numImg) external onlyPolylemmer {
+        numImg = _numImg;
     }
 
     /// descript how is the token minted
@@ -278,7 +278,7 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
     }
 
     /// @notice get URL of storage where image png file specifid with imgId is stored
-    function getImgURI(uint256 imgId) external view returns (string memory) {
+    function getImgURI(uint256 imgId) external pure returns (string memory) {
         string memory baseImgURI = _baseImgURI();
         return
             bytes(baseImgURI).length > 0
@@ -286,7 +286,7 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
                 : "";
     }
 
-    function _baseImgURI() internal view returns (string memory) {
+    function _baseImgURI() internal pure returns (string memory) {
         return
             "https://raw.githubusercontent.com/theChainInsight/polylemma-img/main/images/";
     }
