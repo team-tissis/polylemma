@@ -19,13 +19,13 @@ interface IPLMData {
 
     function getCharacterTypeOdds() external view returns (uint8[] calldata);
 
-    function numOddsCharacterType() external view returns (uint256);
+    function getNumOddsCharacterType() external view returns (uint256);
 
     function getAbilityOdds() external view returns (uint8[] calldata);
 
-    function numOddsAbility() external view returns (uint256);
+    function getNumOddsAbility() external view returns (uint256);
 
-    function numImg() external view returns (uint256);
+    function getNumImg() external view returns (uint256);
 
     function calcBattleResult(
         CharacterInfo calldata aliceChar,

@@ -17,7 +17,7 @@ contract PLMData is IPLMData {
     string[] public abilities = ["mouka", "shinryoku", "gekiryu"];
     uint8[] public characterTypeOdds = [0, 1, 2];
     uint8[] public abilityOdds = [0, 1, 2];
-    uint256 imgNum = 38;
+    uint256 numImg = 38;
 
     uint256[] public poolingPercentageTable = [5, 10, 20, 23, 33, 40, 45];
 
@@ -51,7 +51,7 @@ contract PLMData is IPLMData {
         return characterTypeOdds;
     }
 
-    function numOddsCharacterType() external view returns (uint256) {
+    function getNumOddsCharacterType() external view returns (uint256) {
         return characterTypeOdds.length;
     }
 
@@ -59,12 +59,12 @@ contract PLMData is IPLMData {
         return abilityOdds;
     }
 
-    function numOddsAbility() external view returns (uint256) {
+    function getNumOddsAbility() external view returns (uint256) {
         return abilityOdds.length;
     }
 
-    function numImg() external view returns (uint256) {
-        return imgNum;
+    function getNumImg() external view returns (uint256) {
+        return numImg;
     }
 
     // TODO: 一旦ダメージはそのままレヴェルを返す

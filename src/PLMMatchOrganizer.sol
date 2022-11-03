@@ -139,13 +139,6 @@ contract PLMMatchOrganizer is
             block.number - 1
         );
 
-        emit RequestedBattle(
-            proposal.lowerBound,
-            proposal.upperBound,
-            proposal.totalLevel,
-            challengerTotalLevel
-        );
-
         require(
             challengerTotalLevel >= proposal.lowerBound &&
                 challengerTotalLevel <= proposal.upperBound,

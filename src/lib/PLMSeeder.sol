@@ -21,15 +21,15 @@ library PLMSeeder {
         returns (Seed memory)
     {
         uint256 pseudoRandomness = _generateRandomnessFromBlockHash(tokenId);
-        uint256 numImg = data.numImg();
-        uint256 numOddsCharacterType = data.numOddsCharacterType();
-        uint256 numOddsAbility = data.numOddsAbility();
+        uint256 numImg = data.getNumImg();
+        uint256 numOddsCharacterType = data.getNumOddsCharacterType();
+        uint256 numOddsAbility = data.getNumOddsAbility();
         // TODO: 画像は属性や特性と比較して総数が多いため、現行の実装を踏襲するとものによって排出確率を変更する実装が汚くなってしまうから、一旦一様分布で対応する。
         uint8[] memory characterTypeOdds = data.getCharacterTypeOdds();
         uint8[] memory abilityOdds = data.getAbilityOdds();
         return
             Seed({
-                imgId: pseudoRandomness % numImg,
+                imgId: (pseudoRandomness % numImg) + 1,
                 characterType: characterTypeOdds[
                     pseudoRandomness % numOddsCharacterType
                 ],
