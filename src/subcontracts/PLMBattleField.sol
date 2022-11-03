@@ -202,7 +202,8 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
                 _banLazyPlayer(enemyId);
             }
 
-            revert BattleCanceled(playerId);
+            emit BattleCanceled(playerId);
+            return;
         }
 
         // Save commitment on the storage. The playerSeed of the player is hidden in the commit phase.
@@ -310,7 +311,8 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
                 _banLazyPlayer(enemyId);
             }
 
-            revert BattleCanceled(playerId);
+            emit BattleCanceled(playerId);
+            return;
         }
 
         // Save commitment on the storage. The choice of the player is hidden in the commit phase.
@@ -376,7 +378,8 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
                 _banLazyPlayer(enemyId);
             }
 
-            revert BattleCanceled(playerId);
+            emit BattleCanceled(playerId);
+            return;
         }
 
         // If the choice is the random slot, then random slot must have already been revealed.
@@ -412,7 +415,8 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             // End this match and ban the player designated by playerId.
             _banCheater(playerId);
 
-            revert BattleCanceled(playerId);
+            emit BattleCanceled(playerId);
+            return;
         }
 
         // Subtract revealed levelPoint from remainingLevelPoint
@@ -430,7 +434,8 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             // End this match and ban the player designated by playerId.
             _banCheater(playerId);
 
-            revert BattleCanceled(playerId);
+            emit BattleCanceled(playerId);
+            return;
         }
 
         // Execute revealment
