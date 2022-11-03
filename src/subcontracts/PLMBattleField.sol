@@ -136,7 +136,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         ) {
             emit TimeOutAtChoiceCommitDetected(numRounds, enemyId);
 
-            // ban the enemy Player.
+            // ban the enemy player.
             _banLazyPlayer(enemyId);
 
             emit BattleCanceled(enemyId);
@@ -213,11 +213,12 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             emit TimeOutAtPlayerSeedCommitDetected(playerId);
 
             // ban the lazy player.
-            _banLazyPlayer(playerId);
-
             if (_getPlayerState(enemyId) == PlayerState.Preparing) {
-                // enemy player is a lazy player too. ban the enemy player.
-                _banLazyPlayer(enemyId);
+                // both players are lazy players.
+                _banLazyPlayers();
+            } else {
+                // only the player designated by playerId is a lazy player.
+                _banLazyPlayer(playerId);
             }
 
             emit BattleCanceled(playerId);
@@ -320,11 +321,12 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             emit TimeOutAtChoiceCommitDetected(numRounds, playerId);
 
             // ban the lazy player.
-            _banLazyPlayer(playerId);
-
             if (_getPlayerState(enemyId) == PlayerState.Preparing) {
-                // enemy player is a lazy player too. ban the enemy player.
-                _banLazyPlayer(enemyId);
+                // both players are lazy players.
+                _banLazyPlayers();
+            } else {
+                // only the player designated by playerId is a lazy player.
+                _banLazyPlayer(playerId);
             }
 
             emit BattleCanceled(playerId);
@@ -385,11 +387,12 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             emit TimeOutAtChoiceRevealDetected(numRounds, playerId);
 
             // ban the lazy player.
-            _banLazyPlayer(playerId);
-
             if (_getPlayerState(enemyId) == PlayerState.Preparing) {
-                // enemy player is a lazy player too. ban the enemy player.
-                _banLazyPlayer(enemyId);
+                // both players are lazy players.
+                _banLazyPlayers();
+            } else {
+                // only the player designated by playerId is a lazy player.
+                _banLazyPlayer(playerId);
             }
 
             emit BattleCanceled(playerId);
@@ -610,6 +613,9 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             DAILY_BLOCK_NUM * BAN_DATE_LENGTH_FOR_CHEATER
         );
 
+        // Refund stamina to the enemy player.
+        dealer.refundStaminaForBattle(_getPlayerAddress(_enemyId(playerId)));
+
         // Cancel this battle.
         _cancelBattle();
     }
@@ -617,12 +623,33 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
     /// @notice Function to ban the lazy player
     /// @dev Ban the account (subtract constant block number from the subscribing period limit.)
     function _banLazyPlayer(PlayerId playerId) internal {
-        // Reduce the subscribing period to ban the cheater account.
+        // Reduce the subscribing period to ban the lazy palyer's account.
         dealer.banAccount(
             _getPlayerAddress(playerId),
             DAILY_BLOCK_NUM * BAN_DATE_LENGTH_FOR_LAZY_ACCOUNT
         );
 
+        // Refund stamina to the enemy player.
+        dealer.refundStaminaForBattle(_getPlayerAddress(_enemyId(playerId)));
+
+        // Cancel this battle.
+        _cancelBattle();
+    }
+
+    /// @notice Function to ban both players because of lazyness.
+    /// @dev Ban the account (subtract constant block number from the subscribing period limit.)
+    function _banLazyPlayers() internal {
+        // Reduce the subscribing period to ban the lazy players' accounts.
+        dealer.banAccount(
+            _getPlayerAddress(PlayerId.Alice),
+            DAILY_BLOCK_NUM * BAN_DATE_LENGTH_FOR_LAZY_ACCOUNT
+        );
+        dealer.banAccount(
+            _getPlayerAddress(PlayerId.Bob),
+            DAILY_BLOCK_NUM * BAN_DATE_LENGTH_FOR_LAZY_ACCOUNT
+        );
+
+        // No stamina refund called here because both players are lazy players.
         // Cancel this battle.
         _cancelBattle();
     }

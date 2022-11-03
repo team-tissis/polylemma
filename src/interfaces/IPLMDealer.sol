@@ -41,6 +41,8 @@ interface IPLMDealer is IPLMGacha {
 
     function consumeStaminaForBattle(address player) external;
 
+    function refundStaminaForBattle(address player) external;
+
     ////////////////////////////////////
     /// FUNCTIONS ABOUT SUBSCRIPTION ///
     ////////////////////////////////////
