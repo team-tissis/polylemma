@@ -1,8 +1,9 @@
 interface IPLMData {
     struct CharacterInfo {
         bytes32 name;
-        string characterType;
+        uint256 imgId;
         uint256 fromBlock;
+        string characterType;
         uint8 level;
         uint8 rarity;
         uint8[1] abilityIds;
@@ -23,6 +24,8 @@ interface IPLMData {
     function getAbilityOdds() external view returns (uint8[] calldata);
 
     function numOddsAbility() external view returns (uint256);
+
+    function numImg() external view returns (uint256);
 
     function calcBattleResult(
         CharacterInfo calldata aliceChar,
