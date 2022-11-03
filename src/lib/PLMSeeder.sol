@@ -63,11 +63,12 @@ library PLMSeeder {
     function getRandomSlotTokenId(
         bytes32 nonce,
         bytes32 playerSeed,
+        uint256 totalSupply,
         IPLMToken token
-    ) external view returns (uint256) {
+    ) external pure returns (uint256) {
         uint256 tokenId = uint256(
             keccak256(abi.encodePacked(nonce, playerSeed))
-        ) % token.totalSupply();
+        ) % totalSupply;
         return tokenId;
     }
 }
