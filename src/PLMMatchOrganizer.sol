@@ -28,6 +28,13 @@ contract PLMMatchOrganizer is
         require(block.number != 0, "block number is zero.");
         _;
     }
+    modifier subscribed() {
+        require(
+            !dealer.subscIsExpired(msg.sender),
+            "sender's subscription is expired."
+        );
+        _;
+    }
 
     /// @notice A Battle proposer creates battle proposal and the proposer state is updated
     /// @dev TODO: proposals are still managed by both a mapping and a struct array, it shold be impled with interval tree
@@ -38,7 +45,7 @@ contract PLMMatchOrganizer is
         uint16 lowerBound,
         uint16 upperBound,
         uint256[FIXEDSLOT_NUM] calldata fixedSlotsOfProposer
-    ) external nonReentrant blockNumIsNotZero {
+    ) external nonReentrant blockNumIsNotZero subscribed {
         require(
             matchStates[msg.sender] == MatchState.NonProposal,
             "sender is proposing, or in battle."
@@ -49,7 +56,6 @@ contract PLMMatchOrganizer is
                 "proposed characters contains not sender's tokenId"
             );
         }
-
         // create new proposal
         BattleProposal memory prop = BattleProposal(
             msg.sender,
@@ -96,7 +102,7 @@ contract PLMMatchOrganizer is
     function requestChallenge(
         address proposer,
         uint256[4] calldata fixedSlotsOfChallenger
-    ) external nonReentrant blockNumIsNotZero {
+    ) external nonReentrant blockNumIsNotZero subscribed {
         require(
             matchStates[proposer] == MatchState.Proposal,
             "called address is not in proposal"
@@ -105,6 +111,13 @@ contract PLMMatchOrganizer is
             matchStates[msg.sender] == MatchState.NonProposal,
             "sender is in Battle or proposing."
         );
+
+        if (dealer.subscIsExpired(proposer)) {
+            _deleteProposal(proposer);
+            emit RequestRejected(msg.sender);
+            return;
+        }
+
         for (uint256 i = 0; i < FIXEDSLOT_NUM; i++) {
             require(
                 msg.sender == token.ownerOf(fixedSlotsOfChallenger[i]),
@@ -127,9 +140,10 @@ contract PLMMatchOrganizer is
             ) {
                 _deleteProposal(proposer);
                 matchStates[proposer] = MatchState.NonProposal;
-                revert ProposerIsNotOwner(
+                emit ProposerIsNotOwner(
                     "submitted characters contains not sender's tokenId"
                 );
+                return;
             }
         }
 

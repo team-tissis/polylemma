@@ -16,9 +16,11 @@ interface IPLMMatchOrganizer is IPLMBattleField {
         InBattle
     }
 
+    event RequestRejected(address indexed challenfer);
+
     event ProposalCreated(address indexed proposer, BattleProposal createdProp);
 
     event ProposalDeleted(address indexed proposer, BattleProposal deletedProp);
 
-    error ProposerIsNotOwner(string reason);
+    event ProposerIsNotOwner(string reason);
 }
