@@ -133,6 +133,8 @@ interface IPLMBattleField {
         bytes32 bindingFactor
     ) external;
 
+    function reportLazyRevealment(PlayerId playerId) external;
+
     function startBattle(
         address aliceAddr,
         address bobAddr,
