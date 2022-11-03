@@ -159,6 +159,11 @@ contract PLMMatchOrganizer is
             "not satisfy the level condition."
         );
 
+        // pay stamina
+        /// @dev if players do not have enough stamina, this function will revert the excutions.
+        dealer.consumeStaminaForBattle(proposer);
+        dealer.consumeStaminaForBattle(msg.sender);
+
         startBattle(
             proposer,
             msg.sender,
@@ -171,6 +176,7 @@ contract PLMMatchOrganizer is
         // udapte Status
         matchStates[proposer] = MatchState.InBattle;
         matchStates[msg.sender] = MatchState.InBattle;
+
         // delete proposal
         _deleteProposal(proposer);
     }

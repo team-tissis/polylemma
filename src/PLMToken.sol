@@ -23,6 +23,7 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
     address polylemmer;
     address dealer;
     address enhancer;
+    bool DealerIsSet = false;
     uint256 maxSupply;
     IPLMCoin coin;
 
@@ -50,6 +51,7 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
     }
 
     modifier onlyDealer() {
+        require(DealerIsSet, "dealer has not been set.");
         require(
             msg.sender == dealer,
             "Permission denied. Sender is not dealer."
@@ -57,13 +59,8 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
         _;
     }
 
-    constructor(
-        address _dealer,
-        IPLMCoin _coin,
-        uint256 _maxSupply
-    ) ERC721("Polylemma", "PLM") {
+    constructor(IPLMCoin _coin, uint256 _maxSupply) ERC721("Polylemma", "PLM") {
         polylemmer = msg.sender;
-        dealer = _dealer;
         coin = _coin;
         maxSupply = _maxSupply;
     }
@@ -172,6 +169,7 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
     }
 
     function setDealer(address newDealer) external onlyPolylemmer {
+        DealerIsSet = true;
         dealer = newDealer;
     }
 

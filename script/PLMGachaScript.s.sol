@@ -26,7 +26,6 @@ contract PolylemmagachaScript is Script {
 
     uint256 constant tokenMaxSupply = 1000;
     uint256 constant initialMintCoin = 1000000;
-    address tmp = address(999);
 
     // game admin address
 
@@ -36,10 +35,10 @@ contract PolylemmagachaScript is Script {
         // excute operations as a deployer account until stop broadcast
         vm.startBroadcast(deployerPrivateKey);
 
-        coinContract = new PLMCoin(tmp);
+        coinContract = new PLMCoin();
         coin = IPLMCoin(address(coinContract));
 
-        tokenContract = new PLMToken(tmp, coin, tokenMaxSupply);
+        tokenContract = new PLMToken(coin, tokenMaxSupply);
         token = IPLMToken(address(tokenContract));
 
         dealer = new PLMDealer(token, coin);
@@ -47,6 +46,7 @@ contract PolylemmagachaScript is Script {
 
         coin.setDealer(address(dealer));
         token.setDealer(address(dealer));
+        dealer.setMatchOrganizer(address(matchOrganizer));
 
         // initialMint for Dealer
         dealer.mintAdditionalCoin(initialMintCoin);

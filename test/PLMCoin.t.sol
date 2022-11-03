@@ -11,8 +11,10 @@ contract PLMCoinTest is Test {
     PLMCoin coin;
 
     function setUp() public {
-        vm.prank(polylemmer);
-        coin = new PLMCoin(dealer);
+        vm.startPrank(polylemmer);
+        coin = new PLMCoin();
+        coin.setDealer(dealer);
+        vm.stopPrank();
     }
 
     function testMintByDealer() public {
