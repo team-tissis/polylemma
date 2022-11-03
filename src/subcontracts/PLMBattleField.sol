@@ -123,7 +123,29 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             _getPlayerState(playerId) == PlayerState.Committed,
             "The player hasn't committed the choice in this round yet."
         );
-        PlayerState enemyState = _getPlayerState(_enemyId(playerId));
+
+        PlayerId enemyId = _enemyId(playerId);
+        PlayerState enemyState = _getPlayerState(enemyId);
+
+        // If the enemy player has not committed yet and it's over commit time limit,
+        // ban the enemy player as lazy player.
+        if (
+            enemyState == PlayerState.Preparing &&
+            block.number >
+            choiceCommitStartPoints[numRounds] + CHOICE_COMMIT_TIME_LIMIT
+        ) {
+            emit TimeOutAtChoiceCommitDetected(numRounds, enemyId);
+
+            // ban the enemy Player.
+            _banLazyPlayer(enemyId);
+
+            emit BattleCanceled(enemyId);
+            return;
+        }
+
+        // If the enemy player has not committed yet and it's not over commit time limit,
+        // player has to wait until commit time limit. So, in this case, we revert the
+        // revealChoice function using require statement below.
         require(
             enemyState == PlayerState.Committed ||
                 enemyState == PlayerState.Revealed,
@@ -443,6 +465,29 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         if (_getPlayerState(enemyId) == PlayerState.Revealed) {
             _stepRound();
         }
+    }
+
+    function reportLazyRevealment(PlayerId playerId)
+        external
+        roundStarted
+        onlyPlayerOfIdx(playerId)
+    {
+        PlayerId enemyId = _enemyId(playerId);
+
+        // Detect enemy player's lazy revealment.
+        require(
+            _getPlayerState(_enemyId(playerId)) == PlayerState.Committed &&
+                block.number >
+                choiceRevealStartPoints[numRounds] + CHOICE_REVEAL_TIME_LIMIT,
+            "Check that this report is valid."
+        );
+
+        emit TimeOutAtChoiceRevealDetected(numRounds, enemyId);
+
+        // ban the lazy player.
+        _banLazyPlayer(enemyId);
+
+        emit BattleCanceled(playerId);
     }
 
     function getBattleState() external view returns (BattleState) {
