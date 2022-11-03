@@ -118,8 +118,7 @@ interface IPLMBattleField {
     event TimeOutAtPlayerSeedCommitDetected(PlayerId lazyPlayer);
     event TimeOutAtChoiceCommitDetected(uint8 numRounds, PlayerId lazyPlayer);
     event TimeOutAtChoiceRevealDetected(uint8 numRounds, PlayerId lazyPlayer);
-
-    error BattleCanceled(PlayerId cause);
+    event BattleCanceled(PlayerId cause);
 
     function commitPlayerSeed(PlayerId playerId, bytes32 commitString) external;
 
