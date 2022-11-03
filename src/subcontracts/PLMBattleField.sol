@@ -104,12 +104,9 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             _getRandomSlotState(playerId) == RandomSlotState.Committed,
             "The commit of random slot has already been revealed."
         );
-        PlayerId enemyId = playerId == PlayerId.Alice
-            ? PlayerId.Bob
-            : PlayerId.Alice;
         require(
             _getPlayerState(playerId) == PlayerState.Committed &&
-                _getPlayerState(enemyId) == PlayerState.Committed,
+                _getPlayerState(_enemyId(playerId)) == PlayerState.Committed,
             "Alice or Bob has not committed his/her choice yet."
         );
         _;
@@ -122,10 +119,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             _getPlayerState(playerId) == PlayerState.Committed,
             "The player hasn't committed the choice in this round yet."
         );
-        PlayerId enemyId = playerId == PlayerId.Alice
-            ? PlayerId.Bob
-            : PlayerId.Alice;
-        PlayerState enemyState = _getPlayerState(enemyId);
+        PlayerState enemyState = _getPlayerState(_enemyId(playerId));
         require(
             enemyState == PlayerState.Committed ||
                 enemyState == PlayerState.Revealed,
@@ -183,9 +177,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             "The playerSeed has already set."
         );
 
-        PlayerId enemyId = playerId == PlayerId.Alice
-            ? PlayerId.Bob
-            : PlayerId.Alice;
+        PlayerId enemyId = _enemyId(playerId);
 
         // Check that player seed commitment is in time.
         if (
@@ -292,9 +284,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             "This player is not in the state to commit in this round."
         );
 
-        PlayerId enemyId = playerId == PlayerId.Alice
-            ? PlayerId.Bob
-            : PlayerId.Alice;
+        PlayerId enemyId = _enemyId(playerId);
 
         // Check that choice commitment is in time.
         if (
@@ -359,9 +349,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             "Choice.Secret is not allowed when revealing."
         );
 
-        PlayerId enemyId = playerId == PlayerId.Alice
-            ? PlayerId.Bob
-            : PlayerId.Alice;
+        PlayerId enemyId = _enemyId(playerId);
 
         // Check that choice revealment is in time.
         if (
@@ -525,14 +513,34 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
 
         // Increment the round number.
         numRounds++;
+        uint8 aliceWinCount = _getWinCount(PlayerId.Alice);
+        uint8 bobWinCount = _getWinCount(PlayerId.Bob);
+
         if (
-            _getWinCount(PlayerId.Alice) == WIN_COUNT ||
-            _getWinCount(PlayerId.Bob) == WIN_COUNT ||
+            aliceWinCount == WIN_COUNT ||
+            bobWinCount == WIN_COUNT ||
             numRounds == MAX_ROUNDS
         ) {
             // This battle ends.
             battleState = BattleState.RoundSettled;
             _settleBattle();
+
+            bool isDraw = aliceWinCount == bobWinCount;
+            PlayerId winner = aliceWinCount >= bobWinCount
+                ? PlayerId.Alice
+                : PlayerId.Bob;
+            PlayerId loser = _enemyId(winner);
+            uint8 winCount = _getWinCount(winner);
+            uint8 loseCount = _getWinCount(loser);
+
+            emit BattleResult(
+                numRounds - 1,
+                isDraw,
+                winner,
+                loser,
+                winCount,
+                loseCount
+            );
             return;
         }
 
@@ -629,6 +637,10 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         // Dealer pay rewards to both players.
         dealer.payReward(_getPlayerAddress(PlayerId.Alice), aliceAmount);
         dealer.payReward(_getPlayerAddress(PlayerId.Bob), bobAmount);
+    }
+
+    function _enemyId(PlayerId playerId) internal pure returns (PlayerId) {
+        return playerId == PlayerId.Alice ? PlayerId.Bob : PlayerId.Alice;
     }
 
     /// @notice Function to start the battle.
