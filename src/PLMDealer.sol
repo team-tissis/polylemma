@@ -151,7 +151,33 @@ contract PLMDealer is PLMGacha, IPLMDealer {
                     STAMINA_RESTORE_SPEED,
             "sender does not have enough stamina"
         );
-        staminaFromBlock[player] += STAMINA_PER_BATTLE / STAMINA_RESTORE_SPEED;
+        // When "staminaFromBlock" remains at the initial value of "0", players start a battle without any stamina
+        // consumption up to the time when the staminaFromBlock can express that stamina is consumed for one battle.
+        if (staminaFromBlock[player] > 0) {
+            staminaFromBlock[player] +=
+                STAMINA_PER_BATTLE /
+                STAMINA_RESTORE_SPEED;
+        } else {
+            staminaFromBlock[player] = block.number >=
+                (STAMINA_MAX - STAMINA_PER_BATTLE) / STAMINA_RESTORE_SPEED
+                ? block.number -
+                    (STAMINA_MAX - STAMINA_PER_BATTLE) /
+                    STAMINA_RESTORE_SPEED
+                : 0;
+        }
+    }
+
+    function refundStaminaForBattle(address player) public onlyMatchOrganizer {
+        uint256 candidate1 = block.number >= STAMINA_MAX / STAMINA_RESTORE_SPEED
+            ? block.number - STAMINA_MAX / STAMINA_RESTORE_SPEED
+            : 0;
+        uint256 candidate2 = staminaFromBlock[player] >=
+            STAMINA_PER_BATTLE / STAMINA_RESTORE_SPEED
+            ? staminaFromBlock[player] -
+                STAMINA_PER_BATTLE /
+                STAMINA_RESTORE_SPEED
+            : 0;
+        staminaFromBlock[player] = candidate1.max(candidate2);
     }
 
     ////////////////////////////////////
