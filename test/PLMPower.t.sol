@@ -9,7 +9,7 @@ import {PLMToken} from "../src/PLMToken.sol";
 import {IPLMCoin} from "../src/interfaces/IPLMCoin.sol";
 import {IPLMToken} from "../src/interfaces/IPLMToken.sol";
 
-contract PLMPowerTest is Test {
+contract BattleDamageTest is Test {
     address polylemmer = address(10);
     address user = address(11);
     uint256 maticForEx = 100000 ether;
