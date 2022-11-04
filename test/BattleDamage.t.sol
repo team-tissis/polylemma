@@ -68,6 +68,7 @@ contract BattleDamageTest is Test {
         player1Char.rarity = attributeRarities[player1AttributeId];
         player1Char.attributeIds = [player1AttributeId];
         uint8 player1LevelPoint = 3;
+        uint8 player1BondPoint = 1;
 
         PLMToken.CharacterInfo memory player2Char;
         player2Char.name = bytes20("Bob");
@@ -77,17 +78,20 @@ contract BattleDamageTest is Test {
         player2Char.rarity = attributeRarities[player1AttributeId];
         player2Char.attributeIds = [player1AttributeId];
         uint8 player2LevelPoint = 2;
+        uint8 player2BondPoint = 1;
 
         uint32 alicePower = token.calcPower(
             numRounds,
             player1Char,
             player1LevelPoint,
+            player1BondPoint,
             player2Char
         );
         uint32 bobPower = token.calcPower(
             numRounds,
             player2Char,
             player2LevelPoint,
+            player2BondPoint,
             player1Char
         );
         assertEq(alicePower, bobPower);

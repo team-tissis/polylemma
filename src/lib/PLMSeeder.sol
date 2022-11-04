@@ -20,24 +20,32 @@ library PLMSeeder {
         view
         returns (Seed memory)
     {
-        uint256 pseudoRandomness = _generateRandomnessFromBlockHash(tokenId);
-        uint256 numImg = data.getNumImg();
-        uint256 numOddsCharacterType = data.getNumOddsCharacterType();
         // TODO: 画像は属性や特性と比較して総数が多いため、現行の実装を踏襲するとものによって排出確率を変更する実装が汚くなってしまうから、一旦一様分布で対応する。
-        uint256 numOddsAttribute = data.numOddsAttribute();
-        uint8[] memory characterTypeOdds = data.getCharacterTypeOdds();
-        uint8[] memory attributeOdds = data.getAttributeOdds();
+        uint256 pseudoRandomnessImg = _generateRandomnessFromBlockHash(tokenId);
+        uint256 numImg = data.getNumImg();
+
+        uint256 pseudoRandomnessType = _generateRandomnessFromBlockHash(
+            tokenId + 1
+        );
+        uint8[] memory cumulativeCharacterTypeOdds = data
+            .getCumulativeCharacterTypeOdds();
+
+        uint256 pseudoRandomnessAttribute = _generateRandomnessFromBlockHash(
+            tokenId + 2
+        );
+        uint8[] memory cumulativeAttributeOdds = data
+            .getCumulativeAttributeOdds();
 
         return
             Seed({
-                imgId: (pseudoRandomness % numImg) + 1,
-                characterType: characterTypeOdds[
-                    pseudoRandomness % numOddsCharacterType
-                ],
-                attribute: _calcAttributeSeed(
-                    pseudoRandomness,
-                    numOddsAttribute,
-                    attributeOdds
+                imgId: (pseudoRandomnessImg % numImg) + 1,
+                characterType: _matchRandomnessWithOdds(
+                    pseudoRandomnessType,
+                    cumulativeCharacterTypeOdds
+                ),
+                attribute: _matchRandomnessWithOdds(
+                    pseudoRandomnessAttribute,
+                    cumulativeAttributeOdds
                 )
             });
     }
@@ -77,23 +85,17 @@ library PLMSeeder {
         return tokenId;
     }
 
-    /// @notice Only the attributeOdds stores cumulative probabilities.
-    /// This function calc attribute Id from the array with pseudoRandomness
-    function _calcAttributeSeed(
+    /// @notice Only the cumulativeOdds stores cumulative probabilities.
+    /// This function calc Id from the array with pseudoRandomness
+    function _matchRandomnessWithOdds(
         uint256 pseudoRandomness,
-        uint256 numOddsAttribute,
-        uint8[] memory attributeOdds
+        uint8[] memory cumulativeOdds
     ) internal pure returns (uint8) {
-        // calculation of index of attribute
-        uint256 p = pseudoRandomness % numOddsAttribute;
-        for (uint8 i; i < attributeOdds.length; i++) {
-            if (i == 0) {
-                if (p < attributeOdds[i]) {
-                    return i;
-                } else {
-                    continue;
-                }
-            } else if (attributeOdds[i - 1] <= p && p < attributeOdds[i]) {
+        uint8 sumOdds = cumulativeOdds[cumulativeOdds.length - 1];
+        uint256 p = pseudoRandomness % sumOdds;
+        if (p < cumulativeOdds[0]) return 0;
+        for (uint8 i = 1; i < cumulativeOdds.length; i++) {
+            if (cumulativeOdds[i - 1] <= p && p < cumulativeOdds[i]) {
                 return i;
             }
         }

@@ -53,6 +53,17 @@ interface IPLMToken is IERC721, IERC721Enumerable, IPLMData {
 
     function getImgURI(uint256 imgId) external returns (string memory);
 
+    function calcCurrentBondLevel(uint8 level, uint256 startBlock)
+        external
+        view
+        returns (uint32);
+
+    function calcPriorBondLevel(
+        uint8 level,
+        uint256 startBlock,
+        uint256 lastBlock
+    ) external pure returns (uint32);
+
     function getPriorTotalSupply(uint256 blockNumber)
         external
         view

@@ -196,6 +196,34 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
                 : dummyInfo;
     }
 
+    /// @notice bond level is a specification that the longer it is in possession, the more it is enhanced.
+    /// The character can be enhanced up to the twice as much level as its normal level.
+    function _calcBondLevel(
+        uint8 level,
+        uint256 startBlock,
+        uint256 lastBlock
+    ) internal pure returns (uint32) {
+        uint256 blockPeriod = 50; // TODO: 大きくする
+        uint32 ownershipPeriod = uint32((lastBlock - startBlock) / blockPeriod);
+        return ownershipPeriod < level * 2 ? ownershipPeriod : level * 2;
+    }
+
+    function calcCurrentBondLevel(uint8 level, uint256 startBlock)
+        public
+        view
+        returns (uint32)
+    {
+        return _calcBondLevel(level, startBlock, block.number);
+    }
+
+    function calcPriorBondLevel(
+        uint8 level,
+        uint256 startBlock,
+        uint256 lastBlock
+    ) public pure returns (uint32) {
+        return _calcBondLevel(level, startBlock, lastBlock);
+    }
+
     function getPriorTotalSupply(uint256 blockNumber)
         public
         view

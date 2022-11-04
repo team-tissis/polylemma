@@ -545,16 +545,30 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         IPLMToken.CharacterInfo memory bobChar = _getChosenCharacterInfo(
             PlayerId.Bob
         );
+
+        uint32 aliceBondLevel = token.calcPriorBondLevel(
+            aliceChar.level,
+            aliceChar.fromBlock,
+            _getStartBlockNum(PlayerId.Bob)
+        );
         uint32 alicePower = token.calcPower(
             numRounds,
             aliceChar,
             choiceCommitLog[numRounds][PlayerId.Alice].levelPoint,
+            aliceBondLevel,
             bobChar
+        );
+
+        uint32 bobBondLevel = token.calcPriorBondLevel(
+            bobChar.level,
+            bobChar.fromBlock,
+            _getStartBlockNum(PlayerId.Bob)
         );
         uint32 bobPower = token.calcPower(
             numRounds,
             bobChar,
             choiceCommitLog[numRounds][PlayerId.Bob].levelPoint,
+            bobBondLevel,
             aliceChar
         );
 
@@ -1068,6 +1082,19 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         );
         return
             playerAddrBytes == aliceAddrBytes ? PlayerId.Alice : PlayerId.Bob;
+    }
+
+    function getBondLevelAtBattleStart(uint8 level, uint256 startBlock)
+        public
+        view
+        returns (uint32)
+    {
+        return
+            token.calcPriorBondLevel(
+                level,
+                startBlock,
+                _getStartBlockNum(PlayerId.Bob)
+            );
     }
 
     function getTotalSupplyAtBattleStart() public view returns (uint256) {
