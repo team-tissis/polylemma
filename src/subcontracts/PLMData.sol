@@ -142,6 +142,6 @@ contract PLMData is IPLMData {
         pure
         returns (uint256)
     {
-        return uint256(charInfo.level)**3;
+        return uint256(charInfo.level)**2;
     }
 }
