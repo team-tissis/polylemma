@@ -99,7 +99,7 @@ contract PLMTokenTest is Test {
         uint256 tokenId = 1;
 
         string[trialNum] memory generatedTypes;
-        uint8[trialNum] memory generatedAbility;
+        uint8[trialNum] memory generatedAttributes;
 
         for (uint256 i = 0; i < trialNum; i++) {
             tokenId++;
@@ -118,11 +118,11 @@ contract PLMTokenTest is Test {
                 characterTypes[seed.characterType],
                 1,
                 1,
-                [seed.ability]
+                [seed.attribute]
             );
-            generatedTypes[i] = minted.characterType;
+            generatedAttributes[i] = minted.attributeIds[0];
             // generatedAbility[i] = minted.abilityIds[0];
-            console.log(minted.characterType);
+            console.log(minted.attributeIds[0]);
         }
 
         // console.log(generatedAbility);
