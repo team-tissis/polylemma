@@ -26,9 +26,9 @@ contract BattleDamageTest is Test {
         vm.startPrank(polylemmer);
 
         // deploy contract
-        coinContract = new PLMCoin(address(99));
+        coinContract = new PLMCoin();
         coin = IPLMCoin(address(coinContract));
-        tokenContract = new PLMToken(address(99), coin, 100000);
+        tokenContract = new PLMToken(coin, 100000);
         token = IPLMToken(address(tokenContract));
         dealer = new PLMDealer(token, coin);
 
