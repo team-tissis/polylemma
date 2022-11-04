@@ -1069,4 +1069,12 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         mo = _mo;
         matchOrganizer = _matchOrganizer;
     }
+
+    function getRemainingLevelPoint(PlayerId playerId)
+        external
+        view
+        returns (uint8)
+    {
+        return playerInfoTable[playerId].remainingLevelPoint;
+    }
 }
