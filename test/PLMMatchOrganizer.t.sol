@@ -12,8 +12,9 @@ import {IPLMCoin} from "../src/interfaces/IPLMCoin.sol";
 import {IPLMToken} from "../src/interfaces/IPLMToken.sol";
 import {IPLMDealer} from "../src/interfaces/IPLMDealer.sol";
 import {IPLMBattleField} from "../src/interfaces/IPLMBattleField.sol";
+import {IPLMMatchOrganizer} from "../src/interfaces/IPLMMatchOrganizer.sol";
 
-contract PLMTokenTest is Test {
+contract PLMMatchOrganizerTest is Test {
     uint32 currentBlock = 0;
     uint256 maticForEx = 100000 ether;
     address polylemmer = address(10);
@@ -32,6 +33,7 @@ contract PLMTokenTest is Test {
     IPLMDealer dealer;
 
     PLMMatchOrganizer mo;
+    PLMBattleField bf;
 
     /// for battle
     bytes32 bindingFactor1 = bytes32("sdaskfjdiopfvj0pr2904738cdf");
@@ -53,11 +55,14 @@ contract PLMTokenTest is Test {
         dealerContract = new PLMDealer(token, coin);
         dealer = IPLMDealer(address(dealerContract));
         mo = new PLMMatchOrganizer(dealer, token);
+        bf = new PLMBattleField(dealer, token);
 
         // set dealer
         coin.setDealer(address(dealerContract));
         token.setDealer(address(dealerContract));
         dealer.setMatchOrganizer(address(mo));
+        mo.setIPLMBattleField(IPLMBattleField(address(bf)), address(bf));
+        bf.setIPLMMatchOrganizer(IPLMMatchOrganizer(address(mo)), address(mo));
 
         // set block number to be enough length
         currentBlock = dealerContract.getStaminaMax() + 1000;
@@ -248,9 +253,9 @@ contract PLMTokenTest is Test {
         bytes32 commitString2 = "sddgfsgkhfjlvhdda121dfdsfds2dq"; //30 chars
         // Alice is proposer, Bob is challenger
         vm.prank(user1);
-        mo.commitPlayerSeed(IPLMBattleField.PlayerId.Alice, commitString1);
+        bf.commitPlayerSeed(IPLMBattleField.PlayerId.Alice, commitString1);
         vm.prank(user2);
-        mo.commitPlayerSeed(IPLMBattleField.PlayerId.Bob, commitString2);
+        bf.commitPlayerSeed(IPLMBattleField.PlayerId.Bob, commitString2);
 
         // while
         // aliceCommitChoice = keccak256(
@@ -270,9 +275,9 @@ contract PLMTokenTest is Test {
         bytes32 commitString2 = "sddgfsgkhfjlvhdda121dfdsfds2dq"; //30 chars
         // Alice is proposer, Bob is challenger
         vm.prank(user2);
-        mo.commitPlayerSeed(IPLMBattleField.PlayerId.Alice, commitString1);
+        bf.commitPlayerSeed(IPLMBattleField.PlayerId.Alice, commitString1);
         vm.prank(user1);
-        mo.commitPlayerSeed(IPLMBattleField.PlayerId.Bob, commitString2);
+        bf.commitPlayerSeed(IPLMBattleField.PlayerId.Bob, commitString2);
     }
 
     function testProperBattleFlow() public {
@@ -401,12 +406,12 @@ contract PLMTokenTest is Test {
 
         // user1 commit playerSeed
         vm.prank(user1);
-        mo.commitPlayerSeed(alice, commitSeedString1);
+        bf.commitPlayerSeed(alice, commitSeedString1);
         // user2 commit playerSeed
         vm.prank(user2);
-        mo.commitPlayerSeed(bob, commitSeedString2);
+        bf.commitPlayerSeed(bob, commitSeedString2);
 
-        currentBattleState = mo.getBattleState();
+        currentBattleState = bf.getBattleState();
         while (
             currentBattleState != IPLMBattleField.BattleState.Settled &&
             roundCount < 5
@@ -431,36 +436,36 @@ contract PLMTokenTest is Test {
 
             // commit choice
             vm.prank(user1);
-            mo.commitChoice(alice, commitChoiceString1);
+            bf.commitChoice(alice, commitChoiceString1);
             vm.prank(user2);
-            mo.commitChoice(bob, commitChoiceString2);
+            bf.commitChoice(bob, commitChoiceString2);
 
             // if choice commit is random slot, revealing of player seed is needed
             if (aliceChoices[roundCount] == IPLMBattleField.Choice.Random) {
                 vm.prank(user1);
-                mo.revealPlayerSeed(alice, playerSeed1);
+                bf.revealPlayerSeed(alice, playerSeed1);
             }
             if (bobChoices[roundCount] == IPLMBattleField.Choice.Random) {
                 vm.prank(user2);
-                mo.revealPlayerSeed(bob, playerSeed2);
+                bf.revealPlayerSeed(bob, playerSeed2);
             }
             // reveal choice
             vm.prank(user1);
-            mo.revealChoice(
+            bf.revealChoice(
                 alice,
                 aliceLevelList[roundCount],
                 aliceChoices[roundCount],
                 bindingFactor1
             );
             vm.prank(user2);
-            mo.revealChoice(
+            bf.revealChoice(
                 bob,
                 bobLevelList[roundCount],
                 bobChoices[roundCount],
                 bindingFactor2
             );
 
-            currentBattleState = mo.getBattleState();
+            currentBattleState = bf.getBattleState();
             roundCount++;
         }
     }

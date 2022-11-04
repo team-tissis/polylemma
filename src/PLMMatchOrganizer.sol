@@ -9,23 +9,40 @@ import {IPLMBattleField} from "./interfaces/IPLMBattleField.sol";
 import {IPLMMatchOrganizer} from "./interfaces/IPLMMatchOrganizer.sol";
 import {ReentrancyGuard} from "openzeppelin-contracts/security/ReentrancyGuard.sol";
 
-contract PLMMatchOrganizer is
-    ReentrancyGuard,
-    PLMBattleField,
-    IPLMMatchOrganizer
-{
+contract PLMMatchOrganizer is ReentrancyGuard, IPLMMatchOrganizer {
+    /// @notice The number of the fixed slots that one player has.
+    uint8 constant FIXEDSLOT_NUM = 4;
+
     // TODO: we will change the data structure to the list of all proposals and interval tree of [LB, UB].
     BattleProposal[] proposalsBoard;
     mapping(address => BattleProposal) address2Proposal;
     mapping(address => MatchState) matchStates;
 
+    address battleField;
+    address polylemmer;
+
+    /// @notice interface to the dealer of polylemma.
+    IPLMDealer dealer;
+
+    /// @notice interface to the characters' information.
+    IPLMToken token;
+
+    /// @notice interface to the battle field.
+    IPLMBattleField bf;
+
     constructor(IPLMDealer _dealer, IPLMToken _token) {
         dealer = _dealer;
         token = _token;
+        polylemmer = msg.sender;
+    }
+
+    modifier onlyPolylemmer() {
+        require(msg.sender == polylemmer, "sender is not polylemmer");
+        _;
     }
 
     modifier blockNumIsNotZero() {
-        require(block.number != 0, "block number is zero.");
+        require(block.number != 0, "bn zero.");
         _;
     }
     modifier subscribed() {
@@ -33,6 +50,10 @@ contract PLMMatchOrganizer is
             !dealer.subscIsExpired(msg.sender),
             "sender's subscription is expired."
         );
+        _;
+    }
+    modifier onlyBattleField() {
+        require(msg.sender == battleField, "sender is not battleField.");
         _;
     }
 
@@ -48,12 +69,12 @@ contract PLMMatchOrganizer is
     ) external nonReentrant blockNumIsNotZero subscribed {
         require(
             matchStates[msg.sender] == MatchState.NonProposal,
-            "sender is proposing, or in battle."
+            "proposing, or in battle."
         );
         for (uint256 i = 0; i < FIXEDSLOT_NUM; i++) {
             require(
                 msg.sender == token.ownerOf(fixedSlotsOfProposer[i]),
-                "proposed characters contains not sender's tokenId"
+                "proposed not sender's tokenId"
             );
         }
         // create new proposal
@@ -121,7 +142,7 @@ contract PLMMatchOrganizer is
         for (uint256 i = 0; i < FIXEDSLOT_NUM; i++) {
             require(
                 msg.sender == token.ownerOf(fixedSlotsOfChallenger[i]),
-                "submitted characters contains not sender's tokenId"
+                "submitted not sender's tokenId"
             );
             require(
                 token
@@ -130,7 +151,7 @@ contract PLMMatchOrganizer is
                         block.number - 1
                     )
                     .fromBlock < block.number,
-                "token just minted cannot used in battle."
+                "token just minted cannot battle."
             );
         }
         for (uint256 i = 0; i < FIXEDSLOT_NUM; i++) {
@@ -140,9 +161,7 @@ contract PLMMatchOrganizer is
             ) {
                 _deleteProposal(proposer);
                 matchStates[proposer] = MatchState.NonProposal;
-                emit ProposerIsNotOwner(
-                    "submitted characters contains not sender's tokenId"
-                );
+                emit ProposerIsNotOwner("sub not sender's tokenId");
                 return;
             }
         }
@@ -156,7 +175,7 @@ contract PLMMatchOrganizer is
         require(
             challengerTotalLevel >= proposal.lowerBound &&
                 challengerTotalLevel <= proposal.upperBound,
-            "not satisfy the level condition."
+            "not satisfy level cond."
         );
 
         // pay stamina
@@ -164,7 +183,7 @@ contract PLMMatchOrganizer is
         dealer.consumeStaminaForBattle(proposer);
         dealer.consumeStaminaForBattle(msg.sender);
 
-        startBattle(
+        bf.startBattle(
             proposer,
             msg.sender,
             address2Proposal[proposer].startBlockNum,
@@ -182,21 +201,12 @@ contract PLMMatchOrganizer is
     }
 
     // TODO: not tested yet
-    function _cancelBattle() internal override(PLMBattleField) {
-        super._cancelBattle();
-        matchStates[playerInfoTable[PlayerId.Alice].addr] = MatchState
-            .NonProposal;
-        matchStates[playerInfoTable[PlayerId.Bob].addr] = MatchState
-            .NonProposal;
-    }
-
-    // TODO: not tested yet
-    function _settleBattle() internal override(PLMBattleField) {
-        super._settleBattle();
-        matchStates[playerInfoTable[PlayerId.Alice].addr] = MatchState
-            .NonProposal;
-        matchStates[playerInfoTable[PlayerId.Bob].addr] = MatchState
-            .NonProposal;
+    function updateProposalState2NonProposal(
+        address proposer,
+        address challenger
+    ) external onlyBattleField {
+        matchStates[proposer] = MatchState.NonProposal;
+        matchStates[challenger] = MatchState.NonProposal;
     }
 
     function cancelProposal() external {
@@ -236,5 +246,13 @@ contract PLMMatchOrganizer is
             totalLevel += token.getPriorCharacterInfo(party[i], blockNum).level;
         }
         return totalLevel;
+    }
+
+    function setIPLMBattleField(IPLMBattleField _bf, address _battleField)
+        external
+        onlyPolylemmer
+    {
+        bf = _bf;
+        battleField = _battleField;
     }
 }

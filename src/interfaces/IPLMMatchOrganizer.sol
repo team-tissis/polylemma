@@ -1,6 +1,6 @@
 import {IPLMBattleField} from "./IPLMBattleField.sol";
 
-interface IPLMMatchOrganizer is IPLMBattleField {
+interface IPLMMatchOrganizer {
     struct BattleProposal {
         address proposer;
         uint16 upperBound;
@@ -23,4 +23,12 @@ interface IPLMMatchOrganizer is IPLMBattleField {
     event ProposalDeleted(address indexed proposer, BattleProposal deletedProp);
 
     event ProposerIsNotOwner(string reason);
+
+    function updateProposalState2NonProposal(
+        address proposer,
+        address challenger
+    ) external;
+
+    function setIPLMBattleField(IPLMBattleField _bf, address _battleField)
+        external;
 }

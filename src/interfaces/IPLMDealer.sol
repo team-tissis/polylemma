@@ -80,4 +80,6 @@ interface IPLMDealer is IPLMGacha {
     function payReward(address winner, uint256 amount) external;
 
     function setMatchOrganizer(address _matchOrganizer) external;
+
+    function setBattleField(address _battleField) external;
 }
