@@ -65,7 +65,7 @@ contract PLMMatchOrganizerTest is Test {
         bf.setIPLMMatchOrganizer(IPLMMatchOrganizer(address(mo)), address(mo));
 
         // set block number to be enough length
-        currentBlock = dealerContract.getStaminaMax() + 1000;
+        currentBlock = dealerContract.getStaminaMax() * 300 + 1000;
         vm.roll(currentBlock);
         vm.stopPrank();
 

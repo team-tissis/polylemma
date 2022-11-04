@@ -39,7 +39,8 @@ contract PLMCoinTest is Test {
         dealer.setMatchOrganizer(matchOrganizer);
 
         // set block number to be enough length
-        vm.roll(dealer.getStaminaMax() + 1000);
+        vm.roll(dealer.getStaminaMax() * 300 + 1000);
+        console.log("hoge");
         vm.stopPrank();
 
         // initial mint of PLM
