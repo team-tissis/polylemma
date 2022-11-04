@@ -1030,8 +1030,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         uint256 tokenId = PLMSeeder.getRandomSlotTokenId(
             getNonce(playerId),
             _getPlayerSeed(playerId),
-            getTotalSupplyAtBattleStart(),
-            token
+            getTotalSupplyAtBattleStart()
         );
 
         IPLMToken.CharacterInfo memory playerCharInfo = token
