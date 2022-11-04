@@ -714,10 +714,12 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         // Calculate the reward balance of the winner.
         uint16 winnerTotalLevel = _getTotalLevel(winner);
         uint16 loserTotalLevel = _getTotalLevel(loser);
-        uint48 top = uint48(loserTotalLevel) *
+        uint48 top = 51 *
+            uint48(loserTotalLevel) *
             (uint48(loserTotalLevel) * 2 + 102)**3;
-        uint48 bottom = 51 *
-            (uint48(winnerTotalLevel) + uint48(loserTotalLevel) + 102)**3;
+        uint48 bottom = (uint48(winnerTotalLevel) +
+            uint48(loserTotalLevel) +
+            102)**3;
         uint256 amount = top / bottom;
 
         // Dealer pay rewards to the winner.
@@ -730,14 +732,17 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         // Calculate the reward balance of both players.
         uint16 aliceTotalLevel = _getTotalLevel(PlayerId.Alice);
         uint16 bobTotalLevel = _getTotalLevel(PlayerId.Bob);
-        uint48 aliceTop = uint48(aliceTotalLevel) *
+        uint48 aliceTop = 51 *
+            uint48(aliceTotalLevel) *
             (uint48(aliceTotalLevel) * 2 + 102)**3;
-        uint48 bobTop = uint48(bobTotalLevel) *
+        uint48 bobTop = 51 *
+            uint48(bobTotalLevel) *
             (uint48(bobTotalLevel) * 2 + 102)**3;
-        uint48 bottom = 51 *
-            (uint48(aliceTotalLevel) + uint48(bobTotalLevel) + 102)**3;
-        uint256 aliceAmount = aliceTop / bottom / 2;
-        uint256 bobAmount = bobTop / bottom / 2;
+        uint48 bottom = (uint48(aliceTotalLevel) +
+            uint48(bobTotalLevel) +
+            102)**3;
+        uint256 aliceAmount = aliceTop / bottom / 3;
+        uint256 bobAmount = bobTop / bottom / 3;
 
         // Dealer pay rewards to both players.
         dealer.payReward(_getPlayerAddress(PlayerId.Alice), aliceAmount);
