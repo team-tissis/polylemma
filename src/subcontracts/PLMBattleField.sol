@@ -8,6 +8,7 @@ import {ReentrancyGuard} from "openzeppelin-contracts/security/ReentrancyGuard.s
 import {IPLMToken} from "../interfaces/IPLMToken.sol";
 import {IPLMDealer} from "../interfaces/IPLMDealer.sol";
 import {IPLMBattleField} from "../interfaces/IPLMBattleField.sol";
+import {IPLMMatchOrganizer} from "../interfaces/IPLMMatchOrganizer.sol";
 
 contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
     /// @notice The number of winning needed to win the match.
@@ -43,6 +44,12 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
     /// @notice interface to the characters' information.
     IPLMToken token;
 
+    /// @notice interface to the MatchOrganizer.
+    IPLMMatchOrganizer mo;
+
+    address polylemmer;
+    address matchOrganizer;
+
     /// @notice state of the battle.
     BattleState battleState;
 
@@ -73,11 +80,11 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
     modifier onlyPlayerOfIdx(PlayerId playerId) {
         require(
             playerId == PlayerId.Alice || playerId == PlayerId.Bob,
-            "Invalid playerId."
+            "Invalid plyrId."
         );
         require(
             msg.sender == playerInfoTable[playerId].addr,
-            "The caller player is not the valid account."
+            "The caller plyr is not the valid account."
         );
         _;
     }
@@ -87,12 +94,21 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         require(
             _getRandomSlotState(PlayerId.Alice) != RandomSlotState.NotSet &&
                 _getRandomSlotState(PlayerId.Bob) != RandomSlotState.NotSet,
-            "random slots haven't set yet."
+            "rand sl. haven't set yet."
         );
         require(
             battleState == BattleState.RoundStarted,
             "battle round hasn't started yet."
         );
+        _;
+    }
+
+    modifier onlyPolylemmer() {
+        require(msg.sender == polylemmer, "sender is not polylemmer");
+        _;
+    }
+    modifier onlyMatchOrganizer() {
+        require(msg.sender == matchOrganizer, "sender is not matchOrganizer");
         _;
     }
 
@@ -180,6 +196,12 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             "Battle is not ready for start."
         );
         _;
+    }
+
+    constructor(IPLMDealer _dealer, IPLMToken _token) {
+        dealer = _dealer;
+        token = _token;
+        polylemmer = msg.sender;
     }
 
     /// @notice Commit the player's seed to generate the tokenId for random slot.
@@ -308,7 +330,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         // Check that the player who want to commit haven't committed yet in this round.
         require(
             _getPlayerState(playerId) == PlayerState.Preparing,
-            "This player is not in the state to commit in this round."
+            "not in the state to commit in this round."
         );
 
         PlayerId enemyId = _enemyId(playerId);
@@ -374,7 +396,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         // Choice.Secret is not allowed for the choice passed to the reveal function.
         require(
             choice != Choice.Secret,
-            "Choice.Secret is not allowed when revealing."
+            "Choice.Scrt is not allowed when revealn."
         );
 
         PlayerId enemyId = _enemyId(playerId);
@@ -403,7 +425,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         if (choice == Choice.Random) {
             require(
                 _getRandomSlotState(playerId) == RandomSlotState.Revealed,
-                "Random slot cannot be used because player seed is not revealed yet."
+                "Ran. sl. cannot be used because plr sd not revealed yet."
             );
         }
 
@@ -482,7 +504,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             _getPlayerState(_enemyId(playerId)) == PlayerState.Committed &&
                 block.number >
                 choiceRevealStartPoints[numRounds] + CHOICE_REVEAL_TIME_LIMIT,
-            "Check that this report is valid."
+            "Check this rep. is valid."
         );
 
         emit TimeOutAtChoiceRevealDetected(numRounds, enemyId);
@@ -669,13 +691,20 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         } else {
             _payRewardsDraw();
         }
-
+        mo.updateProposalState2NonProposal(
+            playerInfoTable[PlayerId.Alice].addr,
+            playerInfoTable[PlayerId.Bob].addr
+        );
         battleState = BattleState.Settled;
     }
 
     /// @notice called in _banCheater function.
     function _cancelBattle() internal virtual {
         // TODO: modify here when we implement multislot battle.
+        mo.updateProposalState2NonProposal(
+            playerInfoTable[PlayerId.Alice].addr,
+            playerInfoTable[PlayerId.Bob].addr
+        );
         battleState = BattleState.Settled;
     }
 
@@ -727,7 +756,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         uint256 bobBlockNum,
         uint256[FIXEDSLOT_NUM] memory aliceFixedSlots,
         uint256[FIXEDSLOT_NUM] memory bobFixedSlots
-    ) public readyForBattleStart {
+    ) public readyForBattleStart onlyMatchOrganizer {
         IPLMToken.CharacterInfo[FIXEDSLOT_NUM] memory aliceCharInfos;
         IPLMToken.CharacterInfo[FIXEDSLOT_NUM] memory bobCharInfos;
 
@@ -888,10 +917,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
     }
 
     function getNonce(PlayerId playerId) public view returns (bytes32) {
-        require(
-            playerInfoTable[playerId].randomSlot.nonceSet,
-            "Nonce hasn't been set."
-        );
+        require(playerInfoTable[playerId].randomSlot.nonceSet, "no nonce set.");
         return playerInfoTable[playerId].randomSlot.nonce;
     }
 
@@ -902,7 +928,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
     function _getPlayerSeed(PlayerId playerId) internal view returns (bytes32) {
         require(
             _getRandomSlotState(playerId) == RandomSlotState.Revealed,
-            "random slot hasn't been revealed yet."
+            "rand. sl. hasn't been revealed yet."
         );
         return playerSeedCommitLog[playerId].playerSeed;
     }
@@ -1034,5 +1060,13 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
     function getTotalSupplyAtBattleStart() public view returns (uint256) {
         // Here we assume that Bob is always a requester.
         return token.getPriorTotalSupply(_getStartBlockNum(PlayerId.Bob));
+    }
+
+    function setIPLMMatchOrganizer(
+        IPLMMatchOrganizer _mo,
+        address _matchOrganizer
+    ) external onlyPolylemmer {
+        mo = _mo;
+        matchOrganizer = _matchOrganizer;
     }
 }

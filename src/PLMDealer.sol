@@ -15,7 +15,9 @@ contract PLMDealer is PLMGacha, IPLMDealer {
     address dealer;
     address polylemmer;
     address matchOrganizer;
+    address battleField;
     bool matchOrganizerIsSet = false;
+    bool battleFieldIsSet = false;
 
     /// @notice subscription Fee (PLMCoin) for one period.
     uint256 constant SUBSC_FEE_PER_UNIT_PERIOD = 10;
@@ -56,6 +58,11 @@ contract PLMDealer is PLMGacha, IPLMDealer {
     modifier onlyMatchOrganizer() {
         require(matchOrganizerIsSet, "matchOrganizer has not been set.");
         require(msg.sender == matchOrganizer, "sender is not matchOrganizer");
+        _;
+    }
+    modifier onlyBattleField() {
+        require(battleFieldIsSet, "battleField has not been set.");
+        require(msg.sender == battleField, "sender is not battleField");
         _;
     }
 
@@ -167,7 +174,7 @@ contract PLMDealer is PLMGacha, IPLMDealer {
         }
     }
 
-    function refundStaminaForBattle(address player) public onlyMatchOrganizer {
+    function refundStaminaForBattle(address player) public onlyBattleField {
         uint256 candidate1 = block.number >= STAMINA_MAX / STAMINA_RESTORE_SPEED
             ? block.number - STAMINA_MAX / STAMINA_RESTORE_SPEED
             : 0;
@@ -334,5 +341,10 @@ contract PLMDealer is PLMGacha, IPLMDealer {
     {
         matchOrganizerIsSet = true;
         matchOrganizer = _matchOrganizer;
+    }
+
+    function setBattleField(address _battleField) external onlyPolylemmer {
+        battleFieldIsSet = true;
+        battleField = _battleField;
     }
 }
