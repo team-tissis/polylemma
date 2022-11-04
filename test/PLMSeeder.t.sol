@@ -15,7 +15,7 @@ import {IPLMToken} from "../src/interfaces/IPLMToken.sol";
 import {IPLMDealer} from "../src/interfaces/IPLMDealer.sol";
 import {IPLMData} from "../src/interfaces/IPLMData.sol";
 
-contract PLMTokenTest is Test {
+contract PLMSeederTest is Test {
     uint32 currentBlock = 0;
     uint256 maticForEx = 100000 ether;
     address polylemmer = address(10);
