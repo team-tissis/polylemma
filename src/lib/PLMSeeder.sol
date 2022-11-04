@@ -27,13 +27,18 @@ library PLMSeeder {
         uint256 numOddsAttribute = data.numOddsAttribute();
         uint8[] memory characterTypeOdds = data.getCharacterTypeOdds();
         uint8[] memory attributeOdds = data.getAttributeOdds();
+
         return
             Seed({
                 imgId: (pseudoRandomness % numImg) + 1,
                 characterType: characterTypeOdds[
                     pseudoRandomness % numOddsCharacterType
                 ],
-                attribute: attributeOdds[pseudoRandomness % numOddsAttribute]
+                attribute: _calcAttributeSeed(
+                    pseudoRandomness,
+                    numOddsAttribute,
+                    attributeOdds
+                )
             });
     }
 
@@ -70,5 +75,28 @@ library PLMSeeder {
             keccak256(abi.encodePacked(nonce, playerSeed))
         ) % totalSupply) + 1;
         return tokenId;
+    }
+
+    /// @notice Only the attributeOdds stores cumulative probabilities.
+    /// This function calc attribute Id from the array with pseudoRandomness
+    function _calcAttributeSeed(
+        uint256 pseudoRandomness,
+        uint256 numOddsAttribute,
+        uint8[] memory attributeOdds
+    ) internal pure returns (uint8) {
+        // calculation of index of attribute
+        uint256 p = pseudoRandomness % numOddsAttribute;
+        for (uint8 i; i < attributeOdds.length; i++) {
+            if (i == 0) {
+                if (p < attributeOdds[i]) {
+                    return i;
+                } else {
+                    continue;
+                }
+            } else if (attributeOdds[i - 1] <= p && p < attributeOdds[i]) {
+                return i;
+            }
+        }
+        return 0;
     }
 }

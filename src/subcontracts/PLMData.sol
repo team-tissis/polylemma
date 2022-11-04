@@ -20,7 +20,7 @@ contract PLMData is IPLMData {
     string[] public attributes = ["0", "1", "2", "3", "4", "5", "6", "7", "8"];
     uint8[] public attributeRarities = [1, 4, 3, 3, 3, 2, 2, 1, 4];
     // レア度 -> 確率: 1 -> 35, 2 -> 30, 3 -> 20, 4 -> 10, 5 -> 5
-    uint8[] public attributeOdds = [18, 5, 7, 7, 6, 15, 15, 17, 5];
+    uint8[] public attributeOdds = [18, 23, 30, 37, 43, 58, 73, 90, 95];
 
     uint256[] public poolingPercentageTable = [5, 10, 20, 23, 33, 40, 45];
 
@@ -77,7 +77,7 @@ contract PLMData is IPLMData {
     }
 
     function numOddsAttribute() external view returns (uint256) {
-        return attributeOdds.length;
+        return attributeOdds[attributeOdds.length - 1];
     }
 
     function getNumImg() external view returns (uint256) {
