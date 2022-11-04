@@ -11,28 +11,29 @@ interface IPLMData {
 
     function getCharacterTypes() external view returns (string[] memory);
 
-    function countCharacterType() external view returns (uint256);
+    function countCharacterTypes() external view returns (uint256);
 
-    function getCharacterTypeOdds() external view returns (uint8[] memory);
+    function getCumulativeCharacterTypeOdds()
+        external
+        view
+        returns (uint8[] memory);
 
-    function getAttributes() external view returns (string[] memory);
-
-    function getAttributeRarities() external view returns (uint8[] calldata);
+    function getAttributeRarities() external view returns (uint8[] memory);
 
     function countAttributes() external view returns (uint256);
 
-    function getNumOddsCharacterType() external view returns (uint256);
-
-    function getAttributeOdds() external view returns (uint8[] calldata);
+    function getCumulativeAttributeOdds()
+        external
+        view
+        returns (uint8[] memory);
 
     function getNumImg() external view returns (uint256);
-
-    function numOddsAttribute() external view returns (uint256);
 
     function calcPower(
         uint8 numRounds,
         CharacterInfo calldata player1Char,
         uint8 player1LevelPoint,
+        uint32 player1BondLevel,
         CharacterInfo calldata player2Char
     ) external view returns (uint32);
 

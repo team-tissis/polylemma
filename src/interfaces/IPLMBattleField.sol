@@ -166,6 +166,11 @@ interface IPLMBattleField {
         view
         returns (PlayerId);
 
+    function getBondLevelAtBattleStart(uint8 level, uint256 startBlock)
+        external
+        view
+        returns (uint32);
+
     function getTotalSupplyAtBattleStart() external view returns (uint256);
 
     function getRemainingLevelPoint(PlayerId playerId)

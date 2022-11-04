@@ -15,13 +15,11 @@ contract PLMData is IPLMData {
         // "light"
     ];
 
-    uint8[] public characterTypeOdds = [0, 1, 2];
-    uint256 numImg = 38;
-    string[] public attributes = ["0", "1", "2", "3", "4", "5", "6", "7", "8"];
-    uint8[] public attributeRarities = [1, 4, 3, 3, 3, 2, 2, 1, 4];
-    // レア度 -> 確率: 1 -> 35, 2 -> 30, 3 -> 20, 4 -> 10, 5 -> 5
-    uint8[] public attributeOdds = [18, 23, 30, 37, 43, 58, 73, 90, 95];
+    uint8[] public characterTypeOdds = [1, 1, 1];
+    uint8[] public attributeRarities = [1, 4, 3, 3, 3, 2, 2, 1, 4, 5];
+    uint8[] public attributeOddsPerRarity = [35, 30, 20, 10, 5];
 
+    uint256 numImg = 38;
     uint256[] public poolingPercentageTable = [5, 10, 20, 23, 33, 40, 45];
 
     function getCharacterTypes()
@@ -33,21 +31,32 @@ contract PLMData is IPLMData {
         return characterTypes;
     }
 
-    function countCharacterType() external view returns (uint256) {
+    function countCharacterTypes() external view returns (uint256) {
         return characterTypes.length;
     }
 
-    function getCharacterTypeOdds()
+    function getCumulativeCharacterTypeOdds()
         external
         view
         override
         returns (uint8[] memory)
     {
-        return characterTypeOdds;
-    }
+        require(
+            characterTypes.length == characterTypeOdds.length,
+            "characterTypes.length != characterTypeOdds.length"
+        );
 
-    function getAttributes() external view override returns (string[] memory) {
-        return attributes;
+        uint256 numCharacterTypes = characterTypes.length;
+        uint8[] memory cumulativeCharacterTypeOdds = new uint8[](
+            numCharacterTypes
+        );
+        cumulativeCharacterTypeOdds[0] = characterTypeOdds[0];
+        for (uint256 i = 1; i < numCharacterTypes; i++) {
+            cumulativeCharacterTypeOdds[i] =
+                cumulativeCharacterTypeOdds[i - 1] +
+                characterTypeOdds[i];
+        }
+        return cumulativeCharacterTypeOdds;
     }
 
     function getAttributeRarities()
@@ -60,24 +69,44 @@ contract PLMData is IPLMData {
     }
 
     function countAttributes() external view override returns (uint256) {
-        return attributes.length;
+        return attributeRarities.length;
     }
 
-    function getNumOddsCharacterType() external view returns (uint256) {
-        return characterTypeOdds.length;
-    }
-
-    function getAttributeOdds()
+    function getCumulativeAttributeOdds()
         external
         view
         override
         returns (uint8[] memory)
     {
-        return attributeOdds;
-    }
+        uint256 numRarities = attributeOddsPerRarity.length;
+        uint256[] memory numPerRarity = new uint256[](numRarities);
+        for (uint256 i = 0; i < numRarities; i++) {
+            numPerRarity[i] = 0;
+        }
 
-    function numOddsAttribute() external view returns (uint256) {
-        return attributeOdds[attributeOdds.length - 1];
+        uint256 numAttributes = attributeRarities.length;
+        for (uint256 i = 0; i < numAttributes; i++) {
+            numPerRarity[attributeRarities[i] - 1]++;
+        }
+
+        uint8[] memory cumulativeAttributeOdds = new uint8[](numAttributes);
+        cumulativeAttributeOdds[0] =
+            uint8(
+                attributeOddsPerRarity[attributeRarities[0] - 1] /
+                    numPerRarity[attributeRarities[0] - 1]
+            ) +
+            1;
+        for (uint256 i = 1; i < numAttributes; i++) {
+            cumulativeAttributeOdds[i] =
+                cumulativeAttributeOdds[i - 1] +
+                uint8(
+                    attributeOddsPerRarity[attributeRarities[i] - 1] /
+                        numPerRarity[attributeRarities[i] - 1]
+                ) +
+                1;
+        }
+
+        return cumulativeAttributeOdds;
     }
 
     function getNumImg() external view returns (uint256) {
@@ -85,7 +114,7 @@ contract PLMData is IPLMData {
     }
 
     function _mulFloat(
-        uint32 x,
+        uint256 x,
         uint256 denominator,
         uint256 numerator
     ) internal pure returns (uint32) {
@@ -130,16 +159,11 @@ contract PLMData is IPLMData {
         uint8 numRounds,
         CharacterInfo calldata player1Char,
         uint8 player1LevelPoint,
+        uint32 player1BondLevel,
         CharacterInfo calldata player2Char
     ) external view returns (uint32) {
-        uint32 bigNumber = 4096;
+        uint32 bigNumber = 16384;
         uint8 basePowerRate = 10;
-        uint256 blockPeriod = 10; // TODO: 大きくする
-        uint32 ownershipPeriod = _mulFloat(
-            uint32(block.number - player1Char.fromBlock),
-            basePowerRate,
-            blockPeriod
-        );
 
         uint256 denominator;
         uint256 numerator;
@@ -149,19 +173,20 @@ contract PLMData is IPLMData {
         );
 
         uint32 power = player1Char.level * basePowerRate;
+        if (_rate(30)) {
+            power += player1BondLevel;
+        }
+
         if (player1Char.attributeIds[0] == 0) {
-            power += ownershipPeriod;
             power += player1LevelPoint * basePowerRate;
             power = _mulFloat(power, denominator, numerator);
         } else if (player1Char.attributeIds[0] == 1) {
-            power += ownershipPeriod;
             power += player1LevelPoint * basePowerRate;
             if (player1Char.level == player2Char.level) {
                 denominator += bigNumber;
             }
             power = _mulFloat(power, denominator, numerator);
         } else if (player1Char.attributeIds[0] == 2) {
-            power += ownershipPeriod;
             power += player1LevelPoint * basePowerRate;
             if (_rate(30)) {
                 denominator *= 15 - numRounds;
@@ -169,12 +194,10 @@ contract PLMData is IPLMData {
             }
             power = _mulFloat(power, denominator, numerator);
         } else if (player1Char.attributeIds[0] == 3) {
-            power += ownershipPeriod;
             power += player1LevelPoint * basePowerRate;
             power = _mulFloat(power, denominator, numerator);
             // TODO: 得られるコインを増やす
         } else if (player1Char.attributeIds[0] == 4) {
-            power += ownershipPeriod;
             power = _mulFloat(power, denominator, numerator);
             power += _mulFloat(
                 player1LevelPoint * basePowerRate,
@@ -182,7 +205,6 @@ contract PLMData is IPLMData {
                 10 * numerator
             );
         } else if (player1Char.attributeIds[0] == 5) {
-            power += ownershipPeriod;
             power += player1LevelPoint * basePowerRate;
             if (_rate(20)) {
                 denominator *= 12;
@@ -190,22 +212,30 @@ contract PLMData is IPLMData {
             }
             power = _mulFloat(power, denominator, numerator);
         } else if (player1Char.attributeIds[0] == 6) {
-            power += ownershipPeriod;
             power += player1LevelPoint * basePowerRate;
         } else if (player1Char.attributeIds[0] == 7) {
-            power += ownershipPeriod;
             power += player1LevelPoint * basePowerRate;
             if (_rate(5)) {
                 denominator *= bigNumber;
             }
             power = _mulFloat(power, denominator, numerator);
         } else if (player1Char.attributeIds[0] == 8) {
-            power += ownershipPeriod;
             power += player1LevelPoint * basePowerRate;
             power = _mulFloat(power, denominator, numerator);
             // TODO: RS でレア度が高いキャラが出やすいようにする
+        } else if (player1Char.attributeIds[0] == 9) {
+            power += player1LevelPoint * basePowerRate;
+            if (player2Char.level > player1Char.level) {
+                uint8 levelDiff = player2Char.level - player1Char.level;
+                if (levelDiff <= 10 && _rate(levelDiff * 10)) {
+                    denominator *= bigNumber;
+                }
+            }
+            power = _mulFloat(power, denominator, numerator);
         } else {
             // TODO: Error handling
+            power += player1LevelPoint * basePowerRate;
+            power = _mulFloat(power, denominator, numerator);
         }
         return power;
     }
