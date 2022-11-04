@@ -36,7 +36,7 @@ interface IPLMToken is IERC721, IERC721Enumerable, IPLMData {
         view
         returns (uint256[] memory);
 
-    function getAllCharacterInfo() external returns (CharacterInfo[] calldata);
+    function getAllCharacterInfo() external returns (CharacterInfo[] memory);
 
     function getCurrentCharacterInfo(uint256 tokenId)
         external

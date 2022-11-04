@@ -72,7 +72,7 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
     }
 
     // TODO: Is burn func. required?
-    // If some reasons arise to impl it, yes, it is.
+    // If some reasons arise to impl it
     function burn(uint256 tokenId) public onlyDealer {
         _burn(tokenId);
     }

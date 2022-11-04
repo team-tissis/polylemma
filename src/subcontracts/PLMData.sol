@@ -80,7 +80,7 @@ contract PLMData is IPLMData {
         return attributeOdds.length;
     }
 
-    function countImg() external view returns (uint256) {
+    function getNumImg() external view returns (uint256) {
         return numImg;
     }
 
