@@ -25,14 +25,14 @@ contract PLMDealer is PLMGacha, IPLMDealer {
     /// @notice block number of subscription period unit (30 days).
     uint256 constant SUBSC_UNIT_PERIOD_BLOCK_NUM = 1296000;
 
-    /// @notice The amount of stamina recovery per one block.
-    uint8 constant STAMINA_RESTORE_SPEED = 5;
+    /// @notice The number of blocks needed to recover unit stamina. (10 min).
+    uint16 constant STAMINA_RESTORE_SPEED = 1200;
 
     /// @notice The maximum value of stamina.
     uint8 constant STAMINA_MAX = 100;
 
     //// @notice the fee to restore stamina (unit: PLM)
-    uint8 constant RESTORE_STAMINA_FEE = 1;
+    uint8 constant RESTORE_STAMINA_FEE = 5;
 
     /// @notice The amount of stamina consumed when playing battle with other players.
     uint8 constant STAMINA_PER_BATTLE = 10;
@@ -106,7 +106,7 @@ contract PLMDealer is PLMGacha, IPLMDealer {
         } else if (block.number > staminaFromBlock[player]) {
             return
                 uint8(
-                    ((block.number - staminaFromBlock[player]) *
+                    ((block.number - staminaFromBlock[player]) /
                         STAMINA_RESTORE_SPEED).min(STAMINA_MAX)
                 );
         } else {
@@ -142,19 +142,18 @@ contract PLMDealer is PLMGacha, IPLMDealer {
     }
 
     function _restoreStamina(address player) internal {
-        uint256 restAmount = uint256(STAMINA_MAX / STAMINA_RESTORE_SPEED);
+        uint256 restAmount = uint256(STAMINA_MAX) *
+            uint256(STAMINA_RESTORE_SPEED);
 
         // Deal with underflow.
-        staminaFromBlock[player] = block.number >= restAmount
-            ? block.number - restAmount
-            : 0;
+        staminaFromBlock[player] = _safeSubUint256(block.number, restAmount);
     }
 
     function consumeStaminaForBattle(address player) public onlyMatchOrganizer {
         require(
             block.number >=
                 staminaFromBlock[player] +
-                    STAMINA_PER_BATTLE /
+                    STAMINA_PER_BATTLE *
                     STAMINA_RESTORE_SPEED,
             "sender does not have enough stamina"
         );
@@ -162,29 +161,38 @@ contract PLMDealer is PLMGacha, IPLMDealer {
         // consumption up to the time when the staminaFromBlock can express that stamina is consumed for one battle.
         if (staminaFromBlock[player] > 0) {
             staminaFromBlock[player] +=
-                STAMINA_PER_BATTLE /
+                STAMINA_PER_BATTLE *
                 STAMINA_RESTORE_SPEED;
         } else {
-            staminaFromBlock[player] = block.number >=
-                (STAMINA_MAX - STAMINA_PER_BATTLE) / STAMINA_RESTORE_SPEED
-                ? block.number -
-                    (STAMINA_MAX - STAMINA_PER_BATTLE) /
-                    STAMINA_RESTORE_SPEED
-                : 0;
+            staminaFromBlock[player] = _safeSubUint256(
+                block.number,
+                (STAMINA_MAX - STAMINA_PER_BATTLE) * STAMINA_RESTORE_SPEED
+            );
         }
     }
 
     function refundStaminaForBattle(address player) public onlyBattleField {
-        uint256 candidate1 = block.number >= STAMINA_MAX / STAMINA_RESTORE_SPEED
-            ? block.number - STAMINA_MAX / STAMINA_RESTORE_SPEED
-            : 0;
-        uint256 candidate2 = staminaFromBlock[player] >=
-            STAMINA_PER_BATTLE / STAMINA_RESTORE_SPEED
-            ? staminaFromBlock[player] -
-                STAMINA_PER_BATTLE /
-                STAMINA_RESTORE_SPEED
-            : 0;
+        uint256 candidate1 = _safeSubUint256(
+            block.number,
+            STAMINA_MAX * STAMINA_RESTORE_SPEED
+        );
+        uint256 candidate2 = _safeSubUint256(
+            staminaFromBlock[player],
+            STAMINA_PER_BATTLE * STAMINA_RESTORE_SPEED
+        );
         staminaFromBlock[player] = candidate1.max(candidate2);
+    }
+
+    function _safeSubUint256(uint256 x, uint256 y)
+        internal
+        pure
+        returns (uint256)
+    {
+        if (x >= y) {
+            return x - y;
+        } else {
+            return 0;
+        }
     }
 
     ////////////////////////////////////
