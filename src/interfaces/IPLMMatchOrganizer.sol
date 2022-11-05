@@ -31,4 +31,6 @@ interface IPLMMatchOrganizer {
 
     function setIPLMBattleField(IPLMBattleField _bf, address _battleField)
         external;
+
+    function setNonProposal(address player) external;
 }
