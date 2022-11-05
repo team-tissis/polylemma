@@ -613,10 +613,15 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         uint8 aliceWinCount = _getWinCount(PlayerId.Alice);
         uint8 bobWinCount = _getWinCount(PlayerId.Bob);
 
+        uint8 diffWinCount = aliceWinCount > bobWinCount
+            ? aliceWinCount - bobWinCount
+            : bobWinCount - aliceWinCount;
+
         if (
             aliceWinCount == WIN_COUNT ||
             bobWinCount == WIN_COUNT ||
-            numRounds == MAX_ROUNDS
+            numRounds == MAX_ROUNDS ||
+            diffWinCount > (MAX_ROUNDS - numRounds)
         ) {
             // This battle ends.
             battleState = BattleState.RoundSettled;
