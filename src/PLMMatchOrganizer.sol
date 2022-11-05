@@ -71,12 +71,6 @@ contract PLMMatchOrganizer is ReentrancyGuard, IPLMMatchOrganizer {
             matchStates[msg.sender] == MatchState.NonProposal,
             "proposing, or in battle."
         );
-        for (uint256 i = 0; i < FIXEDSLOT_NUM; i++) {
-            require(
-                msg.sender == token.ownerOf(fixedSlotsOfProposer[i]),
-                "proposed not sender's tokenId"
-            );
-        }
 
         for (uint256 i = 0; i < FIXEDSLOT_NUM; i++) {
             require(
