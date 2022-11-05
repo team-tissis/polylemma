@@ -77,6 +77,23 @@ contract PLMMatchOrganizer is ReentrancyGuard, IPLMMatchOrganizer {
                 "proposed not sender's tokenId"
             );
         }
+
+        for (uint256 i = 0; i < FIXEDSLOT_NUM; i++) {
+            require(
+                msg.sender == token.ownerOf(fixedSlotsOfProposer[i]),
+                "submitted not sender's tokenId"
+            );
+            require(
+                token
+                    .getPriorCharacterInfo(
+                        fixedSlotsOfProposer[i],
+                        block.number - 1
+                    )
+                    .fromBlock < block.number,
+                "token just minted cannot battle."
+            );
+        }
+
         // create new proposal
         BattleProposal memory prop = BattleProposal(
             msg.sender,
