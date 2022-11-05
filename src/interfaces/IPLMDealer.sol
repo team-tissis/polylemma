@@ -41,11 +41,18 @@ interface IPLMDealer is IPLMGacha {
 
     function consumeStaminaForBattle(address player) external;
 
+    function refundStaminaForBattle(address player) external;
+
     ////////////////////////////////////
     /// FUNCTIONS ABOUT SUBSCRIPTION ///
     ////////////////////////////////////
 
     function getSubscExpiredBlock(address account)
+        external
+        view
+        returns (uint256);
+
+    function getSubscRemainingBlockNum(address account)
         external
         view
         returns (uint256);
@@ -71,4 +78,8 @@ interface IPLMDealer is IPLMGacha {
     //////////////////////////////////////////////////////////////////////////////
 
     function payReward(address winner, uint256 amount) external;
+
+    function setMatchOrganizer(address _matchOrganizer) external;
+
+    function setBattleField(address _battleField) external;
 }

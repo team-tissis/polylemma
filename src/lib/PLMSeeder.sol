@@ -6,8 +6,9 @@ import {IPLMToken} from "../interfaces/IPLMToken.sol";
 
 library PLMSeeder {
     struct Seed {
+        uint256 imgId;
         uint8 characterType;
-        uint8 ability;
+        uint8 attribute;
     }
 
     /// @notice generate seeds for character mint
@@ -19,22 +20,39 @@ library PLMSeeder {
         view
         returns (Seed memory)
     {
-        uint256 pseudoRandomness = _generateRandomnessFromBlockHash(tokenId);
-        uint256 numOddsCharacterType = data.numOddsCharacterType();
-        uint256 numOddsAbility = data.numOddsAbility();
-        uint8[] memory characterTypeOdds = data.getCharacterTypeOdds();
-        uint8[] memory abilityOdds = data.getAbilityOdds();
+        // TODO: 画像は属性や特性と比較して総数が多いため、現行の実装を踏襲するとものによって排出確率を変更する実装が汚くなってしまうから、一旦一様分布で対応する。
+        uint256 pseudoRandomnessImg = _generateRandomnessFromBlockHash(tokenId);
+        uint256 numImg = data.getNumImg();
+
+        uint256 pseudoRandomnessType = _generateRandomnessFromBlockHash(
+            tokenId + 1
+        );
+        uint8[] memory cumulativeCharacterTypeOdds = data
+            .getCumulativeCharacterTypeOdds();
+
+        uint256 pseudoRandomnessAttribute = _generateRandomnessFromBlockHash(
+            tokenId + 2
+        );
+        uint8[] memory cumulativeAttributeOdds = data
+            .getCumulativeAttributeOdds();
+
         return
             Seed({
-                characterType: characterTypeOdds[
-                    pseudoRandomness % numOddsCharacterType
-                ],
-                ability: abilityOdds[pseudoRandomness % numOddsAbility]
+                imgId: (pseudoRandomnessImg % numImg) + 1,
+                characterType: _matchRandomnessWithOdds(
+                    pseudoRandomnessType,
+                    cumulativeCharacterTypeOdds
+                ),
+                attribute: _matchRandomnessWithOdds(
+                    pseudoRandomnessAttribute,
+                    cumulativeAttributeOdds
+                )
             });
     }
 
     /// @notice generate nonce to be used as input of hash for randomSlotTokenId
     /// @dev generate nonce to be used as input of hash for randomSlotTokenId
+    /// TODO: 関数名変える
     function generateRandomSlotNonce() external view returns (bytes32) {
         return keccak256(abi.encodePacked(blockhash(block.number - 1)));
     }
@@ -59,11 +77,28 @@ library PLMSeeder {
     function getRandomSlotTokenId(
         bytes32 nonce,
         bytes32 playerSeed,
-        IPLMToken token
-    ) external view returns (uint256) {
-        uint256 tokenId = uint256(
+        uint256 totalSupply
+    ) external pure returns (uint256) {
+        uint256 tokenId = (uint256(
             keccak256(abi.encodePacked(nonce, playerSeed))
-        ) % token.totalSupply();
+        ) % totalSupply) + 1;
         return tokenId;
+    }
+
+    /// @notice Only the cumulativeOdds stores cumulative probabilities.
+    /// This function calc Id from the array with pseudoRandomness
+    function _matchRandomnessWithOdds(
+        uint256 pseudoRandomness,
+        uint8[] memory cumulativeOdds
+    ) internal pure returns (uint8) {
+        uint8 sumOdds = cumulativeOdds[cumulativeOdds.length - 1];
+        uint256 p = pseudoRandomness % sumOdds;
+        if (p < cumulativeOdds[0]) return 0;
+        for (uint8 i = 1; i < cumulativeOdds.length; i++) {
+            if (cumulativeOdds[i - 1] <= p && p < cumulativeOdds[i]) {
+                return i;
+            }
+        }
+        return 0;
     }
 }

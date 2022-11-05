@@ -1,10 +1,12 @@
+import {IPLMToken} from "./IPLMToken.sol";
+
 interface IPLMBattleField {
     /// @notice Enum to represent battle's state.
     enum BattleState {
-        Preparing, // 0
-        RoundStarted, // 1
-        RoundSettled, // 2
-        Settled // 3
+        Settled, // 0
+        Preparing, // 1
+        RoundStarted, // 2
+        RoundSettled // 3
     }
 
     /// @notice Struct to store player's infomation.
@@ -71,6 +73,8 @@ interface IPLMBattleField {
         bytes32 playerSeed;
     }
 
+    // Alice = proposer, Bob = requester.
+    event BattleStarted(address aliceAddr, address bobAddr);
     event PlayerSeedCommitted(PlayerId playerId);
     event RandomSlotNounceGenerated(PlayerId playerId, bytes32 nonce);
     event PlayerSeedRevealed(
@@ -90,8 +94,8 @@ interface IPLMBattleField {
         bool isDraw,
         PlayerId winner,
         PlayerId loser,
-        uint8 winnerDamage,
-        uint8 loserDamage
+        uint32 winnerDamage,
+        uint32 loserDamage
     );
     event BattleResult(
         uint8 numRounds,
@@ -114,16 +118,11 @@ interface IPLMBattleField {
     event TimeOutAtPlayerSeedCommitDetected(PlayerId lazyPlayer);
     event TimeOutAtChoiceCommitDetected(uint8 numRounds, PlayerId lazyPlayer);
     event TimeOutAtChoiceRevealDetected(uint8 numRounds, PlayerId lazyPlayer);
-
-    error BattleCanceled(PlayerId cause);
+    event BattleCanceled(PlayerId cause);
 
     function commitPlayerSeed(PlayerId playerId, bytes32 commitString) external;
 
-    function revealPlayerSeed(
-        PlayerId playerId,
-        bytes32 playerSeed,
-        bytes32 bindingFactor
-    ) external;
+    function revealPlayerSeed(PlayerId playerId, bytes32 playerSeed) external;
 
     function commitChoice(PlayerId playerId, bytes32 commitString) external;
 
@@ -134,6 +133,8 @@ interface IPLMBattleField {
         bytes32 bindingFactor
     ) external;
 
+    function reportLazyRevealment(PlayerId playerId) external;
+
     function startBattle(
         address aliceAddr,
         address bobAddr,
@@ -143,5 +144,46 @@ interface IPLMBattleField {
         uint256[4] calldata bobFixedSlots
     ) external;
 
-    function settleBattle() external;
+    function getNonce(PlayerId playerId) external view returns (bytes32);
+
+    function getFixedSlotCharInfo(PlayerId playerId)
+        external
+        view
+        returns (IPLMToken.CharacterInfo[4] memory);
+
+    function getVirtualRandomSlotCharInfo(PlayerId playerId, uint256 tokenId)
+        external
+        view
+        returns (IPLMToken.CharacterInfo memory);
+
+    function getRandomSlotCharInfo(PlayerId playerId)
+        external
+        view
+        returns (IPLMToken.CharacterInfo memory);
+
+    function getPlayerIdFromAddress(address playerAddr)
+        external
+        view
+        returns (PlayerId);
+
+    function getBondLevelAtBattleStart(uint8 level, uint256 startBlock)
+        external
+        view
+        returns (uint32);
+
+    function getTotalSupplyAtBattleStart(PlayerId playerId)
+        external
+        view
+        returns (uint256);
+
+    function getRemainingLevelPoint(PlayerId playerId)
+        external
+        view
+        returns (uint8);
+
+    /////////////////////////
+    /// FUNCTION FOR DEMO ///
+    /////////////////////////
+    // FIXME: remove this function after demo.
+    function forceInitBattle() external;
 }

@@ -26,9 +26,9 @@ contract PLMTokenTest is Test {
         vm.startPrank(polylemmer);
 
         // deploy contract
-        coinContract = new PLMCoin(address(99));
+        coinContract = new PLMCoin();
         coin = IPLMCoin(address(coinContract));
-        tokenContract = new PLMToken(address(99), coin, 100000);
+        tokenContract = new PLMToken(coin, 100000);
         token = IPLMToken(address(tokenContract));
         dealer = new PLMDealer(token, coin);
 
@@ -64,7 +64,7 @@ contract PLMTokenTest is Test {
         assertEq(checkpointBeforeMint.characterType, "");
         assertEq(checkpointBeforeMint.level, 0);
         assertEq(checkpointBeforeMint.rarity, 0);
-        assertEq(checkpointBeforeMint.abilityIds[0], 0);
+        assertEq(checkpointBeforeMint.attributeIds[0], 0);
 
         // check impl. of first checkpoint created by mint
         vm.startPrank(user);
@@ -128,5 +128,11 @@ contract PLMTokenTest is Test {
             coin.approve(address(token), token.getNecessaryExp(tokenId));
             token.updateLevel(tokenId);
         }
+    }
+
+    function testImgURI() public {
+        uint256 imgId = 1;
+        string memory imgURI = token.getImgURI(imgId);
+        console.log(imgURI);
     }
 }

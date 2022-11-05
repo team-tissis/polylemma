@@ -12,6 +12,7 @@ import {IPLMToken} from "../src/interfaces/IPLMToken.sol";
 contract PLMCoinTest is Test {
     address polylemmer = address(10);
     address user = address(11);
+    address matchOrganizer = address(20);
     uint256 maticForEx = 10 ether;
     PLMDealer dealer;
 
@@ -25,9 +26,9 @@ contract PLMCoinTest is Test {
         vm.startPrank(polylemmer);
 
         // deploy contract
-        coinContract = new PLMCoin(address(99));
+        coinContract = new PLMCoin();
         coin = IPLMCoin(address(coinContract));
-        tokenContract = new PLMToken(address(99), coin, 100000);
+        tokenContract = new PLMToken(coin, 100000);
         token = IPLMToken(address(tokenContract));
 
         dealer = new PLMDealer(token, coin);
@@ -35,9 +36,11 @@ contract PLMCoinTest is Test {
         // set dealer
         coin.setDealer(address(dealer));
         token.setDealer(address(dealer));
+        dealer.setMatchOrganizer(matchOrganizer);
 
         // set block number to be enough length
-        vm.roll(dealer.getStaminaMax() + 1000);
+        vm.roll(dealer.getStaminaMax() * 300 + 1000);
+        console.log("hoge");
         vm.stopPrank();
 
         // initial mint of PLM
@@ -62,9 +65,12 @@ contract PLMCoinTest is Test {
     }
 
     function testConsumeStaminaForBattle() public {
-        vm.startPrank(user);
+        vm.prank(user);
         uint256 fromStamina = dealer.getCurrentStamina(user);
+
+        vm.prank(matchOrganizer);
         dealer.consumeStaminaForBattle(user);
+        vm.startPrank(user);
         assertEq(
             fromStamina - dealer.getStaminaPerBattle(),
             dealer.getCurrentStamina(user),
@@ -76,9 +82,11 @@ contract PLMCoinTest is Test {
     function testRestoreStamina() public {
         vm.prank(address(dealer));
         uint256 fromBalance = coin.balanceOf(user);
-        vm.startPrank(user);
+        vm.prank(user);
         uint256 fromStamina = dealer.getCurrentStamina(user);
+        vm.prank(matchOrganizer);
         dealer.consumeStaminaForBattle(user);
+        vm.startPrank(user);
         assertEq(
             fromStamina - dealer.getStaminaPerBattle(),
             dealer.getCurrentStamina(user),

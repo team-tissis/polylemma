@@ -1,35 +1,48 @@
 interface IPLMData {
     struct CharacterInfo {
         bytes32 name;
-        string characterType;
+        uint256 imgId;
         uint256 fromBlock;
+        string characterType;
         uint8 level;
         uint8 rarity;
-        uint8[1] abilityIds;
+        uint8[1] attributeIds;
     }
 
     function getCharacterTypes() external view returns (string[] memory);
 
-    function countCharacterType() external view returns (uint256);
+    function countCharacterTypes() external view returns (uint256);
 
-    function getAbilities() external view returns (string[] memory);
+    function getCumulativeCharacterTypeOdds()
+        external
+        view
+        returns (uint8[] memory);
 
-    function countAbilities() external view returns (uint256);
+    function getAttributeRarities() external view returns (uint8[] memory);
 
-    function getCharacterTypeOdds() external view returns (uint8[] calldata);
+    function countAttributes() external view returns (uint256);
 
-    function numOddsCharacterType() external view returns (uint256);
+    function getCumulativeAttributeOdds()
+        external
+        view
+        returns (uint8[] memory);
 
-    function getAbilityOdds() external view returns (uint8[] calldata);
+    function getNumImg() external view returns (uint256);
 
-    function numOddsAbility() external view returns (uint256);
-
-    function calcBattleResult(
-        CharacterInfo calldata aliceChar,
-        CharacterInfo calldata bobChar
-    ) external pure returns (uint8, uint8);
+    function calcPower(
+        uint8 numRounds,
+        CharacterInfo calldata player1Char,
+        uint8 player1LevelPoint,
+        uint32 player1BondLevel,
+        CharacterInfo calldata player2Char
+    ) external view returns (uint32);
 
     function calcLevelPoint(CharacterInfo[4] calldata charInfos)
+        external
+        pure
+        returns (uint8);
+
+    function calcRandomSlotLevel(CharacterInfo[4] calldata charInfos)
         external
         pure
         returns (uint8);

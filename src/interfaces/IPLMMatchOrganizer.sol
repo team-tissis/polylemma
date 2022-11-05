@@ -1,6 +1,6 @@
 import {IPLMBattleField} from "./IPLMBattleField.sol";
 
-interface IPLMMatchOrganizer is IPLMBattleField {
+interface IPLMMatchOrganizer {
     struct BattleProposal {
         address proposer;
         uint16 upperBound;
@@ -16,16 +16,25 @@ interface IPLMMatchOrganizer is IPLMBattleField {
         InBattle
     }
 
-    event RequestedBattle(
-        uint16 lowerBound,
-        uint16 upperBound,
-        uint16 totalProposer,
-        uint16 totalChallenger
-    );
+    event RequestRejected(address indexed challenfer);
 
     event ProposalCreated(address indexed proposer, BattleProposal createdProp);
 
     event ProposalDeleted(address indexed proposer, BattleProposal deletedProp);
 
-    error ProposerIsNotOwner(string reason);
+    event ProposerIsNotOwner(string reason);
+
+    function updateProposalState2NonProposal(
+        address proposer,
+        address challenger
+    ) external;
+
+    function setIPLMBattleField(IPLMBattleField _bf, address _battleField)
+        external;
+
+    /////////////////////////
+    /// FUNCTION FOR DEMO ///
+    /////////////////////////
+    // FIXME: remove this function after demo.
+    function setNonProposal(address player) external;
 }

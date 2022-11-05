@@ -8,6 +8,7 @@ import {ReentrancyGuard} from "openzeppelin-contracts/security/ReentrancyGuard.s
 import {IPLMToken} from "../interfaces/IPLMToken.sol";
 import {IPLMDealer} from "../interfaces/IPLMDealer.sol";
 import {IPLMBattleField} from "../interfaces/IPLMBattleField.sol";
+import {IPLMMatchOrganizer} from "../interfaces/IPLMMatchOrganizer.sol";
 
 contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
     /// @notice The number of winning needed to win the match.
@@ -31,8 +32,8 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
     /// @notice The limit of playerSeed commitment for each player. About 30 seconds.
     uint256 constant PLAYER_SEED_COMMIT_TIME_LIMIT = 15;
 
-    /// @notice The limit of commitment for each player. About 30 seconds.
-    uint256 constant CHOICE_COMMIT_TIME_LIMIT = 15;
+    /// @notice The limit of commitment for each player. About 60 seconds.
+    uint256 constant CHOICE_COMMIT_TIME_LIMIT = 30;
 
     /// @notice The limit of revealment for each player. About 30 seconds.
     uint256 constant CHOICE_REVEAL_TIME_LIMIT = 15;
@@ -42,6 +43,12 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
 
     /// @notice interface to the characters' information.
     IPLMToken token;
+
+    /// @notice interface to the MatchOrganizer.
+    IPLMMatchOrganizer mo;
+
+    address polylemmer;
+    address matchOrganizer;
 
     /// @notice state of the battle.
     BattleState battleState;
@@ -73,11 +80,11 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
     modifier onlyPlayerOfIdx(PlayerId playerId) {
         require(
             playerId == PlayerId.Alice || playerId == PlayerId.Bob,
-            "Invalid playerId."
+            "Invalid plyrId."
         );
         require(
             msg.sender == playerInfoTable[playerId].addr,
-            "The caller player is not the valid account."
+            "The caller plyr is not the valid account."
         );
         _;
     }
@@ -87,12 +94,21 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         require(
             _getRandomSlotState(PlayerId.Alice) != RandomSlotState.NotSet &&
                 _getRandomSlotState(PlayerId.Bob) != RandomSlotState.NotSet,
-            "random slots haven't set yet."
+            "rand sl. haven't set yet."
         );
         require(
             battleState == BattleState.RoundStarted,
             "battle round hasn't started yet."
         );
+        _;
+    }
+
+    modifier onlyPolylemmer() {
+        require(msg.sender == polylemmer, "sender is not polylemmer");
+        _;
+    }
+    modifier onlyMatchOrganizer() {
+        require(msg.sender == matchOrganizer, "sender is not matchOrganizer");
         _;
     }
 
@@ -104,10 +120,14 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             _getRandomSlotState(playerId) == RandomSlotState.Committed,
             "The commit of random slot has already been revealed."
         );
+
+        PlayerId enemyId = _enemyId(playerId);
+
         require(
-            _getPlayerState(playerId) == PlayerState.Revealed &&
-                choiceCommitLog[numRounds][playerId].choice == Choice.Random,
-            "The choice of the player has not been revealed or it is not randomSlot."
+            _getPlayerState(playerId) == PlayerState.Committed &&
+                (_getPlayerState(enemyId) == PlayerState.Committed ||
+                    _getPlayerState(enemyId) == PlayerState.Revealed),
+            "Alice or Bob has not committed his/her choice yet."
         );
         _;
     }
@@ -119,10 +139,29 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             _getPlayerState(playerId) == PlayerState.Committed,
             "The player hasn't committed the choice in this round yet."
         );
-        PlayerId enemyId = playerId == PlayerId.Alice
-            ? PlayerId.Bob
-            : PlayerId.Alice;
+
+        PlayerId enemyId = _enemyId(playerId);
         PlayerState enemyState = _getPlayerState(enemyId);
+
+        // If the enemy player has not committed yet and it's over commit time limit,
+        // ban the enemy player as lazy player.
+        if (
+            enemyState == PlayerState.Preparing &&
+            block.number >
+            choiceCommitStartPoints[numRounds] + CHOICE_COMMIT_TIME_LIMIT
+        ) {
+            emit TimeOutAtChoiceCommitDetected(numRounds, enemyId);
+
+            // ban the enemy player.
+            _banLazyPlayer(enemyId);
+
+            emit BattleCanceled(enemyId);
+            return;
+        }
+
+        // If the enemy player has not committed yet and it's not over commit time limit,
+        // player has to wait until commit time limit. So, in this case, we revert the
+        // revealChoice function using require statement below.
         require(
             enemyState == PlayerState.Committed ||
                 enemyState == PlayerState.Revealed,
@@ -159,10 +198,16 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         _;
     }
 
+    constructor(IPLMDealer _dealer, IPLMToken _token) {
+        dealer = _dealer;
+        token = _token;
+        polylemmer = msg.sender;
+    }
+
     /// @notice Commit the player's seed to generate the tokenId for random slot.
     /// @param playerId: the identifier of the player. Alice or Bob.
     /// @param commitString: commitment string calculated by the player designated by playerId
-    ///                      as keccak256(abi.encodePacked(msg.sender, levelPoint, choice, blindingFactor)).
+    ///                      as keccak256(abi.encodePacked(msg.sender, playerSeed)).
     function commitPlayerSeed(PlayerId playerId, bytes32 commitString)
         external
         nonReentrant
@@ -180,9 +225,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             "The playerSeed has already set."
         );
 
-        PlayerId enemyId = playerId == PlayerId.Alice
-            ? PlayerId.Bob
-            : PlayerId.Alice;
+        PlayerId enemyId = _enemyId(playerId);
 
         // Check that player seed commitment is in time.
         if (
@@ -192,16 +235,16 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             emit TimeOutAtPlayerSeedCommitDetected(playerId);
 
             // ban the lazy player.
-            _banLazyPlayer(playerId);
-
             if (_getPlayerState(enemyId) == PlayerState.Preparing) {
-                // enemy player is a lazy player too. ban the enemy player.
-                _banLazyPlayer(enemyId);
+                // both players are lazy players.
+                _banLazyPlayers();
+            } else {
+                // only the player designated by playerId is a lazy player.
+                _banLazyPlayer(playerId);
             }
 
-            // Cancel this battle.
-            battleState = BattleState.Settled;
-            revert BattleCanceled(playerId);
+            emit BattleCanceled(playerId);
+            return;
         }
 
         // Save commitment on the storage. The playerSeed of the player is hidden in the commit phase.
@@ -238,14 +281,9 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
     /// @param playerId: the identifier of the player. Alice or Bob.
     /// @param playerSeed: the choice the player designated by playerId committed in this round.
     ///                    bytes32(0) is not allowed.
-    /// @param bindingFactor: the secret factor (one-time) used in the generation of the commitment.
     /// @dev bindingFactor should be used only once. Reusing bindingFactor results in the security
     ///      vulnerability.
-    function revealPlayerSeed(
-        PlayerId playerId,
-        bytes32 playerSeed,
-        bytes32 bindingFactor
-    )
+    function revealPlayerSeed(PlayerId playerId, bytes32 playerSeed)
         external
         roundStarted
         onlyPlayerOfIdx(playerId)
@@ -264,9 +302,8 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
 
         // Check the commit has coincides with the one stored on chain.
         require(
-            keccak256(
-                abi.encodePacked(msg.sender, playerSeed, bindingFactor)
-            ) == playerSeedCommitment.commitString,
+            keccak256(abi.encodePacked(msg.sender, playerSeed)) ==
+                playerSeedCommitment.commitString,
             "Commit hash doesn't coincide."
         );
 
@@ -293,12 +330,10 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         // Check that the player who want to commit haven't committed yet in this round.
         require(
             _getPlayerState(playerId) == PlayerState.Preparing,
-            "This player is not in the state to commit in this round."
+            "not in the state to commit in this round."
         );
 
-        PlayerId enemyId = playerId == PlayerId.Alice
-            ? PlayerId.Bob
-            : PlayerId.Alice;
+        PlayerId enemyId = _enemyId(playerId);
 
         // Check that choice commitment is in time.
         if (
@@ -308,16 +343,16 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             emit TimeOutAtChoiceCommitDetected(numRounds, playerId);
 
             // ban the lazy player.
-            _banLazyPlayer(playerId);
-
             if (_getPlayerState(enemyId) == PlayerState.Preparing) {
-                // enemy player is a lazy player too. ban the enemy player.
-                _banLazyPlayer(enemyId);
+                // both players are lazy players.
+                _banLazyPlayers();
+            } else {
+                // only the player designated by playerId is a lazy player.
+                _banLazyPlayer(playerId);
             }
 
-            // Cancel this battle.
-            battleState = BattleState.Settled;
-            revert BattleCanceled(playerId);
+            emit BattleCanceled(playerId);
+            return;
         }
 
         // Save commitment on the storage. The choice of the player is hidden in the commit phase.
@@ -361,12 +396,10 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         // Choice.Secret is not allowed for the choice passed to the reveal function.
         require(
             choice != Choice.Secret,
-            "Choice.Secret is not allowed when revealing."
+            "Choice.Scrt is not allowed when revealn."
         );
 
-        PlayerId enemyId = playerId == PlayerId.Alice
-            ? PlayerId.Bob
-            : PlayerId.Alice;
+        PlayerId enemyId = _enemyId(playerId);
 
         // Check that choice revealment is in time.
         if (
@@ -376,23 +409,23 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             emit TimeOutAtChoiceRevealDetected(numRounds, playerId);
 
             // ban the lazy player.
-            _banLazyPlayer(playerId);
-
             if (_getPlayerState(enemyId) == PlayerState.Preparing) {
-                // enemy player is a lazy player too. ban the enemy player.
-                _banLazyPlayer(enemyId);
+                // both players are lazy players.
+                _banLazyPlayers();
+            } else {
+                // only the player designated by playerId is a lazy player.
+                _banLazyPlayer(playerId);
             }
 
-            // Cancel this battle.
-            battleState = BattleState.Settled;
-            revert BattleCanceled(playerId);
+            emit BattleCanceled(playerId);
+            return;
         }
 
         // If the choice is the random slot, then random slot must have already been revealed.
         if (choice == Choice.Random) {
             require(
                 _getRandomSlotState(playerId) == RandomSlotState.Revealed,
-                "Random slot cannot be used because player seed is not revealed yet."
+                "Ran. sl. cannot be used because plr sd not revealed yet."
             );
         }
 
@@ -421,9 +454,8 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             // End this match and ban the player designated by playerId.
             _banCheater(playerId);
 
-            // Cancel this battle.
-            battleState = BattleState.Settled;
-            revert BattleCanceled(playerId);
+            emit BattleCanceled(playerId);
+            return;
         }
 
         // Subtract revealed levelPoint from remainingLevelPoint
@@ -441,9 +473,8 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             // End this match and ban the player designated by playerId.
             _banCheater(playerId);
 
-            // Cancel this battle.
-            battleState = BattleState.Settled;
-            revert BattleCanceled(playerId);
+            emit BattleCanceled(playerId);
+            return;
         }
 
         // Execute revealment
@@ -459,6 +490,41 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         if (_getPlayerState(enemyId) == PlayerState.Revealed) {
             _stepRound();
         }
+    }
+
+    function reportLazyRevealment(PlayerId playerId)
+        external
+        roundStarted
+        onlyPlayerOfIdx(playerId)
+    {
+        PlayerId enemyId = _enemyId(playerId);
+
+        // Detect enemy player's lazy revealment.
+        require(
+            _getPlayerState(_enemyId(playerId)) == PlayerState.Committed &&
+                block.number >
+                choiceRevealStartPoints[numRounds] + CHOICE_REVEAL_TIME_LIMIT,
+            "Check this rep. is valid."
+        );
+
+        emit TimeOutAtChoiceRevealDetected(numRounds, enemyId);
+
+        // ban the lazy player.
+        _banLazyPlayer(enemyId);
+
+        emit BattleCanceled(playerId);
+    }
+
+    function getBattleState() external view returns (BattleState) {
+        return battleState;
+    }
+
+    function getRemainingLevel(PlayerId playerId)
+        external
+        view
+        returns (uint256)
+    {
+        return playerInfoTable[playerId].remainingLevelPoint;
     }
 
     /// @notice Function to execute the current round.
@@ -479,11 +545,34 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         IPLMToken.CharacterInfo memory bobChar = _getChosenCharacterInfo(
             PlayerId.Bob
         );
-        uint8 aliceDamage;
-        uint8 bobDamage;
-        (aliceDamage, bobDamage) = token.calcBattleResult(aliceChar, bobChar);
 
-        if (aliceDamage > bobDamage) {
+        uint32 aliceBondLevel = token.calcPriorBondLevel(
+            aliceChar.level,
+            aliceChar.fromBlock,
+            _getStartBlockNum(PlayerId.Bob)
+        );
+        uint32 alicePower = token.calcPower(
+            numRounds,
+            aliceChar,
+            choiceCommitLog[numRounds][PlayerId.Alice].levelPoint,
+            aliceBondLevel,
+            bobChar
+        );
+
+        uint32 bobBondLevel = token.calcPriorBondLevel(
+            bobChar.level,
+            bobChar.fromBlock,
+            _getStartBlockNum(PlayerId.Bob)
+        );
+        uint32 bobPower = token.calcPower(
+            numRounds,
+            bobChar,
+            choiceCommitLog[numRounds][PlayerId.Bob].levelPoint,
+            bobBondLevel,
+            aliceChar
+        );
+
+        if (alicePower > bobPower) {
             // Alice wins !!
             playerInfoTable[PlayerId.Alice].winCount++;
 
@@ -492,10 +581,10 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
                 false,
                 PlayerId.Alice,
                 PlayerId.Bob,
-                aliceDamage,
-                bobDamage
+                alicePower,
+                bobPower
             );
-        } else if (aliceDamage < bobDamage) {
+        } else if (alicePower < bobPower) {
             // Bob wins !!
             playerInfoTable[PlayerId.Bob].winCount++;
 
@@ -504,8 +593,8 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
                 false,
                 PlayerId.Bob,
                 PlayerId.Alice,
-                bobDamage,
-                aliceDamage
+                bobPower,
+                alicePower
             );
         } else {
             // Draw !!
@@ -514,21 +603,46 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
                 true,
                 PlayerId.Alice,
                 PlayerId.Bob,
-                aliceDamage,
-                bobDamage
+                alicePower,
+                bobPower
             );
         }
 
         // Increment the round number.
         numRounds++;
+        uint8 aliceWinCount = _getWinCount(PlayerId.Alice);
+        uint8 bobWinCount = _getWinCount(PlayerId.Bob);
+
+        uint8 diffWinCount = aliceWinCount > bobWinCount
+            ? aliceWinCount - bobWinCount
+            : bobWinCount - aliceWinCount;
+
         if (
-            _getWinCount(PlayerId.Alice) == WIN_COUNT ||
-            _getWinCount(PlayerId.Bob) == WIN_COUNT ||
-            numRounds == MAX_ROUNDS
+            aliceWinCount == WIN_COUNT ||
+            bobWinCount == WIN_COUNT ||
+            numRounds == MAX_ROUNDS ||
+            diffWinCount > (MAX_ROUNDS - numRounds)
         ) {
             // This battle ends.
             battleState = BattleState.RoundSettled;
             _settleBattle();
+
+            bool isDraw = aliceWinCount == bobWinCount;
+            PlayerId winner = aliceWinCount >= bobWinCount
+                ? PlayerId.Alice
+                : PlayerId.Bob;
+            PlayerId loser = _enemyId(winner);
+            uint8 winCount = _getWinCount(winner);
+            uint8 loseCount = _getWinCount(loser);
+
+            emit BattleResult(
+                numRounds - 1,
+                isDraw,
+                winner,
+                loser,
+                winCount,
+                loseCount
+            );
             return;
         }
 
@@ -549,28 +663,49 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             DAILY_BLOCK_NUM * BAN_DATE_LENGTH_FOR_CHEATER
         );
 
+        // Refund stamina to the enemy player.
+        dealer.refundStaminaForBattle(_getPlayerAddress(_enemyId(playerId)));
+
         // Cancel this battle.
-        battleState = BattleState.Settled;
+        _cancelBattle();
     }
 
     /// @notice Function to ban the lazy player
     /// @dev Ban the account (subtract constant block number from the subscribing period limit.)
     function _banLazyPlayer(PlayerId playerId) internal {
-        // Reduce the subscribing period to ban the cheater account.
+        // Reduce the subscribing period to ban the lazy palyer's account.
         dealer.banAccount(
             _getPlayerAddress(playerId),
             DAILY_BLOCK_NUM * BAN_DATE_LENGTH_FOR_LAZY_ACCOUNT
         );
+
+        // Refund stamina to the enemy player.
+        dealer.refundStaminaForBattle(_getPlayerAddress(_enemyId(playerId)));
+
+        // Cancel this battle.
+        _cancelBattle();
     }
 
-    /// @notice Function to finalize the battle.
-    /// @dev reward is paid from dealer to the winner of this battle.
-    function settleBattle() public virtual {
-        _settleBattle();
+    /// @notice Function to ban both players because of lazyness.
+    /// @dev Ban the account (subtract constant block number from the subscribing period limit.)
+    function _banLazyPlayers() internal {
+        // Reduce the subscribing period to ban the lazy players' accounts.
+        dealer.banAccount(
+            _getPlayerAddress(PlayerId.Alice),
+            DAILY_BLOCK_NUM * BAN_DATE_LENGTH_FOR_LAZY_ACCOUNT
+        );
+        dealer.banAccount(
+            _getPlayerAddress(PlayerId.Bob),
+            DAILY_BLOCK_NUM * BAN_DATE_LENGTH_FOR_LAZY_ACCOUNT
+        );
+
+        // No stamina refund called here because both players are lazy players.
+        // Cancel this battle.
+        _cancelBattle();
     }
 
     /// @notice Core logic to finalization of the battle.
-    function _settleBattle() internal nonReentrant readyForBattleSettlement {
+    function _settleBattle() internal virtual readyForBattleSettlement {
         uint8 aliceWinCount = _getWinCount(PlayerId.Alice);
         uint8 bobWinCount = _getWinCount(PlayerId.Bob);
 
@@ -584,7 +719,20 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         } else {
             _payRewardsDraw();
         }
+        mo.updateProposalState2NonProposal(
+            playerInfoTable[PlayerId.Alice].addr,
+            playerInfoTable[PlayerId.Bob].addr
+        );
+        battleState = BattleState.Settled;
+    }
 
+    /// @notice called in _banCheater function.
+    function _cancelBattle() internal virtual {
+        // TODO: modify here when we implement multislot battle.
+        mo.updateProposalState2NonProposal(
+            playerInfoTable[PlayerId.Alice].addr,
+            playerInfoTable[PlayerId.Bob].addr
+        );
         battleState = BattleState.Settled;
     }
 
@@ -594,10 +742,12 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         // Calculate the reward balance of the winner.
         uint16 winnerTotalLevel = _getTotalLevel(winner);
         uint16 loserTotalLevel = _getTotalLevel(loser);
-        uint48 top = uint48(loserTotalLevel) *
+        uint48 top = 51 *
+            uint48(loserTotalLevel) *
             (uint48(loserTotalLevel) * 2 + 102)**3;
-        uint48 bottom = 51 *
-            (uint48(winnerTotalLevel) + uint48(loserTotalLevel) + 102)**3;
+        uint48 bottom = (uint48(winnerTotalLevel) +
+            uint48(loserTotalLevel) +
+            102)**3;
         uint256 amount = top / bottom;
 
         // Dealer pay rewards to the winner.
@@ -610,18 +760,25 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         // Calculate the reward balance of both players.
         uint16 aliceTotalLevel = _getTotalLevel(PlayerId.Alice);
         uint16 bobTotalLevel = _getTotalLevel(PlayerId.Bob);
-        uint48 aliceTop = uint48(aliceTotalLevel) *
+        uint48 aliceTop = 51 *
+            uint48(aliceTotalLevel) *
             (uint48(aliceTotalLevel) * 2 + 102)**3;
-        uint48 bobTop = uint48(bobTotalLevel) *
+        uint48 bobTop = 51 *
+            uint48(bobTotalLevel) *
             (uint48(bobTotalLevel) * 2 + 102)**3;
-        uint48 bottom = 51 *
-            (uint48(aliceTotalLevel) + uint48(bobTotalLevel) + 102)**3;
-        uint256 aliceAmount = aliceTop / bottom / 2;
-        uint256 bobAmount = bobTop / bottom / 2;
+        uint48 bottom = (uint48(aliceTotalLevel) +
+            uint48(bobTotalLevel) +
+            102)**3;
+        uint256 aliceAmount = aliceTop / bottom / 3;
+        uint256 bobAmount = bobTop / bottom / 3;
 
         // Dealer pay rewards to both players.
         dealer.payReward(_getPlayerAddress(PlayerId.Alice), aliceAmount);
         dealer.payReward(_getPlayerAddress(PlayerId.Bob), bobAmount);
+    }
+
+    function _enemyId(PlayerId playerId) internal pure returns (PlayerId) {
+        return playerId == PlayerId.Alice ? PlayerId.Bob : PlayerId.Alice;
     }
 
     /// @notice Function to start the battle.
@@ -632,7 +789,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         uint256 bobBlockNum,
         uint256[FIXEDSLOT_NUM] memory aliceFixedSlots,
         uint256[FIXEDSLOT_NUM] memory bobFixedSlots
-    ) public readyForBattleStart {
+    ) public readyForBattleStart onlyMatchOrganizer {
         IPLMToken.CharacterInfo[FIXEDSLOT_NUM] memory aliceCharInfos;
         IPLMToken.CharacterInfo[FIXEDSLOT_NUM] memory bobCharInfos;
 
@@ -652,21 +809,29 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         uint8 aliceLevelPoint = token.calcLevelPoint(aliceCharInfos);
         uint8 bobLevelPoint = token.calcLevelPoint(bobCharInfos);
 
-        // Initial state of random slot.
-        RandomSlot memory initRandomSlot = RandomSlot(
-            0,
+        // Initialize random slots.
+        RandomSlot memory aliceRandomSlot = RandomSlot(
+            token.calcRandomSlotLevel(aliceCharInfos),
+            bytes32(0),
+            false,
+            false,
+            RandomSlotState.NotSet
+        );
+        RandomSlot memory bobRandomSlot = RandomSlot(
+            token.calcRandomSlotLevel(bobCharInfos),
             bytes32(0),
             false,
             false,
             RandomSlotState.NotSet
         );
 
+        // Initialize both players' information.
         PlayerInfo memory aliceInfo = PlayerInfo(
             aliceAddr,
             aliceBlockNum,
             aliceFixedSlots,
             [false, false, false, false],
-            initRandomSlot,
+            aliceRandomSlot,
             PlayerState.Preparing,
             0,
             aliceLevelPoint
@@ -676,7 +841,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             bobBlockNum,
             bobFixedSlots,
             [false, false, false, false],
-            initRandomSlot,
+            bobRandomSlot,
             PlayerState.Preparing,
             0,
             bobLevelPoint
@@ -691,6 +856,11 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
 
         // Set the block number when the battle has started.
         playerSeedCommitStartPoint = block.number;
+
+        // Reset round number.
+        numRounds = 0;
+
+        emit BattleStarted(aliceAddr, bobAddr);
     }
 
     /// @notice Function to mark the slot used in the current round as used.
@@ -713,7 +883,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             totalLevel += token
                 .getPriorCharacterInfo(
                     _getFixedSlotTokenId(playerId, i),
-                    playerInfoTable[playerId].startBlockNum
+                    _getStartBlockNum(playerId)
                 )
                 .level;
         }
@@ -744,32 +914,15 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
 
         Choice choice = choiceCommitLog[numRounds][playerId].choice;
 
-        uint256 tokenId;
         if (choice == Choice.Random) {
-            // Player's choice is random slot.
-            tokenId = PLMSeeder.getRandomSlotTokenId(
-                _getNonce(playerId),
-                _getPlayerSeed(playerId),
-                token
-            );
+            // Player's choice is in a random slot.
+            return getRandomSlotCharInfo(playerId);
         } else if (choice == Choice.Secret) {
             revert("Unreachable !");
         } else {
             // Player's choice is in fixed slots.
-            tokenId = _getFixedSlotTokenId(playerId, uint8(choice));
+            return _getFixedSlotCharInfoOfIdx(playerId, uint8(choice));
         }
-
-        // Retrieve the character information.
-        IPLMToken.CharacterInfo memory charInfo = token.getPriorCharacterInfo(
-            tokenId,
-            playerInfoTable[playerId].startBlockNum
-        );
-
-        if (choice == Choice.Random) {
-            charInfo.level = _getRandomSlotLevel(playerId);
-        }
-
-        return charInfo;
     }
 
     function _getRandomSlotState(PlayerId playerId)
@@ -796,11 +949,8 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         return playerInfoTable[playerId].randomSlot.used;
     }
 
-    function _getNonce(PlayerId playerId) internal view returns (bytes32) {
-        require(
-            playerInfoTable[playerId].randomSlot.nonceSet,
-            "Nonce hasn't been set."
-        );
+    function getNonce(PlayerId playerId) public view returns (bytes32) {
+        require(playerInfoTable[playerId].randomSlot.nonceSet, "no nonce set.");
         return playerInfoTable[playerId].randomSlot.nonce;
     }
 
@@ -811,7 +961,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
     function _getPlayerSeed(PlayerId playerId) internal view returns (bytes32) {
         require(
             _getRandomSlotState(playerId) == RandomSlotState.Revealed,
-            "random slot hasn't been revealed yet."
+            "rand. sl. hasn't been revealed yet."
         );
         return playerSeedCommitLog[playerId].playerSeed;
     }
@@ -848,5 +998,142 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
     {
         require(fixedSlotIdx < FIXEDSLOT_NUM, "Invalid fixed slot index.");
         return playerInfoTable[playerId].slotsUsed[fixedSlotIdx];
+    }
+
+    function _getStartBlockNum(PlayerId playerId)
+        internal
+        view
+        returns (uint256)
+    {
+        return playerInfoTable[playerId].startBlockNum;
+    }
+
+    function _getFixedSlotCharInfoOfIdx(PlayerId playerId, uint8 fixedSlotIdx)
+        internal
+        view
+        returns (IPLMToken.CharacterInfo memory)
+    {
+        return
+            token.getPriorCharacterInfo(
+                _getFixedSlotTokenId(playerId, fixedSlotIdx),
+                _getStartBlockNum(playerId)
+            );
+    }
+
+    function getFixedSlotCharInfo(PlayerId playerId)
+        public
+        view
+        returns (IPLMToken.CharacterInfo[FIXEDSLOT_NUM] memory)
+    {
+        IPLMToken.CharacterInfo[FIXEDSLOT_NUM] memory playerCharInfos;
+        for (uint8 i = 0; i < FIXEDSLOT_NUM; i++) {
+            playerCharInfos[i] = _getFixedSlotCharInfoOfIdx(playerId, i);
+        }
+
+        return playerCharInfos;
+    }
+
+    function getVirtualRandomSlotCharInfo(PlayerId playerId, uint256 tokenId)
+        external
+        view
+        returns (IPLMToken.CharacterInfo memory)
+    {
+        IPLMToken.CharacterInfo memory virtualPlayerCharInfo = token
+            .getPriorCharacterInfo(tokenId, _getStartBlockNum(playerId));
+        virtualPlayerCharInfo.level = _getRandomSlotLevel(playerId);
+
+        return virtualPlayerCharInfo;
+    }
+
+    function getRandomSlotCharInfo(PlayerId playerId)
+        public
+        view
+        returns (IPLMToken.CharacterInfo memory)
+    {
+        require(
+            _getRandomSlotState(playerId) == RandomSlotState.Revealed,
+            "Random slot character info has not determined yet."
+        );
+        // Calculate the tokenId of random slot for player designated by PlayerId.
+        uint256 tokenId = PLMSeeder.getRandomSlotTokenId(
+            getNonce(playerId),
+            _getPlayerSeed(playerId),
+            getTotalSupplyAtBattleStart(playerId)
+        );
+
+        IPLMToken.CharacterInfo memory playerCharInfo = token
+            .getPriorCharacterInfo(tokenId, _getStartBlockNum(playerId));
+        playerCharInfo.level = _getRandomSlotLevel(playerId);
+
+        return playerCharInfo;
+    }
+
+    function getPlayerIdFromAddress(address playerAddr)
+        public
+        view
+        returns (PlayerId)
+    {
+        bytes32 playerAddrBytes = keccak256(abi.encodePacked(playerAddr));
+        bytes32 aliceAddrBytes = keccak256(
+            abi.encodePacked(playerInfoTable[PlayerId.Alice].addr)
+        );
+        bytes32 bobAddrBytes = keccak256(
+            abi.encodePacked(playerInfoTable[PlayerId.Bob].addr)
+        );
+        require(
+            playerAddrBytes == aliceAddrBytes ||
+                playerAddrBytes == bobAddrBytes,
+            "The player designated by playerAddress is not in the battle."
+        );
+        return
+            playerAddrBytes == aliceAddrBytes ? PlayerId.Alice : PlayerId.Bob;
+    }
+
+    function getBondLevelAtBattleStart(uint8 level, uint256 startBlock)
+        public
+        view
+        returns (uint32)
+    {
+        return
+            token.calcPriorBondLevel(
+                level,
+                startBlock,
+                _getStartBlockNum(PlayerId.Bob)
+            );
+    }
+
+    function getTotalSupplyAtBattleStart(PlayerId playerId)
+        public
+        view
+        returns (uint256)
+    {
+        // Here we assume that Bob is always a requester.
+        return token.getPriorTotalSupply(_getStartBlockNum(playerId));
+    }
+
+    function setIPLMMatchOrganizer(
+        IPLMMatchOrganizer _mo,
+        address _matchOrganizer
+    ) external onlyPolylemmer {
+        mo = _mo;
+        matchOrganizer = _matchOrganizer;
+    }
+
+    function getRemainingLevelPoint(PlayerId playerId)
+        external
+        view
+        returns (uint8)
+    {
+        return playerInfoTable[playerId].remainingLevelPoint;
+    }
+
+    /////////////////////////
+    /// FUNCTION FOR DEMO ///
+    /////////////////////////
+    // FIXME: remove this function after demo.
+    function forceInitBattle() public {
+        battleState = BattleState.Settled;
+        mo.setNonProposal(_getPlayerAddress(PlayerId.Alice));
+        mo.setNonProposal(_getPlayerAddress(PlayerId.Bob));
     }
 }

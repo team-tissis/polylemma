@@ -14,6 +14,10 @@ contract PLMDealer is PLMGacha, IPLMDealer {
 
     address dealer;
     address polylemmer;
+    address matchOrganizer;
+    address battleField;
+    bool matchOrganizerIsSet = false;
+    bool battleFieldIsSet = false;
 
     /// @notice subscription Fee (PLMCoin) for one period.
     uint256 constant SUBSC_FEE_PER_UNIT_PERIOD = 10;
@@ -21,14 +25,14 @@ contract PLMDealer is PLMGacha, IPLMDealer {
     /// @notice block number of subscription period unit (30 days).
     uint256 constant SUBSC_UNIT_PERIOD_BLOCK_NUM = 1296000;
 
-    /// @notice The amount of stamina recovery per one block.
-    uint8 constant STAMINA_RESTORE_SPEED = 5;
+    /// @notice The number of blocks needed to recover unit stamina. (10 min).
+    uint16 constant STAMINA_RESTORE_SPEED = 300;
 
     /// @notice The maximum value of stamina.
     uint8 constant STAMINA_MAX = 100;
 
     //// @notice the fee to restore stamina (unit: PLM)
-    uint8 constant RESTORE_STAMINA_FEE = 1;
+    uint8 constant RESTORE_STAMINA_FEE = 5;
 
     /// @notice The amount of stamina consumed when playing battle with other players.
     uint8 constant STAMINA_PER_BATTLE = 10;
@@ -48,6 +52,17 @@ contract PLMDealer is PLMGacha, IPLMDealer {
 
     modifier onlyPolylemmer() {
         require(msg.sender == polylemmer, "sender is not polylemmer");
+        _;
+    }
+
+    modifier onlyMatchOrganizer() {
+        require(matchOrganizerIsSet, "matchOrganizer has not been set.");
+        require(msg.sender == matchOrganizer, "sender is not matchOrganizer");
+        _;
+    }
+    modifier onlyBattleField() {
+        require(battleFieldIsSet, "battleField has not been set.");
+        require(msg.sender == battleField, "sender is not battleField");
         _;
     }
 
@@ -79,7 +94,6 @@ contract PLMDealer is PLMGacha, IPLMDealer {
     ///////////////////////////////
     /// FUNCTIONS ABOUT STAMINA ///
     ///////////////////////////////
-    // TODO: 飛ぶ
     function initializeStamina(address player) internal {
         _restoreStamina(player);
     }
@@ -92,7 +106,7 @@ contract PLMDealer is PLMGacha, IPLMDealer {
         } else if (block.number > staminaFromBlock[player]) {
             return
                 uint8(
-                    ((block.number - staminaFromBlock[player]) *
+                    ((block.number - staminaFromBlock[player]) /
                         STAMINA_RESTORE_SPEED).min(STAMINA_MAX)
                 );
         } else {
@@ -128,18 +142,57 @@ contract PLMDealer is PLMGacha, IPLMDealer {
     }
 
     function _restoreStamina(address player) internal {
-        uint256 restAmount = uint256(STAMINA_MAX / STAMINA_RESTORE_SPEED);
+        uint256 restAmount = uint256(STAMINA_MAX) *
+            uint256(STAMINA_RESTORE_SPEED);
 
         // Deal with underflow.
-        staminaFromBlock[player] = block.number >= restAmount
-            ? block.number - restAmount
-            : 0;
+        staminaFromBlock[player] = _safeSubUint256(block.number, restAmount);
     }
 
-    // TODO: public は流石にまずい。
-    // -> Match OrganizerやBFから呼び出すはず。コントラクトアドレスでmsg.senderのrequireを実装する予定。
-    function consumeStaminaForBattle(address player) public {
-        staminaFromBlock[player] += STAMINA_PER_BATTLE / STAMINA_RESTORE_SPEED;
+    function consumeStaminaForBattle(address player) public onlyMatchOrganizer {
+        require(
+            block.number >=
+                staminaFromBlock[player] +
+                    STAMINA_PER_BATTLE *
+                    STAMINA_RESTORE_SPEED,
+            "sender does not have enough stamina"
+        );
+        // When "staminaFromBlock" remains at the initial value of "0", players start a battle without any stamina
+        // consumption up to the time when the staminaFromBlock can express that stamina is consumed for one battle.
+        if (staminaFromBlock[player] > 0) {
+            staminaFromBlock[player] +=
+                STAMINA_PER_BATTLE *
+                STAMINA_RESTORE_SPEED;
+        } else {
+            staminaFromBlock[player] = _safeSubUint256(
+                block.number,
+                (STAMINA_MAX - STAMINA_PER_BATTLE) * STAMINA_RESTORE_SPEED
+            );
+        }
+    }
+
+    function refundStaminaForBattle(address player) public onlyBattleField {
+        uint256 candidate1 = _safeSubUint256(
+            block.number,
+            STAMINA_MAX * STAMINA_RESTORE_SPEED
+        );
+        uint256 candidate2 = _safeSubUint256(
+            staminaFromBlock[player],
+            STAMINA_PER_BATTLE * STAMINA_RESTORE_SPEED
+        );
+        staminaFromBlock[player] = candidate1.max(candidate2);
+    }
+
+    function _safeSubUint256(uint256 x, uint256 y)
+        internal
+        pure
+        returns (uint256)
+    {
+        if (x >= y) {
+            return x - y;
+        } else {
+            return 0;
+        }
     }
 
     ////////////////////////////////////
@@ -153,6 +206,19 @@ contract PLMDealer is PLMGacha, IPLMDealer {
         returns (uint256)
     {
         return subscExpiredBlock[account];
+    }
+
+    /// @notice Function to get the number blocks remained until subscription expired block.
+    function getSubscRemainingBlockNum(address account)
+        public
+        view
+        returns (uint256)
+    {
+        uint256 remainingBlockNum = block.number <=
+            getSubscExpiredBlock(account)
+            ? getSubscExpiredBlock(account) - block.number
+            : 0;
+        return remainingBlockNum;
     }
 
     /// @notice Function to return whether the account's subscription is expired or not.
@@ -272,5 +338,21 @@ contract PLMDealer is PLMGacha, IPLMDealer {
 
     function _payReward(address winner, uint256 amount) internal {
         coin.transfer(winner, amount);
+    }
+
+    ////////////////////////////
+    /// FUNCTIONS FOR CONFIG ///
+    ////////////////////////////
+    function setMatchOrganizer(address _matchOrganizer)
+        external
+        onlyPolylemmer
+    {
+        matchOrganizerIsSet = true;
+        matchOrganizer = _matchOrganizer;
+    }
+
+    function setBattleField(address _battleField) external onlyPolylemmer {
+        battleFieldIsSet = true;
+        battleField = _battleField;
     }
 }
