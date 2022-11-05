@@ -183,7 +183,7 @@ contract PLMData is IPLMData {
         } else if (player1Char.attributeIds[0] == 1) {
             power += player1LevelPoint * basePowerRate;
             if (player1Char.level == player2Char.level) {
-                denominator += bigNumber;
+                denominator *= bigNumber;
             }
             power = _mulFloat(power, denominator, numerator);
         } else if (player1Char.attributeIds[0] == 2) {
