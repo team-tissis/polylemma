@@ -1129,5 +1129,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
     // FIXME: remove this function after demo.
     function forceInitBattle() public {
         battleState = BattleState.Settled;
+        mo.setNonProposal(_getPlayerAddress(PlayerId.Alice));
+        mo.setNonProposal(_getPlayerAddress(PlayerId.Bob));
     }
 }
