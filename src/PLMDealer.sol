@@ -26,7 +26,7 @@ contract PLMDealer is PLMGacha, IPLMDealer {
     uint256 constant SUBSC_UNIT_PERIOD_BLOCK_NUM = 1296000;
 
     /// @notice The number of blocks needed to recover unit stamina. (10 min).
-    uint16 constant STAMINA_RESTORE_SPEED = 300;
+    uint16 constant STAMINA_RESTORE_SPEED = 1;
 
     /// @notice The maximum value of stamina.
     uint8 constant STAMINA_MAX = 100;
