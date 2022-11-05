@@ -32,5 +32,9 @@ interface IPLMMatchOrganizer {
     function setIPLMBattleField(IPLMBattleField _bf, address _battleField)
         external;
 
+    /////////////////////////
+    /// FUNCTION FOR DEMO ///
+    /////////////////////////
+    // FIXME: remove this function after demo.
     function setNonProposal(address player) external;
 }

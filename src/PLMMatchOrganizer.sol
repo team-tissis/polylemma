@@ -112,10 +112,6 @@ contract PLMMatchOrganizer is ReentrancyGuard, IPLMMatchOrganizer {
         return matchStates[player] == MatchState.InBattle;
     }
 
-    function setNonProposal(address player) public {
-        matchStates[player] = MatchState.NonProposal;
-    }
-
     function isNonProposal(address player) public view returns (bool) {
         return matchStates[player] == MatchState.NonProposal;
     }
@@ -258,5 +254,13 @@ contract PLMMatchOrganizer is ReentrancyGuard, IPLMMatchOrganizer {
     {
         bf = _bf;
         battleField = _battleField;
+    }
+
+    /////////////////////////
+    /// FUNCTION FOR DEMO ///
+    /////////////////////////
+    // FIXME: remove this function after demo.
+    function setNonProposal(address player) public {
+        matchStates[player] = MatchState.NonProposal;
     }
 }
