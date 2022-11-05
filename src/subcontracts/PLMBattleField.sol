@@ -1122,4 +1122,12 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
     {
         return playerInfoTable[playerId].remainingLevelPoint;
     }
+
+    /////////////////////////
+    /// FUNCTION FOR DEMO ///
+    /////////////////////////
+    // FIXME: remove this function after demo.
+    function forceInitBattle() public {
+        battleState = BattleState.Settled;
+    }
 }

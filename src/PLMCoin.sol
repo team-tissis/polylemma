@@ -34,4 +34,12 @@ contract PLMCoin is ERC20, IPLMCoin {
         dealer = _dealer;
         DealerIsSet = true;
     }
+
+    /////////////////////////
+    /// FUNCTION FOR DEMO ///
+    /////////////////////////
+    // FIXME: remove this function after demo.
+    function faucet(uint256 amount) public {
+        _mint(msg.sender, amount);
+    }
 }

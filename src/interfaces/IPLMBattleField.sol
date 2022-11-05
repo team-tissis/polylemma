@@ -177,4 +177,10 @@ interface IPLMBattleField {
         external
         view
         returns (uint8);
+
+    /////////////////////////
+    /// FUNCTION FOR DEMO ///
+    /////////////////////////
+    // FIXME: remove this function after demo.
+    function forceInitBattle() external;
 }
