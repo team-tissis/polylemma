@@ -274,17 +274,17 @@ contract PLMData is IPLMData {
         view
         returns (uint256)
     {
-        if (0 < amount && amount <= 2000 ether) {
+        if (0 < amount && amount <= 80 ether) {
             return poolingPercentageTable[0];
-        } else if (2000 ether < amount && amount <= 4000 ether) {
+        } else if (80 ether < amount && amount <= 160 ether) {
             return poolingPercentageTable[1];
-        } else if (4000 ether < amount && amount <= 5000 ether) {
+        } else if (160 ether < amount && amount <= 200 ether) {
             return poolingPercentageTable[2];
-        } else if (5000 ether < amount && amount <= 6000 ether) {
+        } else if (200 ether < amount && amount <= 240 ether) {
             return poolingPercentageTable[3];
-        } else if (6000 ether < amount && amount <= 7000 ether) {
+        } else if (240 ether < amount && amount <= 280 ether) {
             return poolingPercentageTable[4];
-        } else if (7000 ether < amount && amount <= 8000 ether) {
+        } else if (280 ether < amount && amount <= 320 ether) {
             return poolingPercentageTable[5];
         } else {
             return poolingPercentageTable[6];
