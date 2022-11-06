@@ -8,9 +8,9 @@ contract PLMData is IPLMData {
     // TODO: monsterblocksのmonster名で仮置きした
     // TODO: 入替可能なようにconstructorで初期化&setHogeで入替可能にするべき
     string[] public characterTypes = [
-        "fire",
-        "grass",
-        "water"
+        "Fire",
+        "Grass",
+        "Water"
         // "dark",
         // "light"
     ];

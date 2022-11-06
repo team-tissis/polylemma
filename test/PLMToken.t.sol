@@ -135,4 +135,27 @@ contract PLMTokenTest is Test {
         string memory imgURI = token.getImgURI(imgId);
         console.log(imgURI);
     }
+
+    function testTokenURI() public {
+        uint256 tokenId = 1;
+        vm.startPrank(user);
+        coin.approve(address(dealer), dealer.getGachaFee());
+        dealer.gacha("test-mon");
+
+        // Level up and show tokenURI
+        string memory tokenURI = token.tokenURI(tokenId);
+        console.log(tokenURI);
+
+        // Level up and show tokenURI
+        coin.approve(address(token), token.getNecessaryExp(tokenId));
+        token.updateLevel(tokenId);
+        string memory tokenURI2 = token.tokenURI(tokenId);
+        console.log(tokenURI2);
+
+        // Level up and show tokenURI
+        coin.approve(address(token), token.getNecessaryExp(tokenId));
+        token.updateLevel(tokenId);
+        string memory tokenURI3 = token.tokenURI(tokenId);
+        console.log(tokenURI3);
+    }
 }
