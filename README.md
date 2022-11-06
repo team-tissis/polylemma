@@ -19,6 +19,17 @@ Mumbai Testnet
 
 ![Untitled](docs/imgs/polylemma_icon.png)
 
+## コントラクトアドレス
+- PLMCoin contract: "0xA0dcb1F996CB1335D4356C944C7168EE75a94953"
+- PLMToken contract: "0xCF8D3345dd90B218b9F428562fe5985dC4AcDd56"
+- PLMDealer contract: "0x38CE8D774a9fcb04Fa9AfeE5B0d0B82B7824857f"
+- PLMMatchOrganizer contract: "0xD60a1442Fd07b45f8161515A3E8f392DdcCD1661"
+- PLMBattleField contract: "0xa8F64D2Cd2F0597B586BFcfc940a49C9f2ea1247"
+
+## OpenSea!
+ガチャでゲットしたキャラクターを確認できます！
+https://testnets.opensea.io/collection/polylemma-v4
+
 ## 使っている技術スタック
 
 Solidity, Foundry, Anvil, Cast, NodeJS, EtherJS, React
@@ -64,7 +75,3 @@ Solidity, Foundry, Anvil, Cast, NodeJS, EtherJS, React
 スマートコントラクト同士の関係図。矢印はどのような操作を依頼するかを表している。
 
 ![](docs/imgs/%20architecture.png)
-
-## OpenSea!
-ガチャでゲットしたキャラクターを確認できます！
-https://testnets.opensea.io/collection/polylemma-v4
