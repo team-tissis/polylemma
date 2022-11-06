@@ -73,5 +73,8 @@ interface IPLMToken is IERC721, IERC721Enumerable, IPLMData {
         external
         view
         returns (CharacterInfo memory);
+
     // function burn() external;
+
+    function tokenURI(uint256 tokenId) external view returns (string memory);
 }

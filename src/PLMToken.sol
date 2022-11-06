@@ -1,23 +1,26 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
+import {Base64} from "openzeppelin-contracts/utils/Base64.sol";
 import {Counters} from "openzeppelin-contracts/utils/Counters.sol";
+import {Strings} from "openzeppelin-contracts/utils/Strings.sol";
 import {PLMSeeder} from "./lib/PLMSeeder.sol";
 
 import {ReentrancyGuard} from "openzeppelin-contracts/security/ReentrancyGuard.sol";
-import {Strings} from "openzeppelin-contracts/utils/Strings.sol";
 import {ERC721} from "openzeppelin-contracts/token/ERC721/ERC721.sol";
 import {ERC721Burnable} from "openzeppelin-contracts/token/ERC721/extensions/ERC721Burnable.sol";
 import {ERC721Enumerable} from "openzeppelin-contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import {ERC20} from "openzeppelin-contracts/token/ERC20/ERC20.sol";
 import {PLMData} from "./subcontracts/PLMData.sol";
 
+import {IERC721} from "openzeppelin-contracts/token/ERC721/IERC721.sol";
 import {IPLMData} from "./interfaces/IPLMData.sol";
 import {IPLMToken} from "./interfaces/IPLMToken.sol";
 import {IPLMCoin} from "./interfaces/IPLMCoin.sol";
 
 contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
     using Counters for Counters.Counter;
+    using Strings for uint8;
     using Strings for uint256;
 
     address polylemmer;
@@ -401,7 +404,7 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
     }
 
     /// @notice get URL of storage where image png file specifid with imgId is stored
-    function getImgURI(uint256 imgId) external pure returns (string memory) {
+    function getImgURI(uint256 imgId) public pure returns (string memory) {
         string memory baseImgURI = _baseImgURI();
         return
             bytes(baseImgURI).length > 0
@@ -483,5 +486,86 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
             ] = TotalSupplyCheckpoint(block.number, totalSupply());
             numTotalSupplyCheckpoints++;
         }
+    }
+
+    function tokenURI(uint256 tokenId)
+        public
+        view
+        override(ERC721, IPLMToken)
+        returns (string memory)
+    {
+        require(_exists(tokenId), "tokenId doesn't exist");
+
+        CharacterInfo memory charInfo = getCurrentCharacterInfo(tokenId);
+
+        // (e.g.) PLM #5 monster
+        string memory name = string(
+            abi.encodePacked(
+                "PLM #",
+                tokenId.toString(),
+                " ",
+                string(abi.encodePacked(charInfo.name))
+            )
+        );
+        // TODO
+        string memory attributes = "[";
+        attributes = string(
+            abi.encodePacked(
+                attributes,
+                '{"trait_type": "Type", "value": "',
+                charInfo.characterType,
+                '"}'
+            )
+        );
+        attributes = string(
+            abi.encodePacked(
+                attributes,
+                ', {"trait_type": "Level", "value": "',
+                charInfo.level.toString(),
+                '"}'
+            )
+        );
+        attributes = string(
+            abi.encodePacked(
+                attributes,
+                ', {"trait_type": "Rarity", "value": "',
+                charInfo.rarity.toString(),
+                '"}'
+            )
+        );
+        for (uint8 i = 0; i < charInfo.attributeIds.length; i++) {
+            attributes = string(
+                abi.encodePacked(
+                    attributes,
+                    ', {"trait_type": "attribute #',
+                    (i + 1).toString(),
+                    '", "value": "',
+                    charInfo.attributeIds[i].toString(),
+                    '"}'
+                )
+            );
+        }
+        attributes = string(abi.encodePacked(attributes, "]"));
+
+        return
+            string(
+                abi.encodePacked(
+                    "data:application/json;base64,",
+                    Base64.encode(
+                        abi.encodePacked(
+                            "{",
+                            '"name": "',
+                            name,
+                            '"',
+                            ', "image": "',
+                            getImgURI(charInfo.imgId),
+                            '"',
+                            ', "attributes": ',
+                            attributes,
+                            "}"
+                        )
+                    )
+                )
+            );
     }
 }
