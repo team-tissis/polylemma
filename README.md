@@ -26,7 +26,7 @@ Mumbai Testnet
 - PLMMatchOrganizer contract: "0xD60a1442Fd07b45f8161515A3E8f392DdcCD1661"
 - PLMBattleField contract: "0xa8F64D2Cd2F0597B586BFcfc940a49C9f2ea1247"
 
-## OpenSea!
+## OpenSea
 ガチャでゲットしたキャラクターを確認できます！
 https://testnets.opensea.io/collection/polylemma-v4
 
