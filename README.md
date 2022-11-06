@@ -101,6 +101,8 @@ $ source .env
 $ forge script script/PLMGachaScript.s.sol:PolylemmagachaScript --fork-url http://localhost:8545 --broadcast
 ```
 
+クライアント側は下記のtestnetと同様ですので、記載のリポジトリを参照ください。
+
 ### mumbai testnetでプレイ
   本レポジトリはゲーム本体であるスマートコントラクトが格納されています。
   
