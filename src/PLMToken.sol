@@ -30,7 +30,7 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
     uint256 maxSupply;
     IPLMCoin coin;
     string baseImgURI =
-        "https://raw.githubusercontent.com/theChainInsight/polylemma-img/main/images/";
+        "https://raw.githubusercontent.com/team-tissis/polylemma-img/main/images/";
 
     uint256 private currentTokenId = 0;
 
