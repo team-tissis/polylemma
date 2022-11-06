@@ -29,6 +29,8 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
     bool DealerIsSet = false;
     uint256 maxSupply;
     IPLMCoin coin;
+    string baseImgURI =
+        "https://raw.githubusercontent.com/theChainInsight/polylemma-img/main/images/";
 
     uint256 private currentTokenId = 0;
 
@@ -404,17 +406,22 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
     }
 
     /// @notice get URL of storage where image png file specifid with imgId is stored
-    function getImgURI(uint256 imgId) public pure returns (string memory) {
-        string memory baseImgURI = _baseImgURI();
+    function getImgURI(uint256 imgId) public view returns (string memory) {
         return
-            bytes(baseImgURI).length > 0
+            bytes(_baseImgURI()).length > 0
                 ? string(abi.encodePacked(baseImgURI, imgId.toString(), ".png"))
                 : "";
     }
 
-    function _baseImgURI() internal pure returns (string memory) {
-        return
-            "https://raw.githubusercontent.com/theChainInsight/polylemma-img/main/images/";
+    function _baseImgURI() internal view returns (string memory) {
+        return baseImgURI;
+    }
+
+    function setBaseImgURI(string calldata _newBaseImgURI)
+        external
+        onlyPolylemmer
+    {
+        baseImgURI = _newBaseImgURI;
     }
 
     /// @notice reset bondLevel when the token is transfered
