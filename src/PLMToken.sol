@@ -495,6 +495,22 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
         }
     }
 
+    function bytes32ToString(bytes32 _bytes32)
+        public
+        pure
+        returns (string memory)
+    {
+        uint8 i = 0;
+        while (i < 32 && _bytes32[i] != 0) {
+            i++;
+        }
+        bytes memory bytesArray = new bytes(i);
+        for (i = 0; i < 32 && _bytes32[i] != 0; i++) {
+            bytesArray[i] = _bytes32[i];
+        }
+        return string(bytesArray);
+    }
+
     function tokenURI(uint256 tokenId)
         public
         view
@@ -506,12 +522,12 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
         CharacterInfo memory charInfo = getCurrentCharacterInfo(tokenId);
 
         // (e.g.) PLM #5 monster
-        string memory name = string(
+        string memory name_ = string(
             abi.encodePacked(
                 "PLM #",
                 tokenId.toString(),
                 " ",
-                string(abi.encodePacked(charInfo.name))
+                bytes32ToString(charInfo.name)
             )
         );
         // TODO
@@ -562,7 +578,7 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
                         abi.encodePacked(
                             "{",
                             '"name": "',
-                            name,
+                            name_,
                             '"',
                             ', "image": "',
                             getImgURI(charInfo.imgId),
