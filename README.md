@@ -50,7 +50,9 @@ Solidity, Foundry, Anvil, Cast, NodeJS, EtherJS, React
   - [バトル報酬](./docs/imgs/../readme/39_reward.md)
 
 ## プロダクトテスト方法
-  本レポジトリはゲーム本体であるスマートコントラクトが格納されています。プレイするためのクライアント用ソフトウェアは下記の我々が作成した別レポジトリに格納されています。
+  本レポジトリはゲーム本体であるスマートコントラクトが格納されています。
+  
+  ゲームをプレイするためのクライアント用ソフトウェアは下記の我々が作成した別レポジトリに格納されています。
   
   スマートコントラクトは既にmumbai testnetにデプロイされており、この別リポジトリにあるクライアントソフトウェアを使用することでスマートコントラクトとやりとりしてゲームをプレイすることが可能です。
 
@@ -62,3 +64,7 @@ Solidity, Foundry, Anvil, Cast, NodeJS, EtherJS, React
 スマートコントラクト同士の関係図。矢印はどのような操作を依頼するかを表している。
 
 ![](docs/imgs/%20architecture.png)
+
+## OpenSea!
+ガチャでゲットしたキャラクターを確認できます！
+https://testnets.opensea.io/collection/polylemma-v4
