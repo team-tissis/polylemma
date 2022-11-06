@@ -11,4 +11,7 @@ goerli = "${GOERLI_RPC_URL}"
 goerli = { key = "${ETHERSCAN_KEY}" }
 
 
+[gas_reports]
+gas_reports = ["*"]
+
 # See more config options https://github.com/foundry-rs/foundry/tree/master/config

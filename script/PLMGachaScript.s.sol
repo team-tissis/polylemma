@@ -29,7 +29,8 @@ contract PolylemmagachaScript is Script {
     IPLMToken.CharacterInfo characterInfo;
 
     uint256 constant tokenMaxSupply = 1000;
-    uint256 constant initialMintCoin = 1000000;
+
+    // uint256 constant initialMintCoin = 1000000;
 
     // game admin address
 
@@ -64,7 +65,7 @@ contract PolylemmagachaScript is Script {
         );
 
         // initialMint for Dealer
-        dealer.mintAdditionalCoin(initialMintCoin);
+        // dealer.mintAdditionalCoin(initialMintCoin);
 
         vm.stopBroadcast();
     }
