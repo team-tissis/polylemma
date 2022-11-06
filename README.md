@@ -60,7 +60,48 @@ Solidity, Foundry, Anvil, Cast, NodeJS, EtherJS, React
   - [考案したプロトコルを使用した"ランダムスロット"](./docs/readme/38_randomslot.md)
   - [バトル報酬](./docs/imgs/../readme/39_reward.md)
 
+
 ## プロダクトテスト方法
+### foundry-anvilを使用してローカルノードでプレイ
+foundry (solidity 開発ツール) を使用してローカル環境にノードを立ち上げ、疑似的なチェーン上でゲームをテストできます。その手順を以下に示します。
+
+#### foundry install
+```
+$ curl -L https://foundry.paradigm.xyz | bash
+```
+
+```
+$ foundryup
+```
+
+#### ローカルノードの立ち上げ
+anvil (foundryの機能の１つ)を使ってテストチェーンノードを立ち上げ． localhost:8545 (デフォルト) に立ち上がる．
+```
+$ anvil
+```
+この時出力される使用可能なアドレスのprivate keyを1つメモしておく。
+
+#### 本レポジトリをclone
+```
+$ git clone https://github.com/team-tissis/polylemma
+$ cd polylemma
+```
+#### 環境変数の設定
+.envファイルを作成し、以下のようにしてPRIVATE_KEYにanvilで作成されたアカウントの秘密鍵をセットする。
+```
+PRIVATE_KEY={先ほどメモした秘密鍵}
+```
+以下を叩いて環境変数をアクティベート。
+```
+$ source .env
+```
+##デプロイ
+以下コマンドでローカルノードにスマコンをデプロイ。
+```
+$ forge script script/PLMGachaScript.s.sol:PolylemmagachaScript --fork-url http://localhost:8545 --broadcast
+```
+
+### mumbai testnetでプレイ
   本レポジトリはゲーム本体であるスマートコントラクトが格納されています。
   
   ゲームをプレイするためのクライアント用ソフトウェアは下記の我々が作成した別レポジトリに格納されています。
