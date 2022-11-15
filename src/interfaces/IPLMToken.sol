@@ -29,29 +29,7 @@ interface IPLMToken is IERC721, IERC721Enumerable, IPLMData {
 
     function mint(bytes32 name) external returns (uint256);
 
-    function burn(uint256 tokenId) external;
-
-    function getAllTokenOwned(address account)
-        external
-        view
-        returns (uint256[] memory);
-
-    function getAllCharacterInfo() external returns (CharacterInfo[] memory);
-
-    function getCurrentCharacterInfo(uint256 tokenId)
-        external
-        view
-        returns (CharacterInfo memory);
-
     function updateLevel(uint256 tokenId) external;
-
-    function getNecessaryExp(uint256 tokenId) external view returns (uint256);
-
-    function setDealer(address newDealer) external;
-
-    function setNumImg(uint256 newImgNum) external;
-
-    function getImgURI(uint256 imgId) external returns (string memory);
 
     function calcCurrentBondLevel(uint8 level, uint256 startBlock)
         external
@@ -64,17 +42,55 @@ interface IPLMToken is IERC721, IERC721Enumerable, IPLMData {
         uint256 lastBlock
     ) external pure returns (uint32);
 
-    function getPriorTotalSupply(uint256 blockNumber)
+    function tokenURI(uint256 tokenId) external view returns (string memory);
+
+    ////////////////////////
+    ///      GETTER      ///
+    ////////////////////////
+
+    function getAllTokenOwned(address account)
+        external
+        view
+        returns (uint256[] memory);
+
+    function getAllCharacterInfo()
+        external
+        view
+        returns (CharacterInfo[] memory);
+
+    function getElapsedFromBlock(uint256 tokenId)
         external
         view
         returns (uint256);
+
+    function getNecessaryExp(uint256 tokenId) external view returns (uint256);
+
+    function getDealer() external view returns (address);
+
+    function getCurrentCharacterInfo(uint256 tokenId)
+        external
+        view
+        returns (CharacterInfo memory);
 
     function getPriorCharacterInfo(uint256 tokenId, uint256 blockNumber)
         external
         view
         returns (CharacterInfo memory);
 
-    // function burn() external;
+    function getImgURI(uint256 imgId) external returns (string memory);
 
-    function tokenURI(uint256 tokenId) external view returns (string memory);
+    function getPriorTotalSupply(uint256 blockNumber)
+        external
+        view
+        returns (uint256);
+
+    ////////////////////////
+    ///      SETTER      ///
+    ////////////////////////
+
+    function setDealer(address newDealer) external;
+
+    function setNumImg(uint256 newImgNum) external;
+
+    function setBaseImgURI(string calldata newBaseImgURI) external;
 }

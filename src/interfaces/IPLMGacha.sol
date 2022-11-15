@@ -9,7 +9,10 @@ interface IPLMGacha {
 
     error ErrorWithLog(string reason);
 
-    function getGachaFee() external pure returns (uint256);
-
     function gacha(bytes32 name) external;
+
+    ////////////////////////
+    ///      GETTER      ///
+    ////////////////////////
+    function getGachaFee() external pure returns (uint256);
 }
