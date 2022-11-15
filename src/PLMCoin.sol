@@ -26,10 +26,23 @@ contract PLMCoin is ERC20, IPLMCoin {
         _;
     }
 
+    ////////////////////////
+    ///       MINT       ///
+    ////////////////////////
+
+    /// @notice mint by dealer address, function called by only dealer contract
     function mint(uint256 amount) public onlyDealer {
         _mint(msg.sender, amount);
     }
 
+    ////////////////////////
+    ///      SETTER      ///
+    ////////////////////////
+
+    /// @notice set dealer contract address, function called by only Polylemmer EOA
+    /// @dev    "dealer" is a contract that controlls all features including coin dealing in the game.
+    ///         This function must be called when initializing contracts by the deployer manually.
+    ///         ("polylemmer" is contract deployer's address.)
     function setDealer(address _dealer) external onlyPolylemmer {
         dealer = _dealer;
         DealerIsSet = true;
@@ -38,7 +51,9 @@ contract PLMCoin is ERC20, IPLMCoin {
     /////////////////////////
     /// FUNCTION FOR DEMO ///
     /////////////////////////
+
     // FIXME: remove this function after demo.
+    /// @notice mint coins without payment. for demo and test
     function faucet(uint256 amount) public {
         _mint(msg.sender, amount);
     }

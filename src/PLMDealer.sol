@@ -54,7 +54,6 @@ contract PLMDealer is PLMGacha, IPLMDealer {
         require(msg.sender == polylemmer, "sender is not polylemmer");
         _;
     }
-
     modifier onlyMatchOrganizer() {
         require(matchOrganizerIsSet, "matchOrganizer has not been set.");
         require(msg.sender == matchOrganizer, "sender is not matchOrganizer");
@@ -70,10 +69,12 @@ contract PLMDealer is PLMGacha, IPLMDealer {
     /// FUNCTIONS ABOUT FINANCES ///
     ////////////////////////////////
 
+    /// @notice balance of sender MATIC
     function balanceOfMatic() public view returns (uint256) {
         return address(this).balance;
     }
 
+    /// @notice withdraw MATIC send to this contract by player
     function withdraw(uint256 amount) public onlyPolylemmer {
         // Total amount of MATIC this contract owns.
         uint256 totalAmount = address(this).balance;
@@ -94,14 +95,14 @@ contract PLMDealer is PLMGacha, IPLMDealer {
     ///////////////////////////////
     /// FUNCTIONS ABOUT STAMINA ///
     ///////////////////////////////
-    function initializeStamina(address player) internal {
-        _restoreStamina(player);
-    }
 
     // TODO: if block number is smaller than STAMINA_MAX, it cannot work.
+    /// @dev - This function calculate remained stamina ftom retained block numbers and stamina restoring speed.
+    ///        This contract restores the block number at the time when each player's stamina was zero.
+    ///      - When the current block number is less than max stamina point, this function return max stamina.
     function getCurrentStamina(address player) public view returns (uint8) {
         if (block.number < STAMINA_MAX) {
-            // TODO
+            // TODO:
             return STAMINA_MAX;
         } else if (block.number > staminaFromBlock[player]) {
             return
@@ -127,6 +128,12 @@ contract PLMDealer is PLMGacha, IPLMDealer {
         return RESTORE_STAMINA_FEE;
     }
 
+    /// @dev set stamina max value
+    /// @dev Function called in charge() that is the first function users call when they join this game.
+    function initializeStamina(address player) internal {
+        _restoreStamina(player);
+    }
+
     /// @notice need approvement of coin to dealer
     function restoreFullStamina(address player) public nonReentrant {
         require(
@@ -141,6 +148,7 @@ contract PLMDealer is PLMGacha, IPLMDealer {
         _restoreStamina(player);
     }
 
+    /// @dev rewrite the retained block number that indicate the time when stamina is zero to shift it into the past
     function _restoreStamina(address player) internal {
         uint256 restAmount = uint256(STAMINA_MAX) *
             uint256(STAMINA_RESTORE_SPEED);
@@ -149,6 +157,7 @@ contract PLMDealer is PLMGacha, IPLMDealer {
         staminaFromBlock[player] = _safeSubUint256(block.number, restAmount);
     }
 
+    /// @dev rewrite the retained block numbers that indicate the time when stamina is zero to shift it into the feature
     function consumeStaminaForBattle(address player) public onlyMatchOrganizer {
         require(
             block.number >=
@@ -171,6 +180,7 @@ contract PLMDealer is PLMGacha, IPLMDealer {
         }
     }
 
+    /// @notice function called when the battle did not end normally
     function refundStaminaForBattle(address player) public onlyBattleField {
         uint256 candidate1 = _safeSubUint256(
             block.number,
@@ -183,6 +193,7 @@ contract PLMDealer is PLMGacha, IPLMDealer {
         staminaFromBlock[player] = candidate1.max(candidate2);
     }
 
+    // TODO: utils
     function _safeSubUint256(uint256 x, uint256 y)
         internal
         pure
@@ -247,7 +258,7 @@ contract PLMDealer is PLMGacha, IPLMDealer {
         );
     }
 
-    // TODO: requireがいる？
+    // TODO: disable palyers from calling this function
     /// @notice Function to ban account for the period designated by banPeriod.
     /// @dev This function is called from BattleField contract when cheating detected.
     function banAccount(address account, uint256 banPeriod) external {
@@ -332,17 +343,24 @@ contract PLMDealer is PLMGacha, IPLMDealer {
     /// FUNCTIONS USED BY BATTLE FIELD CONTRACT TO CALCULATE REWARD FOR WINNER ///
     //////////////////////////////////////////////////////////////////////////////
 
+    /// @notice Function to pay reward to battle winner address
     function payReward(address winner, uint256 amount) external {
         _payReward(winner, amount);
     }
 
+    /// @dev reward is paid from dealer conteract address
+    ///      coin.transfer is not called directly bacause the function needs to be called by payer of reward, dealer.
     function _payReward(address winner, uint256 amount) internal {
         coin.transfer(winner, amount);
     }
 
     ////////////////////////////
-    /// FUNCTIONS FOR CONFIG ///
+    ///         SETTER       ///
     ////////////////////////////
+
+    /// @notice set match organizer contract address, function called by only Polylemmer EOA
+    /// @dev   This function must be called when initializing contracts by the deployer manually. ("polylemmer" is contract deployer's address.)
+    ///        "matchOrganizer" address is stored in this contract to make some functions able to be called from only matchOrganizer.
     function setMatchOrganizer(address _matchOrganizer)
         external
         onlyPolylemmer
@@ -351,6 +369,9 @@ contract PLMDealer is PLMGacha, IPLMDealer {
         matchOrganizer = _matchOrganizer;
     }
 
+    /// @notice set battle field contract address, function called by only Polylemmer EOA
+    /// @dev   This function must be called when initializing contracts by the deployer manually. ("polylemmer" is contract deployer's address.)
+    ///        "battleField" address is stored in this contract to make some functions able to be called from only battleField.
     function setBattleField(address _battleField) external onlyPolylemmer {
         battleFieldIsSet = true;
         battleField = _battleField;

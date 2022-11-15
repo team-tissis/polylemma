@@ -75,6 +75,12 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
     /// @notice players' information
     mapping(PlayerId => PlayerInfo) playerInfoTable;
 
+    constructor(IPLMDealer _dealer, IPLMToken _token) {
+        dealer = _dealer;
+        token = _token;
+        polylemmer = msg.sender;
+    }
+
     /// @notice Check whether the caller of the function is the valid account.
     /// @param playerId: The player's identifier.
     modifier onlyPlayerOfIdx(PlayerId playerId) {
@@ -198,12 +204,6 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         _;
     }
 
-    constructor(IPLMDealer _dealer, IPLMToken _token) {
-        dealer = _dealer;
-        token = _token;
-        polylemmer = msg.sender;
-    }
-
     /// @notice Commit the player's seed to generate the tokenId for random slot.
     /// @param playerId: the identifier of the player. Alice or Bob.
     /// @param commitString: commitment string calculated by the player designated by playerId
@@ -281,8 +281,6 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
     /// @param playerId: the identifier of the player. Alice or Bob.
     /// @param playerSeed: the choice the player designated by playerId committed in this round.
     ///                    bytes32(0) is not allowed.
-    /// @dev bindingFactor should be used only once. Reusing bindingFactor results in the security
-    ///      vulnerability.
     function revealPlayerSeed(PlayerId playerId, bytes32 playerSeed)
         external
         roundStarted
@@ -375,13 +373,13 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
     }
 
     /// @notice Reveal the committed choice by the player who committed it in this round.
+    /// @dev bindingFactor should be used only once. Reusing bindingFactor results in the security
+    ///      vulnerability.
     /// @param playerId: the identifier of the player. Alice or Bob.
     /// @param levelPoint: the levelPoint the player uses to the chosen character.
     /// @param choice: the choice the player designated by playerId committed in this round.
     ///                Choice.Secret is not allowed.
     /// @param bindingFactor: the secret factor (one-time) used in the generation of the commitment.
-    /// @dev bindingFactor should be used only once. Reusing bindingFactor results in the security
-    ///      vulnerability.
     function revealChoice(
         PlayerId playerId,
         uint8 levelPoint,
@@ -492,6 +490,14 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         }
     }
 
+    /// @notice Function to report enemy player for lazy revealment.
+    /// @dev This function is prepared to deal with the case that one of the player
+    ///      don't reveal his/her choice and it locked the battle forever.
+    ///      In this case, if the enemy (honest) player report him/her after the
+    ///      choice revealmenet timelimit, then the lazy player will be banned,
+    ///      the battle will be canceled, and the stamina of the honest player will
+    ///      be refunded.
+    /// @param playerId: the identifier of the player. Alice or Bob.
     function reportLazyRevealment(PlayerId playerId)
         external
         roundStarted
@@ -515,19 +521,98 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         emit BattleCanceled(playerId);
     }
 
-    function getBattleState() external view returns (BattleState) {
-        return battleState;
-    }
+    /// @notice Function to start the battle.
+    /// @dev This function is called from match organizer.
+    /// @param aliceAddr: the address of the player assigned to Alice.
+    /// @param bobAddr: the address of the player assigned to Bob.
+    /// @param aliceBlockNum: the block number used to view Alice's characters' info.
+    /// @param bobBlockNum: the block number used to view Bob's characters' info.
+    /// @param aliceFixedSlots: tokenIds of Alice's fixed slots.
+    /// @param bobFixedSlots: tokenIds of Bob's fixed slots.
+    function startBattle(
+        address aliceAddr,
+        address bobAddr,
+        uint256 aliceBlockNum,
+        uint256 bobBlockNum,
+        uint256[FIXEDSLOT_NUM] memory aliceFixedSlots,
+        uint256[FIXEDSLOT_NUM] memory bobFixedSlots
+    ) public readyForBattleStart onlyMatchOrganizer {
+        IPLMToken.CharacterInfo[FIXEDSLOT_NUM] memory aliceCharInfos;
+        IPLMToken.CharacterInfo[FIXEDSLOT_NUM] memory bobCharInfos;
 
-    function getRemainingLevel(PlayerId playerId)
-        external
-        view
-        returns (uint256)
-    {
-        return playerInfoTable[playerId].remainingLevelPoint;
+        // Retrieve character infomation by tokenId in the fixed slots.
+        for (uint8 i = 0; i < FIXEDSLOT_NUM; i++) {
+            aliceCharInfos[i] = token.getPriorCharacterInfo(
+                aliceFixedSlots[i],
+                aliceBlockNum
+            );
+            bobCharInfos[i] = token.getPriorCharacterInfo(
+                bobFixedSlots[i],
+                bobBlockNum
+            );
+        }
+
+        // Get level point for both players.
+        uint8 aliceLevelPoint = token.calcLevelPoint(aliceCharInfos);
+        uint8 bobLevelPoint = token.calcLevelPoint(bobCharInfos);
+
+        // Initialize random slots.
+        RandomSlot memory aliceRandomSlot = RandomSlot(
+            token.calcRandomSlotLevel(aliceCharInfos),
+            bytes32(0),
+            false,
+            false,
+            RandomSlotState.NotSet
+        );
+        RandomSlot memory bobRandomSlot = RandomSlot(
+            token.calcRandomSlotLevel(bobCharInfos),
+            bytes32(0),
+            false,
+            false,
+            RandomSlotState.NotSet
+        );
+
+        // Initialize both players' information.
+        PlayerInfo memory aliceInfo = PlayerInfo(
+            aliceAddr,
+            aliceBlockNum,
+            aliceFixedSlots,
+            [false, false, false, false],
+            aliceRandomSlot,
+            PlayerState.Preparing,
+            0,
+            aliceLevelPoint
+        );
+        PlayerInfo memory bobInfo = PlayerInfo(
+            bobAddr,
+            bobBlockNum,
+            bobFixedSlots,
+            [false, false, false, false],
+            bobRandomSlot,
+            PlayerState.Preparing,
+            0,
+            bobLevelPoint
+        );
+
+        // Set the initial character information.
+        playerInfoTable[PlayerId.Alice] = aliceInfo;
+        playerInfoTable[PlayerId.Bob] = bobInfo;
+
+        // Change battle state to wait for the playerSeed commitment.
+        battleState = BattleState.Preparing;
+
+        // Set the block number when the battle has started.
+        playerSeedCommitStartPoint = block.number;
+
+        // Reset round number.
+        numRounds = 0;
+
+        emit BattleStarted(aliceAddr, bobAddr);
     }
 
     /// @notice Function to execute the current round.
+    /// @dev This function is automatically called after both players' choice revealment
+    ///      of this round.
     function _stepRound()
         internal
         nonReentrant
@@ -572,6 +657,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             aliceChar
         );
 
+        // Judge the battle result of this round.
         if (alicePower > bobPower) {
             // Alice wins !!
             playerInfoTable[PlayerId.Alice].winCount++;
@@ -617,6 +703,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             ? aliceWinCount - bobWinCount
             : bobWinCount - aliceWinCount;
 
+        // Check whether the battle round continues or not.
         if (
             aliceWinCount == WIN_COUNT ||
             bobWinCount == WIN_COUNT ||
@@ -627,7 +714,9 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             battleState = BattleState.RoundSettled;
             _settleBattle();
 
+            // Check draw condition.
             bool isDraw = aliceWinCount == bobWinCount;
+
             PlayerId winner = aliceWinCount >= bobWinCount
                 ? PlayerId.Alice
                 : PlayerId.Bob;
@@ -719,10 +808,14 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         } else {
             _payRewardsDraw();
         }
+
+        // Update the proposal state.
         mo.updateProposalState2NonProposal(
             playerInfoTable[PlayerId.Alice].addr,
             playerInfoTable[PlayerId.Bob].addr
         );
+
+        // settle this battle.
         battleState = BattleState.Settled;
     }
 
@@ -742,6 +835,8 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         // Calculate the reward balance of the winner.
         uint16 winnerTotalLevel = _getTotalLevel(winner);
         uint16 loserTotalLevel = _getTotalLevel(loser);
+
+        // Pokemon inspired reward calculation.
         uint48 top = 51 *
             uint48(loserTotalLevel) *
             (uint48(loserTotalLevel) * 2 + 102)**3;
@@ -760,6 +855,8 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         // Calculate the reward balance of both players.
         uint16 aliceTotalLevel = _getTotalLevel(PlayerId.Alice);
         uint16 bobTotalLevel = _getTotalLevel(PlayerId.Bob);
+
+        // Pokemon inspired reward calculation.
         uint48 aliceTop = 51 *
             uint48(aliceTotalLevel) *
             (uint48(aliceTotalLevel) * 2 + 102)**3;
@@ -769,6 +866,8 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         uint48 bottom = (uint48(aliceTotalLevel) +
             uint48(bobTotalLevel) +
             102)**3;
+
+        // The total amount of rewards are smaller then non-draw case.
         uint256 aliceAmount = aliceTop / bottom / 3;
         uint256 bobAmount = bobTop / bottom / 3;
 
@@ -777,93 +876,8 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         dealer.payReward(_getPlayerAddress(PlayerId.Bob), bobAmount);
     }
 
-    function _enemyId(PlayerId playerId) internal pure returns (PlayerId) {
-        return playerId == PlayerId.Alice ? PlayerId.Bob : PlayerId.Alice;
-    }
-
-    /// @notice Function to start the battle.
-    function startBattle(
-        address aliceAddr,
-        address bobAddr,
-        uint256 aliceBlockNum,
-        uint256 bobBlockNum,
-        uint256[FIXEDSLOT_NUM] memory aliceFixedSlots,
-        uint256[FIXEDSLOT_NUM] memory bobFixedSlots
-    ) public readyForBattleStart onlyMatchOrganizer {
-        IPLMToken.CharacterInfo[FIXEDSLOT_NUM] memory aliceCharInfos;
-        IPLMToken.CharacterInfo[FIXEDSLOT_NUM] memory bobCharInfos;
-
-        // Retrieve character infomation by tokenId in the fixed slots.
-        for (uint8 i = 0; i < FIXEDSLOT_NUM; i++) {
-            aliceCharInfos[i] = token.getPriorCharacterInfo(
-                aliceFixedSlots[i],
-                aliceBlockNum
-            );
-            bobCharInfos[i] = token.getPriorCharacterInfo(
-                bobFixedSlots[i],
-                bobBlockNum
-            );
-        }
-
-        // Get level point for both players.
-        uint8 aliceLevelPoint = token.calcLevelPoint(aliceCharInfos);
-        uint8 bobLevelPoint = token.calcLevelPoint(bobCharInfos);
-
-        // Initialize random slots.
-        RandomSlot memory aliceRandomSlot = RandomSlot(
-            token.calcRandomSlotLevel(aliceCharInfos),
-            bytes32(0),
-            false,
-            false,
-            RandomSlotState.NotSet
-        );
-        RandomSlot memory bobRandomSlot = RandomSlot(
-            token.calcRandomSlotLevel(bobCharInfos),
-            bytes32(0),
-            false,
-            false,
-            RandomSlotState.NotSet
-        );
-
-        // Initialize both players' information.
-        PlayerInfo memory aliceInfo = PlayerInfo(
-            aliceAddr,
-            aliceBlockNum,
-            aliceFixedSlots,
-            [false, false, false, false],
-            aliceRandomSlot,
-            PlayerState.Preparing,
-            0,
-            aliceLevelPoint
-        );
-        PlayerInfo memory bobInfo = PlayerInfo(
-            bobAddr,
-            bobBlockNum,
-            bobFixedSlots,
-            [false, false, false, false],
-            bobRandomSlot,
-            PlayerState.Preparing,
-            0,
-            bobLevelPoint
-        );
-
-        // Set the initial character information.
-        playerInfoTable[PlayerId.Alice] = aliceInfo;
-        playerInfoTable[PlayerId.Bob] = bobInfo;
-
-        // Change battle state to wait for the playerSeed commitment.
-        battleState = BattleState.Preparing;
-
-        // Set the block number when the battle has started.
-        playerSeedCommitStartPoint = block.number;
-
-        // Reset round number.
-        numRounds = 0;
-
-        emit BattleStarted(aliceAddr, bobAddr);
-    }
-
     /// @notice Function to mark the slot used in the current round as used.
+    /// @dev This function is called before step round.
     function _markSlot(PlayerId playerId) internal {
         Choice choice = choiceCommitLog[numRounds][playerId].choice;
         if (choice == Choice.Random) {
@@ -875,149 +889,34 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         }
     }
 
-    /// @notice Function to calculate the total level of the fixed slots.
-    /// @param playerId: the identifier of the player. Alice or Bob.
-    function _getTotalLevel(PlayerId playerId) internal view returns (uint16) {
-        uint16 totalLevel = 0;
-        for (uint8 i = 0; i < FIXEDSLOT_NUM; i++) {
-            totalLevel += token
-                .getPriorCharacterInfo(
-                    _getFixedSlotTokenId(playerId, i),
-                    _getStartBlockNum(playerId)
-                )
-                .level;
-        }
-        return totalLevel;
+    ////////////////////////
+    ///      UTILS       ///
+    ////////////////////////
+
+    /// @notice function to get enemy's playerId.
+    function _enemyId(PlayerId playerId) internal pure returns (PlayerId) {
+        return playerId == PlayerId.Alice ? PlayerId.Bob : PlayerId.Alice;
     }
 
-    /// @notice Function to return the player's remainingLevelPoint.
-    /// @param playerId: the identifier of the player. Alice or Bob.
-    function _getRemainingLevelPoint(PlayerId playerId)
-        internal
+    ////////////////////////
+    ///      GETTER      ///
+    ////////////////////////
+
+    function getBattleState() external view returns (BattleState) {
+        return battleState;
+    }
+
+    function getRemainingLevel(PlayerId playerId)
+        external
         view
-        returns (uint8)
+        returns (uint256)
     {
         return playerInfoTable[playerId].remainingLevelPoint;
-    }
-
-    /// @notice Function to return the character information used in this round.
-    /// @param playerId: the identifier of the player. Alice or Bob.
-    function _getChosenCharacterInfo(PlayerId playerId)
-        internal
-        view
-        returns (IPLMToken.CharacterInfo memory)
-    {
-        require(
-            playerId == PlayerId.Alice || playerId == PlayerId.Bob,
-            "Invalid playerId."
-        );
-
-        Choice choice = choiceCommitLog[numRounds][playerId].choice;
-
-        if (choice == Choice.Random) {
-            // Player's choice is in a random slot.
-            return getRandomSlotCharInfo(playerId);
-        } else if (choice == Choice.Secret) {
-            revert("Unreachable !");
-        } else {
-            // Player's choice is in fixed slots.
-            return _getFixedSlotCharInfoOfIdx(playerId, uint8(choice));
-        }
-    }
-
-    function _getRandomSlotState(PlayerId playerId)
-        internal
-        view
-        returns (RandomSlotState)
-    {
-        return playerInfoTable[playerId].randomSlot.state;
-    }
-
-    function _getRandomSlotLevel(PlayerId playerId)
-        internal
-        view
-        returns (uint8)
-    {
-        return playerInfoTable[playerId].randomSlot.level;
-    }
-
-    function _getRandomSlotUsedFlag(PlayerId playerId)
-        internal
-        view
-        returns (bool)
-    {
-        return playerInfoTable[playerId].randomSlot.used;
     }
 
     function getNonce(PlayerId playerId) public view returns (bytes32) {
         require(playerInfoTable[playerId].randomSlot.nonceSet, "no nonce set.");
         return playerInfoTable[playerId].randomSlot.nonce;
-    }
-
-    function _getWinCount(PlayerId playerId) internal view returns (uint8) {
-        return playerInfoTable[playerId].winCount;
-    }
-
-    function _getPlayerSeed(PlayerId playerId) internal view returns (bytes32) {
-        require(
-            _getRandomSlotState(playerId) == RandomSlotState.Revealed,
-            "rand. sl. hasn't been revealed yet."
-        );
-        return playerSeedCommitLog[playerId].playerSeed;
-    }
-
-    function _getPlayerState(PlayerId playerId)
-        internal
-        view
-        returns (PlayerState)
-    {
-        return playerInfoTable[playerId].state;
-    }
-
-    function _getPlayerAddress(PlayerId playerId)
-        internal
-        view
-        returns (address)
-    {
-        return playerInfoTable[playerId].addr;
-    }
-
-    function _getFixedSlotTokenId(PlayerId playerId, uint8 fixedSlotIdx)
-        internal
-        view
-        returns (uint256)
-    {
-        require(fixedSlotIdx < FIXEDSLOT_NUM, "Invalid fixed slot index.");
-        return playerInfoTable[playerId].fixedSlots[fixedSlotIdx];
-    }
-
-    function _getFixedSlotUsedFlag(PlayerId playerId, uint8 fixedSlotIdx)
-        internal
-        view
-        returns (bool)
-    {
-        require(fixedSlotIdx < FIXEDSLOT_NUM, "Invalid fixed slot index.");
-        return playerInfoTable[playerId].slotsUsed[fixedSlotIdx];
-    }
-
-    function _getStartBlockNum(PlayerId playerId)
-        internal
-        view
-        returns (uint256)
-    {
-        return playerInfoTable[playerId].startBlockNum;
-    }
-
-    function _getFixedSlotCharInfoOfIdx(PlayerId playerId, uint8 fixedSlotIdx)
-        internal
-        view
-        returns (IPLMToken.CharacterInfo memory)
-    {
-        return
-            token.getPriorCharacterInfo(
-                _getFixedSlotTokenId(playerId, fixedSlotIdx),
-                _getStartBlockNum(playerId)
-            );
     }
 
     function getFixedSlotCharInfo(PlayerId playerId)
@@ -1111,20 +1010,166 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         return token.getPriorTotalSupply(_getStartBlockNum(playerId));
     }
 
-    function setIPLMMatchOrganizer(
-        IPLMMatchOrganizer _mo,
-        address _matchOrganizer
-    ) external onlyPolylemmer {
-        mo = _mo;
-        matchOrganizer = _matchOrganizer;
-    }
-
     function getRemainingLevelPoint(PlayerId playerId)
         external
         view
         returns (uint8)
     {
         return playerInfoTable[playerId].remainingLevelPoint;
+    }
+
+    /// @notice Function to calculate the total level of the fixed slots.
+    /// @param playerId: the identifier of the player. Alice or Bob.
+    function _getTotalLevel(PlayerId playerId) internal view returns (uint16) {
+        uint16 totalLevel = 0;
+        for (uint8 i = 0; i < FIXEDSLOT_NUM; i++) {
+            totalLevel += token
+                .getPriorCharacterInfo(
+                    _getFixedSlotTokenId(playerId, i),
+                    _getStartBlockNum(playerId)
+                )
+                .level;
+        }
+        return totalLevel;
+    }
+
+    /// @notice Function to return the player's remainingLevelPoint.
+    /// @param playerId: the identifier of the player. Alice or Bob.
+    function _getRemainingLevelPoint(PlayerId playerId)
+        internal
+        view
+        returns (uint8)
+    {
+        return playerInfoTable[playerId].remainingLevelPoint;
+    }
+
+    /// @notice Function to return the character information used in this round.
+    /// @param playerId: the identifier of the player. Alice or Bob.
+    function _getChosenCharacterInfo(PlayerId playerId)
+        internal
+        view
+        returns (IPLMToken.CharacterInfo memory)
+    {
+        require(
+            playerId == PlayerId.Alice || playerId == PlayerId.Bob,
+            "Invalid playerId."
+        );
+
+        Choice choice = choiceCommitLog[numRounds][playerId].choice;
+
+        if (choice == Choice.Random) {
+            // Player's choice is in a random slot.
+            return getRandomSlotCharInfo(playerId);
+        } else if (choice == Choice.Secret) {
+            revert("Unreachable !");
+        } else {
+            // Player's choice is in fixed slots.
+            return _getFixedSlotCharInfoOfIdx(playerId, uint8(choice));
+        }
+    }
+
+    function _getRandomSlotState(PlayerId playerId)
+        internal
+        view
+        returns (RandomSlotState)
+    {
+        return playerInfoTable[playerId].randomSlot.state;
+    }
+
+    function _getRandomSlotLevel(PlayerId playerId)
+        internal
+        view
+        returns (uint8)
+    {
+        return playerInfoTable[playerId].randomSlot.level;
+    }
+
+    function _getRandomSlotUsedFlag(PlayerId playerId)
+        internal
+        view
+        returns (bool)
+    {
+        return playerInfoTable[playerId].randomSlot.used;
+    }
+
+    function _getWinCount(PlayerId playerId) internal view returns (uint8) {
+        return playerInfoTable[playerId].winCount;
+    }
+
+    function _getPlayerSeed(PlayerId playerId) internal view returns (bytes32) {
+        require(
+            _getRandomSlotState(playerId) == RandomSlotState.Revealed,
+            "rand. sl. hasn't been revealed yet."
+        );
+        return playerSeedCommitLog[playerId].playerSeed;
+    }
+
+    function _getPlayerState(PlayerId playerId)
+        internal
+        view
+        returns (PlayerState)
+    {
+        return playerInfoTable[playerId].state;
+    }
+
+    function _getPlayerAddress(PlayerId playerId)
+        internal
+        view
+        returns (address)
+    {
+        return playerInfoTable[playerId].addr;
+    }
+
+    function _getFixedSlotTokenId(PlayerId playerId, uint8 fixedSlotIdx)
+        internal
+        view
+        returns (uint256)
+    {
+        require(fixedSlotIdx < FIXEDSLOT_NUM, "Invalid fixed slot index.");
+        return playerInfoTable[playerId].fixedSlots[fixedSlotIdx];
+    }
+
+    function _getFixedSlotUsedFlag(PlayerId playerId, uint8 fixedSlotIdx)
+        internal
+        view
+        returns (bool)
+    {
+        require(fixedSlotIdx < FIXEDSLOT_NUM, "Invalid fixed slot index.");
+        return playerInfoTable[playerId].slotsUsed[fixedSlotIdx];
+    }
+
+    function _getStartBlockNum(PlayerId playerId)
+        internal
+        view
+        returns (uint256)
+    {
+        return playerInfoTable[playerId].startBlockNum;
+    }
+
+    function _getFixedSlotCharInfoOfIdx(PlayerId playerId, uint8 fixedSlotIdx)
+        internal
+        view
+        returns (IPLMToken.CharacterInfo memory)
+    {
+        return
+            token.getPriorCharacterInfo(
+                _getFixedSlotTokenId(playerId, fixedSlotIdx),
+                _getStartBlockNum(playerId)
+            );
+    }
+
+    ////////////////////////
+    ///      SETTER      ///
+    ////////////////////////
+
+    /// @dev This contract and MatchOrganizer contract is referenced each other.
+    ///      This is the reason why we have to prepare this function.
+    function setIPLMMatchOrganizer(
+        IPLMMatchOrganizer _mo,
+        address _matchOrganizer
+    ) external onlyPolylemmer {
+        mo = _mo;
+        matchOrganizer = _matchOrganizer;
     }
 
     /////////////////////////

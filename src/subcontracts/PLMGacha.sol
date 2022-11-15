@@ -13,6 +13,11 @@ contract PLMGacha is IPLMGacha, ReentrancyGuard {
 
     uint256 constant GACHA_FEE = 5;
 
+    /// @notice pay PLMCoin and mint PLMToken (characters of Polylemma) at random
+    /// @dev    first owner of all PLMToken is this contract because token.mint() is called by this contract.
+    ///         1. pay PLMCoin by the sender
+    ///         2. mint PLMToken by this contract
+    ///         2. transfer minted token from this contract to the sender
     function gacha(bytes32 name) public nonReentrant {
         require(
             coin.allowance(msg.sender, address(this)) >= GACHA_FEE,
@@ -31,7 +36,7 @@ contract PLMGacha is IPLMGacha, ReentrancyGuard {
                     token.getCurrentCharacterInfo(tokenId)
                 );
             } catch Error(string memory reason) {
-                token.burn(tokenId);
+                // token.burn(tokenId);
                 // TODO:emit gacha payment failed
                 revert ErrorWithLog(reason);
             }
@@ -39,6 +44,10 @@ contract PLMGacha is IPLMGacha, ReentrancyGuard {
             revert ErrorWithLog(reason);
         }
     }
+
+    ////////////////////////
+    ///      GETTER      ///
+    ////////////////////////
 
     function getGachaFee() public pure returns (uint256) {
         return GACHA_FEE;

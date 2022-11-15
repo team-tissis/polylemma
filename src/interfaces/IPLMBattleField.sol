@@ -1,4 +1,5 @@
 import {IPLMToken} from "./IPLMToken.sol";
+import {IPLMMatchOrganizer} from "../interfaces/IPLMMatchOrganizer.sol";
 
 interface IPLMBattleField {
     /// @notice Enum to represent battle's state.
@@ -8,19 +9,6 @@ interface IPLMBattleField {
         RoundStarted, // 2
         RoundSettled // 3
     }
-
-    /// @notice Struct to store player's infomation.
-    struct PlayerInfo {
-        address addr;
-        uint256 startBlockNum;
-        uint256[4] fixedSlots;
-        bool[4] slotsUsed;
-        RandomSlot randomSlot;
-        PlayerState state;
-        uint8 winCount;
-        uint8 remainingLevelPoint;
-    }
-
     /// @notice Struct to store the information of the random slot.
     struct RandomSlot {
         uint8 level;
@@ -58,6 +46,18 @@ interface IPLMBattleField {
         Fixed4, // 3
         Random, // 4
         Secret // 5
+    }
+
+    /// @notice Struct to store player's infomation.
+    struct PlayerInfo {
+        address addr;
+        uint256 startBlockNum;
+        uint256[4] fixedSlots;
+        bool[4] slotsUsed;
+        RandomSlot randomSlot;
+        PlayerState state;
+        uint8 winCount;
+        uint8 remainingLevelPoint;
     }
 
     /// @notice Struct to represent the commitment of the choice.
@@ -144,6 +144,10 @@ interface IPLMBattleField {
         uint256[4] calldata bobFixedSlots
     ) external;
 
+    ////////////////////////
+    ///      GETTER      ///
+    ////////////////////////
+
     function getNonce(PlayerId playerId) external view returns (bytes32);
 
     function getFixedSlotCharInfo(PlayerId playerId)
@@ -180,6 +184,15 @@ interface IPLMBattleField {
         external
         view
         returns (uint8);
+
+    ////////////////////////
+    ///      SETTER      ///
+    ////////////////////////
+
+    function setIPLMMatchOrganizer(
+        IPLMMatchOrganizer _mo,
+        address _matchOrganizer
+    ) external;
 
     /////////////////////////
     /// FUNCTION FOR DEMO ///
