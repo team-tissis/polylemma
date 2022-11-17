@@ -14,8 +14,25 @@ interface IPLMBattleField {
         uint8 level;
         bytes32 nonce;
         bool nonceSet;
-        bool used;
+        uint8 roundSlotUsed;
         RandomSlotState state;
+    }
+    /// @notice Struct to store the information on the winner and loser of each round
+    struct RoundResult {
+        bool isDraw;
+        PlayerId winner;
+        PlayerId loser;
+        uint32 winnerDamage;
+        uint32 loserDamage;
+    }
+    /// @notice Struct to store the information on the winner and loser of the battle
+    struct BattleResult {
+        uint8 numRounds;
+        bool isDraw;
+        PlayerId winner;
+        PlayerId loser;
+        uint8 winCount;
+        uint8 loseCount;
     }
 
     /// @notice Random slots' state
@@ -38,6 +55,16 @@ interface IPLMBattleField {
         Revealed // 2
     }
 
+    // TODO: さすがに冗長では？？フロントにこのロジックはうつすべき。
+    enum PlayerStateFromFrontSide {
+        Preparing,
+        CharacterSelecting,
+        WaitingForOpponentCommit,
+        Revealing,
+        Revealed,
+        NoNamed
+    }
+
     /// @notice Enum to represent player's choice of the character fighting in the next round.
     enum Choice {
         Fixed1, // 0
@@ -53,10 +80,11 @@ interface IPLMBattleField {
         address addr;
         uint256 startBlockNum;
         uint256[4] fixedSlots;
-        bool[4] slotsUsed;
+        uint8[4] roundFixedSlotUsed;
         RandomSlot randomSlot;
         PlayerState state;
         uint8 winCount;
+        uint8 maxLevelPoint;
         uint8 remainingLevelPoint;
     }
 
@@ -89,7 +117,7 @@ interface IPLMBattleField {
         uint8 levelPoint,
         Choice choice
     );
-    event RoundResult(
+    event RoundCompleted(
         uint8 numRounds,
         bool isDraw,
         PlayerId winner,
@@ -97,7 +125,7 @@ interface IPLMBattleField {
         uint32 winnerDamage,
         uint32 loserDamage
     );
-    event BattleResult(
+    event BattleCompleted(
         uint8 numRounds,
         bool isDraw,
         PlayerId winner,
@@ -165,6 +193,11 @@ interface IPLMBattleField {
         view
         returns (IPLMToken.CharacterInfo memory);
 
+    function getUsedCharacters(PlayerId playerId)
+        external
+        view
+        returns (uint8[5] memory);
+
     function getPlayerIdFromAddress(address playerAddr)
         external
         view
@@ -180,10 +213,28 @@ interface IPLMBattleField {
         view
         returns (uint256);
 
+    function getCurrentRound() external view returns (uint8);
+
+    function getMaxLevelPoint(PlayerId playerId) external view returns (uint8);
+
     function getRemainingLevelPoint(PlayerId playerId)
         external
         view
         returns (uint8);
+
+    function getRoundResult() external view returns (RoundResult[] memory);
+
+    function getBattleResult() external view returns (BattleResult memory);
+
+    function getPlayerStateFromFrontSide(PlayerId fpId)
+        external
+        view
+        returns (PlayerStateFromFrontSide);
+
+    function isPlayerSeedRevealed(PlayerId playerId)
+        external
+        view
+        returns (bool);
 
     ////////////////////////
     ///      SETTER      ///
