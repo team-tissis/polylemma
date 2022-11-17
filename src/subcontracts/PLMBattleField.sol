@@ -53,8 +53,14 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
     /// @notice state of the battle.
     BattleState battleState;
 
-    /// @notice number of rounds. (< MAX_ROUNDS)
+    /// @notice number of rounds. When on 1st round, numRounds==0 (< MAX_ROUNDS)
     uint8 numRounds;
+
+    /// @notice array of the information on the winner and loser of each round
+    RoundResult[] roundResults;
+
+    /// @notice cache of the battle Result
+    BattleResult battleResult;
 
     /// @notice block number when playerSeed commitment starts.
     uint256 playerSeedCommitStartPoint;
@@ -197,6 +203,10 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
 
     /// @notice Check that this battle is ready for start.
     modifier readyForBattleStart() {
+        require(
+            roundResults.length == 0,
+            "round array hasn't been reseted yet."
+        );
         require(
             battleState == BattleState.Settled,
             "Battle is not ready for start."
@@ -561,14 +571,14 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             token.calcRandomSlotLevel(aliceCharInfos),
             bytes32(0),
             false,
-            false,
+            0,
             RandomSlotState.NotSet
         );
         RandomSlot memory bobRandomSlot = RandomSlot(
             token.calcRandomSlotLevel(bobCharInfos),
             bytes32(0),
             false,
-            false,
+            0,
             RandomSlotState.NotSet
         );
 
@@ -577,20 +587,22 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             aliceAddr,
             aliceBlockNum,
             aliceFixedSlots,
-            [false, false, false, false],
+            [0, 0, 0, 0],
             aliceRandomSlot,
             PlayerState.Preparing,
             0,
+            aliceLevelPoint,
             aliceLevelPoint
         );
         PlayerInfo memory bobInfo = PlayerInfo(
             bobAddr,
             bobBlockNum,
             bobFixedSlots,
-            [false, false, false, false],
+            [0, 0, 0, 0],
             bobRandomSlot,
             PlayerState.Preparing,
             0,
+            bobLevelPoint,
             bobLevelPoint
         );
 
@@ -662,7 +674,16 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             // Alice wins !!
             playerInfoTable[PlayerId.Alice].winCount++;
 
-            emit RoundResult(
+            roundResults.push(
+                RoundResult(
+                    false,
+                    PlayerId.Alice,
+                    PlayerId.Bob,
+                    alicePower,
+                    bobPower
+                )
+            );
+            emit RoundCompleted(
                 numRounds,
                 false,
                 PlayerId.Alice,
@@ -673,8 +694,16 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         } else if (alicePower < bobPower) {
             // Bob wins !!
             playerInfoTable[PlayerId.Bob].winCount++;
-
-            emit RoundResult(
+            roundResults.push(
+                RoundResult(
+                    false,
+                    PlayerId.Bob,
+                    PlayerId.Alice,
+                    bobPower,
+                    alicePower
+                )
+            );
+            emit RoundCompleted(
                 numRounds,
                 false,
                 PlayerId.Bob,
@@ -684,7 +713,16 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             );
         } else {
             // Draw !!
-            emit RoundResult(
+            roundResults.push(
+                RoundResult(
+                    true,
+                    PlayerId.Alice,
+                    PlayerId.Bob,
+                    alicePower,
+                    bobPower
+                )
+            );
+            emit RoundCompleted(
                 numRounds,
                 true,
                 PlayerId.Alice,
@@ -724,7 +762,15 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             uint8 winCount = _getWinCount(winner);
             uint8 loseCount = _getWinCount(loser);
 
-            emit BattleResult(
+            battleResult = BattleResult(
+                numRounds - 1,
+                isDraw,
+                winner,
+                loser,
+                winCount,
+                loseCount
+            );
+            emit BattleCompleted(
                 numRounds - 1,
                 isDraw,
                 winner,
@@ -817,6 +863,10 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
 
         // settle this battle.
         battleState = BattleState.Settled;
+        // reset roundResult array
+        while (roundResults.length > 0) {
+            roundResults.pop();
+        }
     }
 
     /// @notice called in _banCheater function.
@@ -827,6 +877,10 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
             playerInfoTable[PlayerId.Bob].addr
         );
         battleState = BattleState.Settled;
+        // rest roundResult array
+        while (roundResults.length > 0) {
+            roundResults.pop();
+        }
     }
 
     /// @notice Function to pay reward to the winner.
@@ -881,11 +935,13 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
     function _markSlot(PlayerId playerId) internal {
         Choice choice = choiceCommitLog[numRounds][playerId].choice;
         if (choice == Choice.Random) {
-            playerInfoTable[playerId].randomSlot.used = true;
+            playerInfoTable[playerId].randomSlot.roundSlotUsed = numRounds + 1;
         } else if (choice == Choice.Secret) {
             revert("Unreachable!");
         } else {
-            playerInfoTable[playerId].slotsUsed[uint8(choice)] = true;
+            playerInfoTable[playerId].roundFixedSlotUsed[uint8(choice)] =
+                numRounds +
+                1;
         }
     }
 
@@ -902,9 +958,12 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
     ///      GETTER      ///
     ////////////////////////
 
-    function getBattleState() external view returns (BattleState) {
+    function getBattleState() public view returns (BattleState) {
         return battleState;
     }
+
+    // TODO:
+    // function getPlayerState() external view returns (Player) {}
 
     function getRemainingLevel(PlayerId playerId)
         external
@@ -967,6 +1026,18 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         return playerCharInfo;
     }
 
+    function getUsedCharacters(PlayerId playerId)
+        external
+        view
+        returns (uint8[5] memory)
+    {
+        uint8[5] memory order;
+        for (uint8 i = 0; i < 4; i++) {
+            order[i] = _getRoundFixedSlotUsed(playerId, i);
+        }
+        return order;
+    }
+
     function getPlayerIdFromAddress(address playerAddr)
         public
         view
@@ -1010,12 +1081,89 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         return token.getPriorTotalSupply(_getStartBlockNum(playerId));
     }
 
+    /// @dev 0-indexed
+    function getCurrentRound() external view returns (uint8) {
+        return numRounds;
+    }
+
+    function getMaxLevelPoint(PlayerId playerId) external view returns (uint8) {
+        return playerInfoTable[playerId].maxLevelPoint;
+    }
+
     function getRemainingLevelPoint(PlayerId playerId)
         external
         view
         returns (uint8)
     {
         return playerInfoTable[playerId].remainingLevelPoint;
+    }
+
+    function getRoundResult() external view returns (RoundResult[] memory) {
+        uint256 count = roundResults.length;
+        RoundResult[] memory results = new RoundResult[](count);
+        for (uint256 i = 0; i < count; i++) {
+            results[i] = roundResults[i];
+        }
+        return results;
+    }
+
+    function getBattleResult() external view returns (BattleResult memory) {
+        return battleResult;
+    }
+
+    // TODO: さすがに冗長では？？フロントにこのロジックはうつすべき。
+    function getPlayerStateFromFrontSide(PlayerId playerId)
+        external
+        view
+        returns (PlayerStateFromFrontSide)
+    {
+        PlayerId opponentId;
+        if (playerId == PlayerId.Alice) {
+            opponentId = PlayerId.Bob;
+        } else {
+            opponentId = PlayerId.Alice;
+        }
+
+        // The round hasn't started. PlayerSeeds haven't been commietted.
+        if (getBattleState() == BattleState.Preparing) {
+            return PlayerStateFromFrontSide.Preparing;
+        }
+
+        if (_getPlayerState(playerId) == PlayerState.Preparing) {
+            return PlayerStateFromFrontSide.CharacterSelecting;
+        }
+
+        if (
+            _getPlayerState(playerId) == PlayerState.Committed &&
+            _getPlayerState(playerId) == PlayerState.Preparing
+        ) {
+            return PlayerStateFromFrontSide.WaitingForOpponentCommit;
+        }
+
+        if (
+            (_getPlayerState(playerId) == PlayerState.Committed &&
+                playerInfoTable[opponentId].state == PlayerState.Committed) ||
+            ((_getPlayerState(playerId) == PlayerState.Revealed ||
+                playerInfoTable[opponentId].state == PlayerState.Revealed) &&
+                !(_getPlayerState(playerId) == PlayerState.Revealed &&
+                    playerInfoTable[opponentId].state == PlayerState.Revealed))
+        ) {
+            return PlayerStateFromFrontSide.Revealing;
+        } else if (
+            _getPlayerState(playerId) == PlayerState.Revealed &&
+            playerInfoTable[opponentId].state == PlayerState.Revealed
+        ) {
+            return PlayerStateFromFrontSide.Revealed;
+        }
+        return PlayerStateFromFrontSide.NoNamed;
+    }
+
+    function isPlayerSeedRevealed(PlayerId playerId)
+        external
+        view
+        returns (bool)
+    {
+        return _getRandomSlotState(playerId) == RandomSlotState.Revealed;
     }
 
     /// @notice Function to calculate the total level of the fixed slots.
@@ -1089,7 +1237,15 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         view
         returns (bool)
     {
-        return playerInfoTable[playerId].randomSlot.used;
+        return playerInfoTable[playerId].randomSlot.roundSlotUsed > 0;
+    }
+
+    function _getRoundFixedSlotUsed(PlayerId playerId)
+        internal
+        view
+        returns (uint8)
+    {
+        return playerInfoTable[playerId].randomSlot.roundSlotUsed;
     }
 
     function _getWinCount(PlayerId playerId) internal view returns (uint8) {
@@ -1135,7 +1291,16 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
         returns (bool)
     {
         require(fixedSlotIdx < FIXEDSLOT_NUM, "Invalid fixed slot index.");
-        return playerInfoTable[playerId].slotsUsed[fixedSlotIdx];
+        return playerInfoTable[playerId].roundFixedSlotUsed[fixedSlotIdx] > 0;
+    }
+
+    function _getRoundFixedSlotUsed(PlayerId playerId, uint8 fixedSlotIdx)
+        internal
+        view
+        returns (uint8)
+    {
+        require(fixedSlotIdx < FIXEDSLOT_NUM, "Invalid fixed slot index.");
+        return playerInfoTable[playerId].roundFixedSlotUsed[fixedSlotIdx];
     }
 
     function _getStartBlockNum(PlayerId playerId)
@@ -1178,6 +1343,10 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard {
     // FIXME: remove this function after demo.
     function forceInitBattle() public {
         battleState = BattleState.Settled;
+        // rest roundResult array
+        while (roundResults.length > 0) {
+            roundResults.pop();
+        }
         mo.setNonProposal(_getPlayerAddress(PlayerId.Alice));
         mo.setNonProposal(_getPlayerAddress(PlayerId.Bob));
     }
