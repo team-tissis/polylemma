@@ -53,7 +53,7 @@ contract BattleDamageTest is Test {
         dealer.charge{value: maticForEx}();
     }
 
-    function testCalcPower() public {
+    function testCalcDamage() public {
         uint8 numRounds = 0;
         string[] memory characterTypes = token.getCharacterTypes();
         uint8[] memory attributeRarities = token.getAttributeRarities();
@@ -68,7 +68,7 @@ contract BattleDamageTest is Test {
         player1Char.rarity = attributeRarities[player1AttributeId];
         player1Char.attributeIds = [player1AttributeId];
         uint8 player1LevelPoint = 3;
-        uint8 player1BondPoint = 1;
+        uint8 player1BondLevel = 1;
 
         PLMToken.CharacterInfo memory player2Char;
         player2Char.name = bytes20("Bob");
@@ -78,22 +78,22 @@ contract BattleDamageTest is Test {
         player2Char.rarity = attributeRarities[player1AttributeId];
         player2Char.attributeIds = [player1AttributeId];
         uint8 player2LevelPoint = 2;
-        uint8 player2BondPoint = 1;
+        uint8 player2BondLevel = 1;
 
-        uint32 alicePower = token.calcPower(
+        uint32 aliceDamage = token.getDamage(
             numRounds,
             player1Char,
             player1LevelPoint,
-            player1BondPoint,
+            player1BondLevel,
             player2Char
         );
-        uint32 bobPower = token.calcPower(
+        uint32 bobDamage = token.getDamage(
             numRounds,
             player2Char,
             player2LevelPoint,
-            player2BondPoint,
+            player2BondLevel,
             player1Char
         );
-        assertEq(alicePower, bobPower);
+        assertEq(aliceDamage, bobDamage);
     }
 }

@@ -22,18 +22,21 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
     using Strings for uint8;
     using Strings for uint256;
 
-    address polylemmer;
+    IPLMCoin coin;
+
+    address polylemmers;
     address dealer;
     address enhancer;
 
     // FIXME: this parameter name should start from lower case character.
-    bool DealerIsSet;
+    bool dealerIsSet;
+
     uint256 maxSupply;
-    IPLMCoin coin;
-    string baseImgURI =
-        "https://raw.githubusercontent.com/team-tissis/polylemma-img/main/images/";
 
     uint256 private currentTokenId = 0;
+
+    string baseImgURI =
+        "https://raw.githubusercontent.com/team-tissis/polylemma-img/main/images/";
 
     /// @notice The number of totalSupply checkpoints.
     uint32 numTotalSupplyCheckpoints;
@@ -49,168 +52,27 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
     mapping(uint256 => mapping(uint32 => CharInfoCheckpoint)) charInfoCheckpoints;
 
     constructor(IPLMCoin _coin, uint256 _maxSupply) ERC721("Polylemma", "PLM") {
-        polylemmer = msg.sender;
+        polylemmers = msg.sender;
         coin = _coin;
         maxSupply = _maxSupply;
-        DealerIsSet = false;
+        dealerIsSet = false;
     }
 
-    modifier onlyPolylemmer() {
+    modifier onlyPolylemmers() {
         require(
-            msg.sender == polylemmer,
-            "Permission denied. Sender is not polylemmer."
+            msg.sender == polylemmers,
+            "Permission denied. Sender is not polylemmers."
         );
         _;
     }
 
     modifier onlyDealer() {
-        require(DealerIsSet, "dealer has not been set.");
+        require(dealerIsSet, "dealer has not been set.");
         require(
             msg.sender == dealer,
             "Permission denied. Sender is not dealer."
         );
         _;
-    }
-
-    /// @dev By setting gacha contract's address to dealer, only gacha contract can mint
-    ///      PLM token.
-    function mint(bytes32 name) public onlyDealer returns (uint256) {
-        currentTokenId++;
-        return _mintTo(dealer, currentTokenId, name);
-    }
-
-    /// // FIXME: Burn function should be modified later.
-    /// //        (e.g.) get PLM coin instead. but, the refunding amout should be lower than
-    /// //               gacha fee.
-    /// function burn(uint256 tokenId) public onlyDealer {
-    ///     _burn(tokenId);
-    /// }
-
-    /// @notice increment level with consuming his coin
-    function updateLevel(uint256 tokenId) external nonReentrant {
-        require(
-            msg.sender == ownerOf(tokenId),
-            "Permission denied. Sender is not owner of this token"
-        );
-        require(getCurrentCharacterInfo(tokenId).level <= 255, "level is max.");
-
-        uint256 necessaryExp = getNecessaryExp(tokenId);
-        // whether user have delgated this contract to spend coin for levelup
-        require(
-            coin.allowance(msg.sender, address(this)) >= necessaryExp,
-            "not enough Coin allowance"
-        );
-        // whether user have ehough coin to increment level
-        require(
-            coin.balanceOf(msg.sender) >= necessaryExp,
-            "not enough coin to update level"
-        );
-
-        try coin.transferFrom(msg.sender, polylemmer, necessaryExp) {
-            _updateLevel(tokenId);
-        } catch Error(string memory reason) {
-            revert ErrorWithLog(reason);
-        }
-    }
-
-    /// @notice Function to calculate current bond point.
-    function calcCurrentBondLevel(uint8 level, uint256 startBlock)
-        public
-        view
-        returns (uint32)
-    {
-        return _calcBondLevel(level, startBlock, block.number);
-    }
-
-    /// @notice Function to calculate prior bond point.
-    function calcPriorBondLevel(
-        uint8 level,
-        uint256 startBlock,
-        uint256 lastBlock
-    ) public pure returns (uint32) {
-        return _calcBondLevel(level, startBlock, lastBlock);
-    }
-
-    /// @notice Function to return tokenURI.
-    /// @dev The output of this function will be used by OpenSea.
-    function tokenURI(uint256 tokenId)
-        public
-        view
-        override(ERC721, IPLMToken)
-        returns (string memory)
-    {
-        require(_exists(tokenId), "tokenId doesn't exist");
-
-        CharacterInfo memory charInfo = getCurrentCharacterInfo(tokenId);
-
-        // (e.g.) PLM #5 monster
-        string memory name_ = string(
-            abi.encodePacked(
-                "PLM #",
-                tokenId.toString(),
-                " ",
-                bytes32ToString(charInfo.name)
-            )
-        );
-        string memory attributes = "[";
-        attributes = string(
-            abi.encodePacked(
-                attributes,
-                '{"trait_type": "Type", "value": "',
-                charInfo.characterType,
-                '"}'
-            )
-        );
-        attributes = string(
-            abi.encodePacked(
-                attributes,
-                ', {"trait_type": "Level", "value": "',
-                charInfo.level.toString(),
-                '"}'
-            )
-        );
-        attributes = string(
-            abi.encodePacked(
-                attributes,
-                ', {"trait_type": "Rarity", "value": "',
-                charInfo.rarity.toString(),
-                '"}'
-            )
-        );
-        for (uint8 i = 0; i < charInfo.attributeIds.length; i++) {
-            attributes = string(
-                abi.encodePacked(
-                    attributes,
-                    ', {"trait_type": "attribute #',
-                    (i + 1).toString(),
-                    '", "value": "',
-                    charInfo.attributeIds[i].toString(),
-                    '"}'
-                )
-            );
-        }
-        attributes = string(abi.encodePacked(attributes, "]"));
-
-        return
-            string(
-                abi.encodePacked(
-                    "data:application/json;base64,",
-                    Base64.encode(
-                        abi.encodePacked(
-                            "{",
-                            '"name": "',
-                            name_,
-                            '"',
-                            ', "image": "',
-                            getImgURI(charInfo.imgId),
-                            '"',
-                            ', "attributes": ',
-                            attributes,
-                            "}"
-                        )
-                    )
-                )
-            );
     }
 
     /// @notice core logic of levelup.
@@ -238,12 +100,12 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
     ///         The character can be enhanced up to the twice as much level as its normal level.
     function _calcBondLevel(
         uint8 level,
-        uint256 startBlock,
-        uint256 lastBlock
+        uint256 fromBlock,
+        uint256 toBlock
     ) internal pure returns (uint32) {
         // TODO: we should increase this factor.
         uint256 blockPeriod = 50;
-        uint32 ownershipPeriod = uint32((lastBlock - startBlock) / blockPeriod);
+        uint32 ownershipPeriod = uint32((toBlock - fromBlock) / blockPeriod);
         return ownershipPeriod < level * 2 ? ownershipPeriod : level * 2;
     }
 
@@ -347,7 +209,7 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
             block.number,
             characterTypes[seed.characterType],
             1,
-            _calcRarity(seed.characterType, [seed.attribute]),
+            _calcRarity([seed.attribute]),
             [seed.attribute]
         );
 
@@ -449,13 +311,171 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
         return baseImgURI;
     }
 
+    /// @notice get URL of storage where image png file specifid with imgId is stored
+    function _imgURI(uint256 imgId) internal view returns (string memory) {
+        return
+            bytes(_baseImgURI()).length > 0
+                ? string(abi.encodePacked(baseImgURI, imgId.toString(), ".png"))
+                : "";
+    }
+
     ////////////////////////
-    ///      GETTER      ///
+    ///  TOKEN FUNCTIONS ///
     ////////////////////////
+
+    /// @dev By setting gacha contract's address to dealer, only gacha contract can mint
+    ///      PLM token.
+    function mint(bytes32 name) external onlyDealer returns (uint256) {
+        currentTokenId++;
+        return _mintTo(dealer, currentTokenId, name);
+    }
+
+    /// // FIXME: Burn function should be modified later.
+    /// //        (e.g.) get PLM coin instead. but, the refunding amout should be lower than
+    /// //               gacha fee.
+    /// function burn(uint256 tokenId) external onlyDealer {
+    ///     _burn(tokenId);
+    /// }
+
+    /// @notice increment level with consuming his coin
+    function updateLevel(uint256 tokenId) external nonReentrant {
+        require(
+            msg.sender == ownerOf(tokenId),
+            "Permission denied. Sender is not owner of this token"
+        );
+        require(getCurrentCharacterInfo(tokenId).level <= 255, "level is max.");
+
+        uint256 necessaryExp = _necessaryExp(tokenId);
+        // whether user have delgated this contract to spend coin for levelup
+        require(
+            coin.allowance(msg.sender, address(this)) >= necessaryExp,
+            "not enough Coin allowance"
+        );
+        // whether user have ehough coin to increment level
+        require(
+            coin.balanceOf(msg.sender) >= necessaryExp,
+            "not enough coin to update level"
+        );
+
+        try coin.transferFrom(msg.sender, polylemmers, necessaryExp) {
+            _updateLevel(tokenId);
+        } catch Error(string memory reason) {
+            revert ErrorWithLog(reason);
+        }
+    }
+
+    /// @notice Function to return tokenURI.
+    /// @dev The output of this function will be used by OpenSea.
+    function tokenURI(uint256 tokenId)
+        public
+        view
+        override(ERC721, IPLMToken)
+        returns (string memory)
+    {
+        require(_exists(tokenId), "tokenId doesn't exist");
+
+        CharacterInfo memory charInfo = getCurrentCharacterInfo(tokenId);
+
+        // (e.g.) PLM #5 monster
+        string memory name_ = string(
+            abi.encodePacked(
+                "PLM #",
+                tokenId.toString(),
+                " ",
+                bytes32ToString(charInfo.name)
+            )
+        );
+        string memory attributes = "[";
+        attributes = string(
+            abi.encodePacked(
+                attributes,
+                '{"trait_type": "Type", "value": "',
+                charInfo.characterType,
+                '"}'
+            )
+        );
+        attributes = string(
+            abi.encodePacked(
+                attributes,
+                ', {"trait_type": "Level", "value": "',
+                charInfo.level.toString(),
+                '"}'
+            )
+        );
+        attributes = string(
+            abi.encodePacked(
+                attributes,
+                ', {"trait_type": "Rarity", "value": "',
+                charInfo.rarity.toString(),
+                '"}'
+            )
+        );
+        for (uint8 i = 0; i < charInfo.attributeIds.length; i++) {
+            attributes = string(
+                abi.encodePacked(
+                    attributes,
+                    ', {"trait_type": "attribute #',
+                    (i + 1).toString(),
+                    '", "value": "',
+                    charInfo.attributeIds[i].toString(),
+                    '"}'
+                )
+            );
+        }
+        attributes = string(abi.encodePacked(attributes, "]"));
+
+        return
+            string(
+                abi.encodePacked(
+                    "data:application/json;base64,",
+                    Base64.encode(
+                        abi.encodePacked(
+                            "{",
+                            '"name": "',
+                            name_,
+                            '"',
+                            ', "image": "',
+                            _imgURI(charInfo.imgId),
+                            '"',
+                            ', "attributes": ',
+                            attributes,
+                            "}"
+                        )
+                    )
+                )
+            );
+    }
+
+    function _necessaryExp(uint256 tokenId) internal view returns (uint256) {
+        CharacterInfo memory charInfo = getCurrentCharacterInfo(tokenId);
+        return _calcNecessaryExp(charInfo);
+    }
+
+    ////////////////////////
+    ///      GETTERS     ///
+    ////////////////////////
+
+    /// @notice Function to calculate current bond point.
+    function getCurrentBondLevel(uint8 level, uint256 fromBlock)
+        public
+        view
+        returns (uint32)
+    {
+        return _calcBondLevel(level, fromBlock, block.number);
+    }
+
+    /// @notice Function to calculate prior bond point.
+    function getPriorBondLevel(
+        uint8 level,
+        uint256 fromBlock,
+        uint256 toBlock
+    ) external pure returns (uint32) {
+        return _calcBondLevel(level, fromBlock, toBlock);
+    }
 
     /// @notice Function to return the tokenIds of tokens owned by the account.
     function getAllTokenOwned(address account)
-        public
+        external
         view
         returns (uint256[] memory)
     {
@@ -473,7 +493,7 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
     // TODO: We should optimize this function to reduce gas fee in the future.
     /// @notice Function to get the list of existing all characters' information.
     function getAllCharacterInfo()
-        public
+        external
         view
         override
         returns (CharacterInfo[] memory)
@@ -492,19 +512,18 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
     ///         by tokenId.
     /// @dev This function is called when calculating bond point in battle field contract.
     function getElapsedFromBlock(uint256 tokenId)
-        public
+        external
         view
         returns (uint256)
     {
         return block.number - getCurrentCharacterInfo(tokenId).fromBlock;
     }
 
-    function getNecessaryExp(uint256 tokenId) public view returns (uint256) {
-        CharacterInfo memory charInfo = getCurrentCharacterInfo(tokenId);
-        return _calcNecessaryExp(charInfo);
+    function getNecessaryExp(uint256 tokenId) external view returns (uint256) {
+        return _necessaryExp(tokenId);
     }
 
-    function getDealer() public view returns (address) {
+    function getDealer() external view returns (address) {
         return dealer;
     }
 
@@ -535,7 +554,7 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
      * @return CharacterInfo of the token had as of the given block
      */
     function getPriorCharacterInfo(uint256 tokenId, uint256 blockNumber)
-        public
+        external
         view
         returns (CharacterInfo memory)
     {
@@ -557,16 +576,12 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
         }
     }
 
-    /// @notice get URL of storage where image png file specifid with imgId is stored
-    function getImgURI(uint256 imgId) public view returns (string memory) {
-        return
-            bytes(_baseImgURI()).length > 0
-                ? string(abi.encodePacked(baseImgURI, imgId.toString(), ".png"))
-                : "";
+    function getImgURI(uint256 imgId) external returns (string memory) {
+        return _imgURI(imgId);
     }
 
     function getPriorTotalSupply(uint256 blockNumber)
-        public
+        external
         view
         returns (uint256)
     {
@@ -588,21 +603,21 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
     }
 
     ////////////////////////
-    ///      SETTER      ///
+    ///      SETTERS     ///
     ////////////////////////
 
     function setDealer(address newDealer) external {
-        DealerIsSet = true;
+        dealerIsSet = true;
         dealer = newDealer;
     }
 
-    function setNumImg(uint256 _numImg) external onlyPolylemmer {
+    function setNumImg(uint256 _numImg) external onlyPolylemmers {
         numImg = _numImg;
     }
 
     function setBaseImgURI(string calldata _newBaseImgURI)
         external
-        onlyPolylemmer
+        onlyPolylemmers
     {
         baseImgURI = _newBaseImgURI;
     }

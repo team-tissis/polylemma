@@ -1,4 +1,8 @@
 interface IPLMData {
+    ////////////////////////
+    ///      STRUCTS     ///
+    ////////////////////////
+
     struct CharacterInfo {
         bytes32 name;
         uint256 imgId;
@@ -9,27 +13,27 @@ interface IPLMData {
         uint8[1] attributeIds;
     }
 
-    function calcPower(
+    ////////////////////////
+    ///      GETTERS     ///
+    ////////////////////////
+
+    function getDamage(
         uint8 numRounds,
-        CharacterInfo calldata player1Char,
-        uint8 player1LevelPoint,
-        uint32 player1BondLevel,
-        CharacterInfo calldata player2Char
+        CharacterInfo calldata playerChar,
+        uint8 playerLevelPoint,
+        uint32 playerBondLevel,
+        CharacterInfo calldata enemyChar
     ) external view returns (uint32);
 
-    function calcLevelPoint(CharacterInfo[4] calldata charInfos)
+    function getLevelPoint(CharacterInfo[4] calldata charInfos)
         external
         pure
         returns (uint8);
 
-    function calcRandomSlotLevel(CharacterInfo[4] calldata charInfos)
+    function getRandomSlotLevel(CharacterInfo[4] calldata charInfos)
         external
         pure
         returns (uint8);
-
-    ////////////////////////
-    ///      GETTER      ///
-    ////////////////////////
 
     function getPoolingPercentage(uint256 amount)
         external
@@ -38,7 +42,7 @@ interface IPLMData {
 
     function getCharacterTypes() external view returns (string[] memory);
 
-    function countCharacterTypes() external view returns (uint256);
+    function getNumCharacterTypes() external view returns (uint256);
 
     function getCumulativeCharacterTypeOdds()
         external
@@ -47,7 +51,7 @@ interface IPLMData {
 
     function getAttributeRarities() external view returns (uint8[] memory);
 
-    function countAttributes() external view returns (uint256);
+    function getNumAttributes() external view returns (uint256);
 
     function getCumulativeAttributeOdds()
         external

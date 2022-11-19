@@ -17,116 +17,120 @@ contract PLMData is IPLMData {
 
     /// @notice ratio of probability of type occurrence
     uint8[] public characterTypeOdds = [1, 1, 1];
+
     /// @notice rarity of attribute
     uint8[] public attributeRarities = [1, 4, 3, 3, 3, 2, 2, 1, 4, 5];
+
     /// @notice ratio of probability of attribute occurrence
     uint8[] public attributeOddsPerRarity = [35, 30, 20, 10, 5];
+
     /// @notice number of PLMToken images
     uint256 numImg = 38;
+
     /// @notice Progressive taxation of coin issuance through billing
     uint256[] public poolingPercentageTable = [5, 10, 20, 23, 33, 40, 45];
 
     /// @notice function to simulate the battle and return back result to BattleField contract.
-    function calcPower(
+    function _calcDamage(
         uint8 numRounds,
-        CharacterInfo calldata player1Char,
-        uint8 player1LevelPoint,
-        uint32 player1BondLevel,
-        CharacterInfo calldata player2Char
-    ) external view returns (uint32) {
+        CharacterInfo calldata playerChar,
+        uint8 playerLevelPoint,
+        uint32 playerBondLevel,
+        CharacterInfo calldata enemyChar
+    ) internal view returns (uint32) {
         uint32 bigNumber = 16384;
-        uint8 basePowerRate = 10;
+        uint8 baseDamageRate = 10;
 
         uint256 denominator;
         uint256 numerator;
         (denominator, numerator) = _typeCompatibility(
-            player1Char.characterType,
-            player2Char.characterType
+            playerChar.characterType,
+            enemyChar.characterType
         );
 
-        uint32 power = player1Char.level * basePowerRate;
+        uint32 damage = playerChar.level * baseDamageRate;
         if (_rate(30)) {
-            power += player1BondLevel;
+            damage += playerBondLevel;
         }
 
-        if (player1Char.attributeIds[0] == 0) {
+        if (playerChar.attributeIds[0] == 0) {
             // ID 0: no attributes
-            power += player1LevelPoint * basePowerRate;
-            power = _mulFloat(power, denominator, numerator);
-        } else if (player1Char.attributeIds[0] == 1) {
+            damage += playerLevelPoint * baseDamageRate;
+            damage = _mulFloat(damage, denominator, numerator);
+        } else if (playerChar.attributeIds[0] == 1) {
             // ID 1: win the battle when the level is same value as the opponent
-            power += player1LevelPoint * basePowerRate;
-            if (player1Char.level == player2Char.level) {
+            damage += playerLevelPoint * baseDamageRate;
+            if (playerChar.level == enemyChar.level) {
                 denominator *= bigNumber;
             }
-            power = _mulFloat(power, denominator, numerator);
-        } else if (player1Char.attributeIds[0] == 2) {
+            damage = _mulFloat(damage, denominator, numerator);
+        } else if (playerChar.attributeIds[0] == 2) {
             // ID 2: damage increase when the character is used in the first half of battle
-            power += player1LevelPoint * basePowerRate;
+            damage += playerLevelPoint * baseDamageRate;
             if (_rate(30)) {
                 denominator *= 15 - numRounds;
                 numerator *= 10;
             }
-            power = _mulFloat(power, denominator, numerator);
-        } else if (player1Char.attributeIds[0] == 3) {
+            damage = _mulFloat(damage, denominator, numerator);
+        } else if (playerChar.attributeIds[0] == 3) {
             // ID 3: increase winning reward
-            power += player1LevelPoint * basePowerRate;
-            power = _mulFloat(power, denominator, numerator);
+            damage += playerLevelPoint * baseDamageRate;
+            damage = _mulFloat(damage, denominator, numerator);
             // TODO: 得られるコインを増やす
-        } else if (player1Char.attributeIds[0] == 4) {
+        } else if (playerChar.attributeIds[0] == 4) {
             // ID 4: increase level points
-            power = _mulFloat(power, denominator, numerator);
-            power += _mulFloat(
-                player1LevelPoint * basePowerRate,
+            damage = _mulFloat(damage, denominator, numerator);
+            damage += _mulFloat(
+                playerLevelPoint * baseDamageRate,
                 15 * denominator,
                 10 * numerator
             );
-        } else if (player1Char.attributeIds[0] == 5) {
+        } else if (playerChar.attributeIds[0] == 5) {
             // ID 5: Easy to hit a vital point
-            power += player1LevelPoint * basePowerRate;
+            damage += playerLevelPoint * baseDamageRate;
             if (_rate(20)) {
                 denominator *= 12;
                 numerator *= 10;
             }
-            power = _mulFloat(power, denominator, numerator);
-        } else if (player1Char.attributeIds[0] == 6) {
+            damage = _mulFloat(damage, denominator, numerator);
+        } else if (playerChar.attributeIds[0] == 6) {
             // ID 6: nullifies the effects of the attribute
-            power += player1LevelPoint * basePowerRate;
-        } else if (player1Char.attributeIds[0] == 7) {
+            damage += playerLevelPoint * baseDamageRate;
+        } else if (playerChar.attributeIds[0] == 7) {
             // ID 7: decide the victory regardless of damage dealing
-            power += player1LevelPoint * basePowerRate;
+            damage += playerLevelPoint * baseDamageRate;
             if (_rate(5)) {
                 denominator *= bigNumber;
             }
-            power = _mulFloat(power, denominator, numerator);
-        } else if (player1Char.attributeIds[0] == 8) {
+            damage = _mulFloat(damage, denominator, numerator);
+        } else if (playerChar.attributeIds[0] == 8) {
             // ID 8: Rare characters are more likely to appear in random slots
-            power += player1LevelPoint * basePowerRate;
-            power = _mulFloat(power, denominator, numerator);
+            damage += playerLevelPoint * baseDamageRate;
+            damage = _mulFloat(damage, denominator, numerator);
             // TODO: RS でレア度が高いキャラが出やすいようにする
-        } else if (player1Char.attributeIds[0] == 9) {
+        } else if (playerChar.attributeIds[0] == 9) {
             // ID 9: In a match against a character stronger than you, even if the damage inflicted is small, there is a certain probability of absolute victory
-            power += player1LevelPoint * basePowerRate;
-            if (player2Char.level > player1Char.level) {
-                uint8 levelDiff = player2Char.level - player1Char.level;
+            damage += playerLevelPoint * baseDamageRate;
+            if (enemyChar.level > playerChar.level) {
+                uint8 levelDiff = enemyChar.level - playerChar.level;
                 if (levelDiff <= 10 && _rate(levelDiff * 10)) {
                     denominator *= bigNumber;
                 }
             }
-            power = _mulFloat(power, denominator, numerator);
+            damage = _mulFloat(damage, denominator, numerator);
         } else {
             // TODO: Error handling
-            power += player1LevelPoint * basePowerRate;
-            power = _mulFloat(power, denominator, numerator);
+            damage += playerLevelPoint * baseDamageRate;
+            damage = _mulFloat(damage, denominator, numerator);
         }
-        return power;
+        return damage;
     }
 
     // TODO: 一旦レベルポイントは最大値をそのまま返す。
     /// @notice Points that players can freely distribute just before the start of battle.
     /// @dev levelPoints is the maximum level in the party.
-    function calcLevelPoint(CharacterInfo[4] calldata charInfos)
-        external
+    function _calcLevelPoint(CharacterInfo[4] calldata charInfos)
+        internal
         pure
         returns (uint8)
     {
@@ -141,8 +145,8 @@ contract PLMData is IPLMData {
 
     // TODO: 一旦ランダムスロットのレベルは固定スロットの平均値を返す。
     /// @notice Determine the level of random slots from the level of fixed slots
-    function calcRandomSlotLevel(CharacterInfo[4] calldata charInfos)
-        external
+    function _calcRandomSlotLevel(CharacterInfo[4] calldata charInfos)
+        internal
         pure
         returns (uint8)
     {
@@ -154,8 +158,45 @@ contract PLMData is IPLMData {
     }
 
     ////////////////////////
-    ///      GETTER      ///
+    ///      GETTERS     ///
     ////////////////////////
+
+    /// @notice function to simulate the battle and return back result to BattleField contract.
+    function getDamage(
+        uint8 numRounds,
+        CharacterInfo calldata playerChar,
+        uint8 playerLevelPoint,
+        uint32 playerBondLevel,
+        CharacterInfo calldata enemyChar
+    ) external view returns (uint32) {
+        return
+            _calcDamage(
+                numRounds,
+                playerChar,
+                playerLevelPoint,
+                playerBondLevel,
+                enemyChar
+            );
+    }
+
+    /// @notice get points that players can freely distribute just before the start of battle.
+    /// @dev levelPoints is the maximum level in the party.
+    function getLevelPoint(CharacterInfo[4] calldata charInfos)
+        external
+        pure
+        returns (uint8)
+    {
+        return _calcLevelPoint(charInfos);
+    }
+
+    /// @notice get the level of random slots from the level of fixed slots
+    function getRandomSlotLevel(CharacterInfo[4] calldata charInfos)
+        external
+        pure
+        returns (uint8)
+    {
+        return _calcRandomSlotLevel(charInfos);
+    }
 
     /// @notice get the percentage of pooling of PLMCoins minted when player charged MATIC.
     function getPoolingPercentage(uint256 amount)
@@ -189,7 +230,7 @@ contract PLMData is IPLMData {
         return characterTypes;
     }
 
-    function countCharacterTypes() external view returns (uint256) {
+    function getNumCharacterTypes() external view returns (uint256) {
         return characterTypes.length;
     }
 
@@ -226,7 +267,7 @@ contract PLMData is IPLMData {
         return attributeRarities;
     }
 
-    function countAttributes() external view override returns (uint256) {
+    function getNumAttributes() external view override returns (uint256) {
         return attributeRarities.length;
     }
 
@@ -284,26 +325,26 @@ contract PLMData is IPLMData {
     }
 
     function _typeCompatibility(
-        string calldata player1Type,
-        string calldata player2Type
+        string calldata playerType,
+        string calldata enemyType
     ) internal pure returns (uint8, uint8) {
-        bytes32 player1TypeBytes = keccak256(abi.encodePacked(player1Type));
-        bytes32 player2TypeBytes = keccak256(abi.encodePacked(player2Type));
+        bytes32 playerTypeBytes = keccak256(abi.encodePacked(playerType));
+        bytes32 enemyTypeBytes = keccak256(abi.encodePacked(enemyType));
         bytes32 fire = keccak256(abi.encodePacked("fire"));
         bytes32 grass = keccak256(abi.encodePacked("grass"));
         bytes32 water = keccak256(abi.encodePacked("water"));
-        if (player1TypeBytes == player2TypeBytes) {
+        if (playerTypeBytes == enemyTypeBytes) {
             return (1, 1);
         } else if (
-            (player1TypeBytes == fire && player2TypeBytes == grass) ||
-            (player1TypeBytes == grass && player2TypeBytes == water) ||
-            (player1TypeBytes == water && player2TypeBytes == fire)
+            (playerTypeBytes == fire && enemyTypeBytes == grass) ||
+            (playerTypeBytes == grass && enemyTypeBytes == water) ||
+            (playerTypeBytes == water && enemyTypeBytes == fire)
         ) {
             return (12, 10);
         } else if (
-            (player2TypeBytes == fire && player1TypeBytes == grass) ||
-            (player2TypeBytes == grass && player1TypeBytes == water) ||
-            (player2TypeBytes == water && player1TypeBytes == fire)
+            (enemyTypeBytes == fire && playerTypeBytes == grass) ||
+            (enemyTypeBytes == grass && playerTypeBytes == water) ||
+            (enemyTypeBytes == water && playerTypeBytes == fire)
         ) {
             return (8, 10);
         } else {
@@ -312,7 +353,7 @@ contract PLMData is IPLMData {
         }
     }
 
-    function _calcRarity(uint8 characterId, uint8[1] memory attributeIds)
+    function _calcRarity(uint8[1] memory attributeIds)
         internal
         view
         returns (uint8)

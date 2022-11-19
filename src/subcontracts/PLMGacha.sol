@@ -8,17 +8,24 @@ import {IPLMCoin} from "../interfaces/IPLMCoin.sol";
 import {IPLMGacha} from "../interfaces/IPLMGacha.sol";
 
 contract PLMGacha is IPLMGacha, ReentrancyGuard {
+    uint256 constant GACHA_FEE = 5;
+
+    /// @notice interface to the token contract of polylemma
     IPLMToken public token;
+
+    /// @notice interface to the coin contract of polylemma.
     IPLMCoin public coin;
 
-    uint256 constant GACHA_FEE = 5;
+    /////////////////////////
+    ///  GACHA FUNCTIONS  ///
+    /////////////////////////
 
     /// @notice pay PLMCoin and mint PLMToken (characters of Polylemma) at random
     /// @dev    first owner of all PLMToken is this contract because token.mint() is called by this contract.
     ///         1. pay PLMCoin by the sender
     ///         2. mint PLMToken by this contract
     ///         2. transfer minted token from this contract to the sender
-    function gacha(bytes32 name) public nonReentrant {
+    function gacha(bytes32 name) external nonReentrant {
         require(
             coin.allowance(msg.sender, address(this)) >= GACHA_FEE,
             "coin allowance insufficient /gacha"
@@ -46,10 +53,10 @@ contract PLMGacha is IPLMGacha, ReentrancyGuard {
     }
 
     ////////////////////////
-    ///      GETTER      ///
+    ///      GETTERS     ///
     ////////////////////////
 
-    function getGachaFee() public pure returns (uint256) {
+    function getGachaFee() external pure returns (uint256) {
         return GACHA_FEE;
     }
 }
