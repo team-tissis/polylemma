@@ -7,54 +7,58 @@ import {IPLMCoin} from "./interfaces/IPLMCoin.sol";
 import {IPLMData} from "./interfaces/IPLMData.sol";
 
 contract PLMCoin is ERC20, IPLMCoin {
-    address polylemmer;
+    /// @notice admin's address
+    address polylemmers;
+
+    /// @notice contract address of the dealer of polylemma.
     address public dealer;
-    bool DealerIsSet = false;
+
+    bool dealerIsSet = false;
 
     constructor() ERC20("polylemma", "PLM") {
-        polylemmer = msg.sender;
+        polylemmers = msg.sender;
     }
 
     modifier onlyDealer() {
-        require(DealerIsSet, "dealer has not been set.");
+        require(dealerIsSet, "dealer has not been set.");
         require(msg.sender == dealer, "sender is not dealer.");
         _;
     }
 
-    modifier onlyPolylemmer() {
-        require(msg.sender == polylemmer, "sender is not deployer.");
+    modifier onlyPolylemmers() {
+        require(msg.sender == polylemmers, "sender is not deployer.");
         _;
     }
 
-    ////////////////////////
-    ///       MINT       ///
-    ////////////////////////
+    /////////////////////////
+    ///  COIN FUNCTIONS   ///
+    /////////////////////////
 
     /// @notice mint by dealer address, function called by only dealer contract
-    function mint(uint256 amount) public onlyDealer {
+    function mint(uint256 amount) external onlyDealer {
         _mint(msg.sender, amount);
     }
 
-    ////////////////////////
-    ///      SETTER      ///
-    ////////////////////////
+    /////////////////////////
+    ///      SETTERS      ///
+    /////////////////////////
 
-    /// @notice set dealer contract address, function called by only Polylemmer EOA
+    /// @notice set dealer contract address, function called by only Polylemmers EOA
     /// @dev    "dealer" is a contract that controlls all features including coin dealing in the game.
     ///         This function must be called when initializing contracts by the deployer manually.
-    ///         ("polylemmer" is contract deployer's address.)
-    function setDealer(address _dealer) external onlyPolylemmer {
+    ///         ("polylemmers" is contract deployer's address.)
+    function setDealer(address _dealer) external onlyPolylemmers {
         dealer = _dealer;
-        DealerIsSet = true;
+        dealerIsSet = true;
     }
 
-    /////////////////////////
-    /// FUNCTION FOR DEMO ///
-    /////////////////////////
+    //////////////////////////
+    /// FUNCTIONS FOR DEMO ///
+    //////////////////////////
 
     // FIXME: remove this function after demo.
     /// @notice mint coins without payment. for demo and test
-    function faucet(uint256 amount) public {
+    function faucet(uint256 amount) external {
         _mint(msg.sender, amount);
     }
 }

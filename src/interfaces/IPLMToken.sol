@@ -31,22 +31,22 @@ interface IPLMToken is IERC721, IERC721Enumerable, IPLMData {
 
     function updateLevel(uint256 tokenId) external;
 
-    function calcCurrentBondLevel(uint8 level, uint256 startBlock)
+    function tokenURI(uint256 tokenId) external view returns (string memory);
+
+    ////////////////////////
+    ///      GETTERS     ///
+    ////////////////////////
+
+    function getCurrentBondLevel(uint8 level, uint256 fromBlock)
         external
         view
         returns (uint32);
 
-    function calcPriorBondLevel(
+    function getPriorBondLevel(
         uint8 level,
-        uint256 startBlock,
-        uint256 lastBlock
+        uint256 fromBlock,
+        uint256 toBlock
     ) external pure returns (uint32);
-
-    function tokenURI(uint256 tokenId) external view returns (string memory);
-
-    ////////////////////////
-    ///      GETTER      ///
-    ////////////////////////
 
     function getAllTokenOwned(address account)
         external

@@ -2,37 +2,18 @@ import {IPLMToken} from "./IPLMToken.sol";
 import {IPLMMatchOrganizer} from "../interfaces/IPLMMatchOrganizer.sol";
 
 interface IPLMBattleField {
+    ////////////////////////
+    ///      ENUMS       ///
+    ////////////////////////
+
     /// @notice Enum to represent battle's state.
     enum BattleState {
-        Settled, // 0
-        Preparing, // 1
-        RoundStarted, // 2
-        RoundSettled // 3
-    }
-    /// @notice Struct to store the information of the random slot.
-    struct RandomSlot {
-        uint8 level;
-        bytes32 nonce;
-        bool nonceSet;
-        uint8 roundSlotUsed;
-        RandomSlotState state;
-    }
-    /// @notice Struct to store the information on the winner and loser of each round
-    struct RoundResult {
-        bool isDraw;
-        PlayerId winner;
-        PlayerId loser;
-        uint32 winnerDamage;
-        uint32 loserDamage;
-    }
-    /// @notice Struct to store the information on the winner and loser of the battle
-    struct BattleResult {
-        uint8 numRounds;
-        bool isDraw;
-        PlayerId winner;
-        PlayerId loser;
-        uint8 winCount;
-        uint8 loseCount;
+        NotStarted, // 0
+        Standby, // 1
+        InRound, // 2
+        RoundSettled, // 3
+        Settled, // 4
+        Canceled // 5
     }
 
     /// @notice Random slots' state
@@ -44,25 +25,15 @@ interface IPLMBattleField {
 
     /// @notice Enum to represent players' identities.
     enum PlayerId {
-        Alice, // 0
-        Bob // 1
+        Home, // 0
+        Visitor // 1
     }
 
     /// @notice Players' states in each round.
     enum PlayerState {
-        Preparing, // 0
+        Standby, // 0
         Committed, // 1
         Revealed // 2
-    }
-
-    // TODO: さすがに冗長では？？フロントにこのロジックはうつすべき。
-    enum PlayerStateFromFrontSide {
-        Preparing,
-        CharacterSelecting,
-        WaitingForOpponentCommit,
-        Revealing,
-        Revealed,
-        NoNamed
     }
 
     /// @notice Enum to represent player's choice of the character fighting in the next round.
@@ -72,15 +43,46 @@ interface IPLMBattleField {
         Fixed3, // 2
         Fixed4, // 3
         Random, // 4
-        Secret // 5
+        Hidden // 5
+    }
+
+    ////////////////////////
+    ///      STRUCTS     ///
+    ////////////////////////
+
+    /// @notice Struct to store the information of the random slot.
+    struct RandomSlot {
+        uint8 level;
+        bytes32 nonce;
+        uint8 usedRound;
+        RandomSlotState state;
+    }
+
+    /// @notice Struct to store the information on the winner and loser of each round
+    struct RoundResult {
+        bool isDraw;
+        PlayerId winner;
+        PlayerId loser;
+        uint32 winnerDamage;
+        uint32 loserDamage;
+    }
+
+    /// @notice Struct to store the information on the winner and loser of the battle
+    struct BattleResult {
+        uint8 numRounds;
+        bool isDraw;
+        PlayerId winner;
+        PlayerId loser;
+        uint8 winnerCount;
+        uint8 loserCount;
     }
 
     /// @notice Struct to store player's infomation.
     struct PlayerInfo {
         address addr;
-        uint256 startBlockNum;
+        uint256 fromBlock;
         uint256[4] fixedSlots;
-        uint8[4] roundFixedSlotUsed;
+        uint8[4] fixedSlotsUsedRounds;
         RandomSlot randomSlot;
         PlayerState state;
         uint8 winCount;
@@ -89,20 +91,23 @@ interface IPLMBattleField {
     }
 
     /// @notice Struct to represent the commitment of the choice.
-    struct ChoiceCommitment {
+    struct ChoiceCommit {
         bytes32 commitString;
         uint8 levelPoint;
         Choice choice;
     }
 
     /// @notice Struct to represent the commitment of the player seed.
-    struct PlayerSeedCommitment {
+    struct PlayerSeedCommit {
         bytes32 commitString;
         bytes32 playerSeed;
     }
 
-    // Alice = proposer, Bob = requester.
-    event BattleStarted(address aliceAddr, address bobAddr);
+    ////////////////////////
+    ///      EVENTS      ///
+    ////////////////////////
+
+    event BattleStarted(address indexed homeAddr, address indexed visitorAddr);
     event PlayerSeedCommitted(PlayerId playerId);
     event RandomSlotNounceGenerated(PlayerId playerId, bytes32 nonce);
     event PlayerSeedRevealed(
@@ -130,8 +135,8 @@ interface IPLMBattleField {
         bool isDraw,
         PlayerId winner,
         PlayerId loser,
-        uint8 winCount,
-        uint8 loseCount
+        uint8 winnerCount,
+        uint8 loserCount
     );
 
     // Events for cheater detection.
@@ -142,11 +147,15 @@ interface IPLMBattleField {
     );
     event ReusingUsedSlotCheatDetected(PlayerId cheater, Choice targetSlot);
 
-    // Events for lazy player detection.
-    event TimeOutAtPlayerSeedCommitDetected(PlayerId lazyPlayer);
-    event TimeOutAtChoiceCommitDetected(uint8 numRounds, PlayerId lazyPlayer);
-    event TimeOutAtChoiceRevealDetected(uint8 numRounds, PlayerId lazyPlayer);
-    event BattleCanceled(PlayerId cause);
+    // Events for delayer detection.
+    event LatePlayerSeedCommitDetected(PlayerId delayer);
+    event LateChoiceCommitDetected(uint8 numRounds, PlayerId delayer);
+    event LateChoiceRevealDetected(uint8 numRounds, PlayerId delayer);
+    event BattleCanceled();
+
+    //////////////////////////////
+    /// BATTLE FIELD FUNCTIONS ///
+    //////////////////////////////
 
     function commitPlayerSeed(PlayerId playerId, bytes32 commitString) external;
 
@@ -161,20 +170,37 @@ interface IPLMBattleField {
         bytes32 bindingFactor
     ) external;
 
-    function reportLazyRevealment(PlayerId playerId) external;
+    function reportLateReveal(PlayerId playerId) external;
 
     function startBattle(
-        address aliceAddr,
-        address bobAddr,
-        uint256 aliceBlockNum,
-        uint256 bobBlockNum,
-        uint256[4] calldata aliceFixedSlots,
-        uint256[4] calldata bobFixedSlots
+        address homeAddr,
+        address visitorAddr,
+        uint256 homeFromBlock,
+        uint256 visitorFromBlock,
+        uint256[4] calldata homeFixedSlots,
+        uint256[4] calldata visitorFixedSlots
     ) external;
 
+    function playerSeedIsRevealed(PlayerId playerId)
+        external
+        view
+        returns (bool);
+
     ////////////////////////
-    ///      GETTER      ///
+    ///      GETTERS     ///
     ////////////////////////
+
+    function getBattleState() external view returns (BattleState);
+
+    function getPlayerState(PlayerId playerId)
+        external
+        view
+        returns (PlayerState);
+
+    function getRemainingLevelPoint(PlayerId playerId)
+        external
+        view
+        returns (uint256);
 
     function getNonce(PlayerId playerId) external view returns (bytes32);
 
@@ -193,22 +219,22 @@ interface IPLMBattleField {
         view
         returns (IPLMToken.CharacterInfo memory);
 
-    function getUsedCharacters(PlayerId playerId)
+    function getCharsUsedRounds(PlayerId playerId)
         external
         view
         returns (uint8[5] memory);
 
-    function getPlayerIdFromAddress(address playerAddr)
+    function getPlayerIdFromAddr(address playerAddr)
         external
         view
         returns (PlayerId);
 
-    function getBondLevelAtBattleStart(uint8 level, uint256 startBlock)
+    function getBondLevelAtBattleStart(uint8 level, uint256 fromBlock)
         external
         view
         returns (uint32);
 
-    function getTotalSupplyAtBattleStart(PlayerId playerId)
+    function getTotalSupplyAtFromBlock(PlayerId playerId)
         external
         view
         returns (uint256);
@@ -217,37 +243,20 @@ interface IPLMBattleField {
 
     function getMaxLevelPoint(PlayerId playerId) external view returns (uint8);
 
-    function getRemainingLevelPoint(PlayerId playerId)
-        external
-        view
-        returns (uint8);
-
-    function getRoundResult() external view returns (RoundResult[] memory);
+    function getRoundResults() external view returns (RoundResult[] memory);
 
     function getBattleResult() external view returns (BattleResult memory);
 
-    function getPlayerStateFromFrontSide(PlayerId fpId)
-        external
-        view
-        returns (PlayerStateFromFrontSide);
-
-    function isPlayerSeedRevealed(PlayerId playerId)
-        external
-        view
-        returns (bool);
-
     ////////////////////////
-    ///      SETTER      ///
+    ///      SETTERS     ///
     ////////////////////////
 
-    function setIPLMMatchOrganizer(
-        IPLMMatchOrganizer _mo,
-        address _matchOrganizer
-    ) external;
+    function setPLMMatchOrganizer(address _matchOrganizer) external;
 
-    /////////////////////////
-    /// FUNCTION FOR DEMO ///
-    /////////////////////////
+    //////////////////////////
+    /// FUNCTIONS FOR DEMO ///
+    //////////////////////////
+
     // FIXME: remove this function after demo.
     function forceInitBattle() external;
 }

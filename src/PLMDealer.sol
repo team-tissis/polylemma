@@ -12,13 +12,6 @@ import {IPLMToken} from "./interfaces/IPLMToken.sol";
 contract PLMDealer is PLMGacha, IPLMDealer {
     using Math for uint256;
 
-    address dealer;
-    address polylemmer;
-    address matchOrganizer;
-    address battleField;
-    bool matchOrganizerIsSet = false;
-    bool battleFieldIsSet = false;
-
     /// @notice subscription Fee (PLMCoin) for one period.
     uint256 constant SUBSC_FEE_PER_UNIT_PERIOD = 10;
 
@@ -37,6 +30,21 @@ contract PLMDealer is PLMGacha, IPLMDealer {
     /// @notice The amount of stamina consumed when playing battle with other players.
     uint8 constant STAMINA_PER_BATTLE = 10;
 
+    /// @notice contract address of the matchOrganizer.
+    address matchOrganizer;
+
+    /// @notice contract address of the battleField.
+    address battleField;
+
+    /// @notice contract address of the dealer of polylemma.
+    address dealer;
+
+    /// @notice admin's address
+    address polylemmers;
+
+    bool matchOrganizerIsSet = false;
+    bool battleFieldIsSet = false;
+
     /// @notice Mapping from each account to one's subscription expired block number.
     mapping(address => uint256) subscExpiredBlock;
 
@@ -45,13 +53,13 @@ contract PLMDealer is PLMGacha, IPLMDealer {
 
     constructor(IPLMToken _token, IPLMCoin _coin) {
         dealer = address(this);
-        polylemmer = msg.sender;
+        polylemmers = msg.sender;
         token = _token;
         coin = _coin;
     }
 
-    modifier onlyPolylemmer() {
-        require(msg.sender == polylemmer, "sender is not polylemmer");
+    modifier onlyPolylemmers() {
+        require(msg.sender == polylemmers, "sender is not polylemmers");
         _;
     }
     modifier onlyMatchOrganizer() {
@@ -65,42 +73,11 @@ contract PLMDealer is PLMGacha, IPLMDealer {
         _;
     }
 
-    ////////////////////////////////
-    /// FUNCTIONS ABOUT FINANCES ///
-    ////////////////////////////////
-
-    /// @notice balance of sender MATIC
-    function balanceOfMatic() public view returns (uint256) {
-        return address(this).balance;
-    }
-
-    /// @notice withdraw MATIC send to this contract by player
-    function withdraw(uint256 amount) public onlyPolylemmer {
-        // Total amount of MATIC this contract owns.
-        uint256 totalAmount = address(this).balance;
-
-        // Check that withdrawal is possible.
-        require(amount <= totalAmount, "cannot withdraw over total balance.");
-
-        // Execute withdrawal.
-        (bool success, ) = payable(dealer).call{value: amount}("");
-        require(success, "Failed to send Ether");
-    }
-
-    /// @notice This function is used when the amount of PLMCoin the dealer has is insufficient.
-    function mintAdditionalCoin(uint256 amount) public onlyPolylemmer {
-        coin.mint(amount);
-    }
-
-    ///////////////////////////////
-    /// FUNCTIONS ABOUT STAMINA ///
-    ///////////////////////////////
-
     // TODO: if block number is smaller than STAMINA_MAX, it cannot work.
     /// @dev - This function calculate remained stamina ftom retained block numbers and stamina restoring speed.
     ///        This contract restores the block number at the time when each player's stamina was zero.
     ///      - When the current block number is less than max stamina point, this function return max stamina.
-    function getCurrentStamina(address player) public view returns (uint8) {
+    function _currentStamina(address player) internal view returns (uint8) {
         if (block.number < STAMINA_MAX) {
             // TODO:
             return STAMINA_MAX;
@@ -116,37 +93,36 @@ contract PLMDealer is PLMGacha, IPLMDealer {
         }
     }
 
-    function getStaminaMax() public pure returns (uint8) {
-        return STAMINA_MAX;
+    ////////////////////////////////
+    /// FUNCTIONS ABOUT FINANCES ///
+    ////////////////////////////////
+
+    /// @notice balance of sender MATIC
+    function balanceOfMatic() external view returns (uint256) {
+        return address(this).balance;
     }
 
-    function getStaminaPerBattle() public pure returns (uint8) {
-        return STAMINA_PER_BATTLE;
+    /// @notice withdraw MATIC send to this contract by player
+    function withdraw(uint256 amount) external onlyPolylemmers {
+        // Total amount of MATIC this contract owns.
+        uint256 totalAmount = address(this).balance;
+
+        // Check that withdrawal is possible.
+        require(amount <= totalAmount, "cannot withdraw over total balance.");
+
+        // Execute withdrawal.
+        (bool success, ) = payable(dealer).call{value: amount}("");
+        require(success, "Failed to send Ether");
     }
 
-    function getRestoreStaminaFee() public pure returns (uint8) {
-        return RESTORE_STAMINA_FEE;
+    /// @notice This function is used when the amount of PLMCoin the dealer has is insufficient.
+    function mintAdditionalCoin(uint256 amount) external onlyPolylemmers {
+        coin.mint(amount);
     }
 
-    /// @dev set stamina max value
-    /// @dev Function called in charge() that is the first function users call when they join this game.
-    function initializeStamina(address player) internal {
-        _restoreStamina(player);
-    }
-
-    /// @notice need approvement of coin to dealer
-    function restoreFullStamina(address player) public nonReentrant {
-        require(
-            coin.balanceOf(msg.sender) >= 1,
-            "player does not have enough coin"
-        );
-        require(
-            getCurrentStamina(player) < STAMINA_MAX,
-            "player's stamina is full"
-        );
-        coin.transferFrom(msg.sender, dealer, RESTORE_STAMINA_FEE);
-        _restoreStamina(player);
-    }
+    ///////////////////////////////
+    /// FUNCTIONS ABOUT STAMINA ///
+    ///////////////////////////////
 
     /// @dev rewrite the retained block number that indicate the time when stamina is zero to shift it into the past
     function _restoreStamina(address player) internal {
@@ -157,8 +133,44 @@ contract PLMDealer is PLMGacha, IPLMDealer {
         staminaFromBlock[player] = _safeSubUint256(block.number, restAmount);
     }
 
+    // TODO: utils
+    function _safeSubUint256(uint256 x, uint256 y)
+        internal
+        pure
+        returns (uint256)
+    {
+        if (x >= y) {
+            return x - y;
+        } else {
+            return 0;
+        }
+    }
+
+    /// @dev set stamina max value
+    /// @dev Function called in charge() that is the first function users call when they join this game.
+    function initializeStamina(address player) internal {
+        _restoreStamina(player);
+    }
+
+    /// @notice need approvement of coin to dealer
+    function restoreFullStamina(address player) external nonReentrant {
+        require(
+            coin.balanceOf(msg.sender) >= 1,
+            "player does not have enough coin"
+        );
+        require(
+            _currentStamina(player) < STAMINA_MAX,
+            "player's stamina is full"
+        );
+        coin.transferFrom(msg.sender, dealer, RESTORE_STAMINA_FEE);
+        _restoreStamina(player);
+    }
+
     /// @dev rewrite the retained block numbers that indicate the time when stamina is zero to shift it into the feature
-    function consumeStaminaForBattle(address player) public onlyMatchOrganizer {
+    function consumeStaminaForBattle(address player)
+        external
+        onlyMatchOrganizer
+    {
         require(
             block.number >=
                 staminaFromBlock[player] +
@@ -181,7 +193,7 @@ contract PLMDealer is PLMGacha, IPLMDealer {
     }
 
     /// @notice function called when the battle did not end normally
-    function refundStaminaForBattle(address player) public onlyBattleField {
+    function refundStaminaForBattle(address player) external onlyBattleField {
         uint256 candidate1 = _safeSubUint256(
             block.number,
             STAMINA_MAX * STAMINA_RESTORE_SPEED
@@ -193,44 +205,29 @@ contract PLMDealer is PLMGacha, IPLMDealer {
         staminaFromBlock[player] = candidate1.max(candidate2);
     }
 
-    // TODO: utils
-    function _safeSubUint256(uint256 x, uint256 y)
-        internal
-        pure
-        returns (uint256)
-    {
-        if (x >= y) {
-            return x - y;
-        } else {
-            return 0;
-        }
+    // TODO: if block number is smaller than STAMINA_MAX, it cannot work.
+    /// @dev - This function calculate remained stamina ftom retained block numbers and stamina restoring speed.
+    ///        This contract restores the block number at the time when each player's stamina was zero.
+    ///      - When the current block number is less than max stamina point, this function return max stamina.
+    function getCurrentStamina(address player) external view returns (uint8) {
+        return _currentStamina(player);
+    }
+
+    function getStaminaMax() external pure returns (uint8) {
+        return STAMINA_MAX;
+    }
+
+    function getStaminaPerBattle() external pure returns (uint8) {
+        return STAMINA_PER_BATTLE;
+    }
+
+    function getRestoreStaminaFee() external pure returns (uint8) {
+        return RESTORE_STAMINA_FEE;
     }
 
     ////////////////////////////////////
     /// FUNCTIONS ABOUT SUBSCRIPTION ///
     ////////////////////////////////////
-
-    /// @notice Function to get the subscription expired block number of the account.
-    function getSubscExpiredBlock(address account)
-        public
-        view
-        returns (uint256)
-    {
-        return subscExpiredBlock[account];
-    }
-
-    /// @notice Function to get the number blocks remained until subscription expired block.
-    function getSubscRemainingBlockNum(address account)
-        public
-        view
-        returns (uint256)
-    {
-        uint256 remainingBlockNum = block.number <=
-            getSubscExpiredBlock(account)
-            ? getSubscExpiredBlock(account) - block.number
-            : 0;
-        return remainingBlockNum;
-    }
 
     /// @notice Function to return whether the account's subscription is expired or not.
     function subscIsExpired(address account) external view returns (bool) {
@@ -276,11 +273,33 @@ contract PLMDealer is PLMGacha, IPLMDealer {
         );
     }
 
-    function getSubscFeePerUnitPeriod() public pure returns (uint256) {
+    /// @notice Function to get the subscription expired block number of the account.
+    function getSubscExpiredBlock(address account)
+        public
+        view
+        returns (uint256)
+    {
+        return subscExpiredBlock[account];
+    }
+
+    /// @notice Function to get the number blocks remained until subscription expired block.
+    function getSubscRemainingBlockNum(address account)
+        public
+        view
+        returns (uint256)
+    {
+        uint256 remainingBlockNum = block.number <=
+            getSubscExpiredBlock(account)
+            ? getSubscExpiredBlock(account) - block.number
+            : 0;
+        return remainingBlockNum;
+    }
+
+    function getSubscFeePerUnitPeriod() external pure returns (uint256) {
         return SUBSC_FEE_PER_UNIT_PERIOD;
     }
 
-    function getSubscUnitPeriodBlockNum() public pure returns (uint256) {
+    function getSubscUnitPeriodBlockNum() external pure returns (uint256) {
         return SUBSC_UNIT_PERIOD_BLOCK_NUM;
     }
 
@@ -294,9 +313,36 @@ contract PLMDealer is PLMGacha, IPLMDealer {
     /// FUNCTIONS ABOUT CHARGEMENT ///
     //////////////////////////////////
 
+    /// @notice Function to transfer minted PLMCoin to the charger and PLMCoin pool.
+    /// @dev The distribution is determined in a progressive taxation manner.
+    /// @param account: game player's account who charged MATIC to get PLMCoin.
+    /// @param totalAmount: sum of the amount of PLMCoin distributed to the player and PLMCoin pool.
+    function _transferPLMCoinWithPooling(address account, uint256 totalAmount)
+        internal
+    {
+        // Calcuate how much PLMCoin are stored in the PLMCoin pool.
+        uint256 leftAmount = _calcLeftAmount(totalAmount);
+        uint256 poolingAmount = totalAmount - leftAmount;
+
+        // Transfer rest of the minted PLMCoin to the account who charged.
+        coin.transfer(account, leftAmount);
+        emit AccountCharged(account, totalAmount, poolingAmount);
+    }
+
+    /// @notice Function to calculate the unpooled amount.
+    function _calcLeftAmount(uint256 totalAmount)
+        internal
+        view
+        returns (uint256)
+    {
+        // get the pooling percentage from PLMData contract.
+        uint256 poolingPercentage = token.getPoolingPercentage(totalAmount);
+        return (totalAmount * (100 - poolingPercentage)) / 100;
+    }
+
     /// @notice Function used by game users to charge MATIC to get PLMCoin.
     /// @dev The price of PLMCoin is pegged to MATIC as 1:1.
-    function charge() public payable {
+    function charge() external payable {
         // This is the first function users call when they join this game.
         //  functions to initialize smothing are called here.
         if (staminaFromBlock[msg.sender] == 0) {
@@ -313,66 +359,50 @@ contract PLMDealer is PLMGacha, IPLMDealer {
         require(success, "Failed to send deposit Ether");
     }
 
-    /// @notice Function to transfer minted PLMCoin to the charger and PLMCoin pool.
-    /// @dev The distribution is determined in a progressive taxation manner.
-    /// @param account: game player's account who charged MATIC to get PLMCoin.
-    /// @param totalAmount: sum of the amount of PLMCoin distributed to the player and PLMCoin pool.
-    function _transferPLMCoinWithPooling(address account, uint256 totalAmount)
-        internal
-    {
-        // Calcuate how much PLMCoin are stored in the PLMCoin pool.
-        uint256 poolingAmount = _calcPoolingAmount(totalAmount);
-
-        // Transfer rest of the minted PLMCoin to the account who charged.
-        coin.transfer(account, totalAmount - poolingAmount);
-        emit AccountCharged(account, totalAmount, poolingAmount);
-    }
-
-    /// @notice Function to calculate the pooling amount.
-    function _calcPoolingAmount(uint256 totalAmount)
-        internal
-        view
-        returns (uint256)
-    {
-        // get the pooling percentage from PLMData contract.
-        uint256 poolingPercentage = token.getPoolingPercentage(totalAmount);
-        return (totalAmount * poolingPercentage) / 100;
-    }
-
     //////////////////////////////////////////////////////////////////////////////
     /// FUNCTIONS USED BY BATTLE FIELD CONTRACT TO CALCULATE REWARD FOR WINNER ///
     //////////////////////////////////////////////////////////////////////////////
 
-    /// @notice Function to pay reward to battle winner address
-    function payReward(address winner, uint256 amount) external {
-        _payReward(winner, amount);
-    }
-
     /// @dev reward is paid from dealer conteract address
     ///      coin.transfer is not called directly bacause the function needs to be called by payer of reward, dealer.
-    function _payReward(address winner, uint256 amount) internal {
-        coin.transfer(winner, amount);
+    function _tryPayReward(address winner, uint256 amount)
+        internal
+        returns (bool, uint256)
+    {
+        uint256 balance = coin.balanceOf(address(this));
+        bool success = balance >= amount;
+        uint256 rewardAmount = success ? amount : balance;
+        coin.transfer(winner, rewardAmount);
+        return (success, rewardAmount);
+    }
+
+    /// @notice Function to pay reward to battle winner address
+    function payReward(address winner, uint256 amount) external {
+        (bool success, uint256 rewardAmount) = _tryPayReward(winner, amount);
+        if (!success) {
+            emit RewardAmountReduced(winner, amount, rewardAmount);
+        }
     }
 
     ////////////////////////////
-    ///         SETTER       ///
+    ///        SETTERS       ///
     ////////////////////////////
 
-    /// @notice set match organizer contract address, function called by only Polylemmer EOA
-    /// @dev   This function must be called when initializing contracts by the deployer manually. ("polylemmer" is contract deployer's address.)
+    /// @notice set match organizer contract address, function called by only Polylemmers EOA
+    /// @dev   This function must be called when initializing contracts by the deployer manually. ("polylemmers" is contract deployer's address.)
     ///        "matchOrganizer" address is stored in this contract to make some functions able to be called from only matchOrganizer.
     function setMatchOrganizer(address _matchOrganizer)
         external
-        onlyPolylemmer
+        onlyPolylemmers
     {
         matchOrganizerIsSet = true;
         matchOrganizer = _matchOrganizer;
     }
 
-    /// @notice set battle field contract address, function called by only Polylemmer EOA
-    /// @dev   This function must be called when initializing contracts by the deployer manually. ("polylemmer" is contract deployer's address.)
+    /// @notice set battle field contract address, function called by only Polylemmers EOA
+    /// @dev   This function must be called when initializing contracts by the deployer manually. ("polylemmers" is contract deployer's address.)
     ///        "battleField" address is stored in this contract to make some functions able to be called from only battleField.
-    function setBattleField(address _battleField) external onlyPolylemmer {
+    function setBattleField(address _battleField) external onlyPolylemmers {
         battleFieldIsSet = true;
         battleField = _battleField;
     }

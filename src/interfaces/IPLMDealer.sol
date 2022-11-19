@@ -1,14 +1,17 @@
 import {IPLMGacha} from "./IPLMGacha.sol";
 
 interface IPLMDealer is IPLMGacha {
+    ////////////////////////
+    ///      EVENTS      ///
+    ////////////////////////
     event SubscExtended(
-        address account,
+        address indexed account,
         uint256 beforeBlock,
         uint256 extendedBlock
     );
 
     event SubscShortened(
-        address account,
+        address indexed account,
         uint256 beforeBlock,
         uint256 shortenedBlock
     );
@@ -17,6 +20,12 @@ interface IPLMDealer is IPLMGacha {
         address indexed charger,
         uint256 chargeAmount,
         uint256 poolingAmount
+    );
+
+    event RewardAmountReduced(
+        address indexed payee,
+        uint256 virtualAmount,
+        uint256 realAmount
     );
 
     ////////////////////////////////
@@ -33,19 +42,25 @@ interface IPLMDealer is IPLMGacha {
     /// FUNCTIONS ABOUT STAMINA ///
     ///////////////////////////////
 
+    function consumeStaminaForBattle(address player) external;
+
+    function restoreFullStamina(address player) external;
+
+    function refundStaminaForBattle(address player) external;
+
     function getCurrentStamina(address player) external view returns (uint8);
 
     function getStaminaMax() external pure returns (uint8);
 
-    function restoreFullStamina(address player) external;
-
-    function consumeStaminaForBattle(address player) external;
-
-    function refundStaminaForBattle(address player) external;
-
     ////////////////////////////////////
     /// FUNCTIONS ABOUT SUBSCRIPTION ///
     ////////////////////////////////////
+
+    function subscIsExpired(address account) external view returns (bool);
+
+    function extendSubscPeriod() external;
+
+    function banAccount(address account, uint256 banPeriod) external;
 
     function getSubscExpiredBlock(address account)
         external
@@ -56,12 +71,6 @@ interface IPLMDealer is IPLMGacha {
         external
         view
         returns (uint256);
-
-    function subscIsExpired(address account) external view returns (bool);
-
-    function extendSubscPeriod() external;
-
-    function banAccount(address account, uint256 banPeriod) external;
 
     function getSubscFeePerUnitPeriod() external pure returns (uint256);
 
@@ -80,7 +89,7 @@ interface IPLMDealer is IPLMGacha {
     function payReward(address winner, uint256 amount) external;
 
     ////////////////////////////
-    ///         SETTER       ///
+    ///         SETTERS      ///
     ////////////////////////////
 
     function setMatchOrganizer(address _matchOrganizer) external;

@@ -1,2 +1,2 @@
 #!/bin/zsh
-forge script script/PLMGachaScript.s.sol:PolylemmagachaScript --fork-url http://localhost:8545 --broadcast
+forge script script/Polylemma.s.sol:PolylemmaScript --fork-url http://localhost:8545 --broadcast
