@@ -22,14 +22,14 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
     using Strings for uint8;
     using Strings for uint256;
 
+    /// @notice interface to the coin of polylemma.
     IPLMCoin coin;
 
+    /// @notice admin's address
     address polylemmers;
-    address dealer;
-    address enhancer;
 
-    // FIXME: this parameter name should start from lower case character.
-    bool dealerIsSet;
+    /// @notice contract address of the dealer of polylemma.
+    address dealer;
 
     uint256 maxSupply;
 
@@ -52,34 +52,28 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
     mapping(uint256 => mapping(uint32 => CharInfoCheckpoint)) charInfoCheckpoints;
 
     constructor(IPLMCoin _coin, uint256 _maxSupply) ERC721("Polylemma", "PLM") {
-        polylemmers = msg.sender;
         coin = _coin;
         maxSupply = _maxSupply;
-        dealerIsSet = false;
+        polylemmers = msg.sender;
     }
 
     modifier onlyPolylemmers() {
-        require(
-            msg.sender == polylemmers,
-            "Permission denied. Sender is not polylemmers."
-        );
+        require(msg.sender == polylemmers, "Sender != polylemmers");
         _;
     }
 
     modifier onlyDealer() {
-        require(dealerIsSet, "dealer has not been set.");
-        require(
-            msg.sender == dealer,
-            "Permission denied. Sender is not dealer."
-        );
+        require(msg.sender == dealer, "Sender != dealer");
         _;
     }
 
+    /// TODO: checkPointableにする情報は一部でじゅうぶん。
     /// @notice core logic of levelup.
     /// @dev Because character info has changed by levelup, the new character info
     ///      is written into checkpoints in this function.
     function _updateLevel(uint256 tokenId) internal {
         uint32 checkNum = numCharInfoCheckpoints[tokenId];
+
         CharacterInfo memory charInfoOld = charInfoCheckpoints[tokenId][
             checkNum - 1
         ].charInfo;
@@ -607,7 +601,6 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
     ////////////////////////
 
     function setDealer(address newDealer) external {
-        dealerIsSet = true;
         dealer = newDealer;
     }
 
