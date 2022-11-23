@@ -96,36 +96,28 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard, IERC165 {
     modifier onlyPlayerOf(PlayerId playerId) {
         require(
             msg.sender == _playerAddr(playerId),
-            "The caller player is not the valid account."
+            "caller != player of playerId"
         );
         _;
     }
 
     /// @notice Check that the battle round has already started.
     modifier inRound() {
-        // FIXME: check if this require statement is needed or not.
-        //        this require statement may be unnecessary because this condition
-        //        may always holds if the following condition holds.
-        require(
-            _randomSlotState(PlayerId.Home) != RandomSlotState.NotSet &&
-                _randomSlotState(PlayerId.Visitor) != RandomSlotState.NotSet,
-            "Random slot hasn't been set yet."
-        );
         require(
             battleState == BattleState.InRound,
-            "Battle round hasn't started yet."
+            "Battle round hasn't started yet"
         );
         _;
     }
 
     modifier onlyPolylemmers() {
-        require(msg.sender == polylemmers, "sender is not polylemmers");
+        require(msg.sender == polylemmers, "sender != polylemmers");
         _;
     }
     modifier onlyMatchOrganizer() {
         require(
             msg.sender == address(matchOrganizer),
-            "sender is not matchOrganizer"
+            "sender != matchOrganizer"
         );
         _;
     }
@@ -137,16 +129,14 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard, IERC165 {
         // Prevent double revealing.
         require(
             _randomSlotState(playerId) == RandomSlotState.Committed,
-            "The commit of random slot has already been revealed."
+            "playerSeed has already been revealed."
         );
-
-        PlayerId enemyId = _enemyId(playerId);
 
         require(
             _playerState(playerId) == PlayerState.Committed &&
-                (_playerState(enemyId) == PlayerState.Committed ||
-                    _playerState(enemyId) == PlayerState.Revealed),
-            "home or visitor has not committed his/her choice yet."
+                (_playerState(_enemyId(playerId)) == PlayerState.Committed ||
+                    _playerState(_enemyId(playerId)) == PlayerState.Revealed),
+            "Home or Visitor hasn't committed one's choice yet"
         );
         _;
     }
@@ -156,16 +146,15 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard, IERC165 {
     modifier readyForChoiceReveal(PlayerId playerId) {
         require(
             _playerState(playerId) == PlayerState.Committed,
-            "The player hasn't committed the choice in this round yet."
+            "Player hasn't committed the choice yet"
         );
 
-        PlayerId enemyId = _enemyId(playerId);
-        PlayerState enemyState = _playerState(enemyId);
+        PlayerState enemyState = _playerState(_enemyId(playerId));
 
         // If the enemy player has not committed yet and it's over commit time limit,
         // ban the enemy player as delayer.
         if (enemyState == PlayerState.Standby && _isLateForChoiceCommit()) {
-            emit LateChoiceCommitDetected(numRounds, enemyId);
+            emit LateChoiceCommitDetected(numRounds, _enemyId(playerId));
 
             // Deal with the delayer (the player designated by playerId) and cancel
             // this battle.
@@ -179,7 +168,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard, IERC165 {
         require(
             enemyState == PlayerState.Committed ||
                 enemyState == PlayerState.Revealed,
-            "The enemy player hasn't committed the choice in this round yet."
+            "Enemy player hasn't committed the choice yet"
         );
         _;
     }
@@ -191,7 +180,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard, IERC165 {
             battleState == BattleState.NotStarted ||
                 battleState == BattleState.Settled ||
                 battleState == BattleState.Canceled,
-            "Battle is not ready for start."
+            "Battle isn't ready for start."
         );
         _;
     }
@@ -212,29 +201,27 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard, IERC165 {
             PlayerId.Visitor
         );
 
-        uint32 homeBondLevel = token.getPriorBondLevel(
-            homeChar.level,
-            visitorChar.fromBlock,
-            _fromBlock(PlayerId.Visitor)
-        );
         uint32 homeDamage = token.getDamage(
             numRounds,
             homeChar,
             choiceCommitLog[numRounds][PlayerId.Home].levelPoint,
-            homeBondLevel,
+            token.getPriorBondLevel(
+                homeChar.level,
+                visitorChar.fromBlock,
+                _fromBlock(PlayerId.Visitor)
+            ),
             visitorChar
         );
 
-        uint32 visitorBondLevel = token.getPriorBondLevel(
-            visitorChar.level,
-            visitorChar.fromBlock,
-            _fromBlock(PlayerId.Visitor)
-        );
         uint32 visitorDamage = token.getDamage(
             numRounds,
             visitorChar,
             choiceCommitLog[numRounds][PlayerId.Visitor].levelPoint,
-            visitorBondLevel,
+            token.getPriorBondLevel(
+                visitorChar.level,
+                visitorChar.fromBlock,
+                _fromBlock(PlayerId.Visitor)
+            ),
             homeChar
         );
 
@@ -458,10 +445,9 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard, IERC165 {
         uint48 bottom = (uint48(winnerTotalLevel) +
             uint48(loserTotalLevel) +
             102)**3;
-        uint256 amount = top / bottom;
 
         // Dealer pay rewards to the winner.
-        dealer.payReward(_playerAddr(winner), uint256(amount));
+        dealer.payReward(_playerAddr(winner), uint256(top / bottom));
     }
 
     /// @notice Function to pay reward to both players when draws.
@@ -483,12 +469,12 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard, IERC165 {
             102)**3;
 
         // The total amount of rewards are smaller then non-draw case.
-        uint256 homeAmount = homeTop / bottom / 3;
-        uint256 visitorAmount = visitorTop / bottom / 3;
-
         // Dealer pay rewards to both players.
-        dealer.payReward(_playerAddr(PlayerId.Home), homeAmount);
-        dealer.payReward(_playerAddr(PlayerId.Visitor), visitorAmount);
+        dealer.payReward(_playerAddr(PlayerId.Home), homeTop / bottom / 3);
+        dealer.payReward(
+            _playerAddr(PlayerId.Visitor),
+            visitorTop / bottom / 3
+        );
     }
 
     /// @notice Function to mark the slot used in the current round as used.
@@ -536,10 +522,10 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard, IERC165 {
     /// @param playerId: The player's identifier.
     function _totalLevel(PlayerId playerId) internal view returns (uint16) {
         uint16 totalLevel = 0;
-        for (uint8 i = 0; i < FIXED_SLOTS_NUM; i++) {
+        for (uint8 slotIdx = 0; slotIdx < FIXED_SLOTS_NUM; slotIdx++) {
             totalLevel += token
                 .getPriorCharacterInfo(
-                    _fixedSlotTokenIdByIdx(playerId, i),
+                    _fixedSlotTokenIdByIdx(playerId, slotIdx),
                     _fromBlock(playerId)
                 )
                 .level;
@@ -560,7 +546,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard, IERC165 {
     function _nonce(PlayerId playerId) internal view returns (bytes32) {
         require(
             _randomSlotState(playerId) != RandomSlotState.NotSet,
-            "no nonce set."
+            "Nonce hasn't been set"
         );
         return playerInfoTable[playerId].randomSlot.nonce;
     }
@@ -578,7 +564,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard, IERC165 {
             // Player's choice is in a random slot.
             return _randomSlotCharInfo(playerId);
         } else if (choice == Choice.Hidden) {
-            revert("Unreachable !");
+            revert("Unreachable");
         } else {
             // Player's choice is in fixed slots.
             return _fixedSlotCharInfoByIdx(playerId, uint8(choice));
@@ -601,8 +587,9 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard, IERC165 {
     {
         require(
             _randomSlotState(playerId) == RandomSlotState.Revealed,
-            "Random slot character info has not determined yet."
+            "playerSeed hasn't been revealed yet"
         );
+
         // Calculate the tokenId of random slot for player designated by PlayerId.
         uint256 tokenId = PLMSeeder.getRandomSlotTokenId(
             _nonce(playerId),
@@ -648,7 +635,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard, IERC165 {
     function _playerSeed(PlayerId playerId) internal view returns (bytes32) {
         require(
             _randomSlotState(playerId) == RandomSlotState.Revealed,
-            "rand. sl. hasn't been revealed yet."
+            "playerSeed hasn't revealed yet"
         );
         return playerSeedCommitLog[playerId].playerSeed;
     }
@@ -670,7 +657,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard, IERC165 {
         view
         returns (uint256)
     {
-        require(slotIdx < FIXED_SLOTS_NUM, "Invalid fixed slot index.");
+        require(slotIdx < FIXED_SLOTS_NUM, "Invalid fixed slot index");
         return playerInfoTable[playerId].fixedSlots[slotIdx];
     }
 
@@ -687,7 +674,6 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard, IERC165 {
         view
         returns (uint8)
     {
-        require(slotIdx < FIXED_SLOTS_NUM, "Invalid fixed slot index.");
         return playerInfoTable[playerId].fixedSlotsUsedRounds[slotIdx];
     }
 
@@ -723,13 +709,13 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard, IERC165 {
         // Check that the battle hasn't started yet.
         require(
             battleState == BattleState.Standby,
-            "The battle has already started."
+            "Battle has already started."
         );
 
         // Check that the player seed hasn't set yet.
         require(
             _randomSlotState(playerId) == RandomSlotState.NotSet,
-            "The playerSeed has already set."
+            "playerSeed has already been set."
         );
 
         PlayerId enemyId = _enemyId(playerId);
@@ -789,12 +775,6 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard, IERC165 {
         onlyPlayerOf(playerId)
         readyForPlayerSeedReveal(playerId)
     {
-        // playerSeed is not allowed to be bytes32(0).
-        require(
-            playerSeed != bytes32(0),
-            "bytes32(0) is not allowed for playerSeed."
-        );
-
         // The pointer to the commit log of the player designated by playerId.
         PlayerSeedCommit storage playerSeedCommit = playerSeedCommitLog[
             playerId
@@ -804,7 +784,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard, IERC165 {
         require(
             keccak256(abi.encodePacked(msg.sender, playerSeed)) ==
                 playerSeedCommit.commitString,
-            "Commit hash doesn't coincide."
+            "Commit hash doesn't coincide"
         );
 
         // Execute revealment
@@ -830,7 +810,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard, IERC165 {
         // Check that the player who want to commit haven't committed yet in this round.
         require(
             _playerState(playerId) == PlayerState.Standby,
-            "not in the state to commit in this round."
+            "Player isn't ready for choice commit"
         );
 
         PlayerId enemyId = _enemyId(playerId);
@@ -893,7 +873,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard, IERC165 {
         // Choice.Hidden is not allowed for the choice passed to the reveal function.
         require(
             choice != Choice.Hidden,
-            "Choice.Hidden is not allowed when revealing."
+            "Choice.Hidden isn't allowed when revealing"
         );
 
         PlayerId enemyId = _enemyId(playerId);
@@ -918,7 +898,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard, IERC165 {
         if (choice == Choice.Random) {
             require(
                 _randomSlotState(playerId) == RandomSlotState.Revealed,
-                "Random slot cannot be used because player seed hasn't been revealed yet."
+                "Random slot can't be used because playerSeed hasn't been revealed yet"
             );
         }
 
@@ -932,7 +912,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard, IERC165 {
             keccak256(
                 abi.encodePacked(msg.sender, levelPoint, choice, bindingFactor)
             ) == choiceCommit.commitString,
-            "Commit hash doesn't coincide."
+            "Commit hash doesn't coincide"
         );
 
         // Check that the levelPoint is less than or equal to the remainingLevelPoint.
@@ -978,6 +958,8 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard, IERC165 {
         // Update the state of the reveal player to be Revealed.
         playerInfoTable[playerId].state = PlayerState.Revealed;
 
+        // If both players have already revealed their choices, then proceed to the damage
+        // calculation.
         if (_playerState(enemyId) == PlayerState.Revealed) {
             _stepRound();
         }
@@ -1002,7 +984,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard, IERC165 {
         require(
             _playerState(enemyId) == PlayerState.Committed &&
                 _isLateForChoiceReveal(),
-            "Check this report is valid."
+            "Reported player isn't late"
         );
 
         emit LateChoiceRevealDetected(numRounds, enemyId);
@@ -1046,47 +1028,40 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard, IERC165 {
         uint8 homeLevelPoint = token.getLevelPoint(homeCharInfos);
         uint8 visitorLevelPoint = token.getLevelPoint(visitorCharInfos);
 
-        // Initialize random slots.
-        RandomSlot memory homeRandomSlot = RandomSlot(
-            token.getRandomSlotLevel(homeCharInfos),
-            bytes32(0),
-            0,
-            RandomSlotState.NotSet
-        );
-        RandomSlot memory visitorRandomSlot = RandomSlot(
-            token.getRandomSlotLevel(visitorCharInfos),
-            bytes32(0),
-            0,
-            RandomSlotState.NotSet
-        );
-
         // Initialize both players' information.
-        PlayerInfo memory homeInfo = PlayerInfo(
+        // Initialize random slots of them too.
+        playerInfoTable[PlayerId.Home] = PlayerInfo(
             homeAddr,
             homeFromBlock,
             homeFixedSlots,
             [0, 0, 0, 0],
-            homeRandomSlot,
+            RandomSlot(
+                token.getRandomSlotLevel(homeCharInfos),
+                bytes32(0),
+                0,
+                RandomSlotState.NotSet
+            ),
             PlayerState.Standby,
             0,
             homeLevelPoint,
             homeLevelPoint
         );
-        PlayerInfo memory visitorInfo = PlayerInfo(
+        playerInfoTable[PlayerId.Visitor] = PlayerInfo(
             visitorAddr,
             visitorFromBlock,
             visitorFixedSlots,
             [0, 0, 0, 0],
-            visitorRandomSlot,
+            RandomSlot(
+                token.getRandomSlotLevel(visitorCharInfos),
+                bytes32(0),
+                0,
+                RandomSlotState.NotSet
+            ),
             PlayerState.Standby,
             0,
             visitorLevelPoint,
             visitorLevelPoint
         );
-
-        // Set the initial character information.
-        playerInfoTable[PlayerId.Home] = homeInfo;
-        playerInfoTable[PlayerId.Visitor] = visitorInfo;
 
         // Change battle state to wait for the playerSeed commitment.
         battleState = BattleState.Standby;
@@ -1282,7 +1257,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard, IERC165 {
             IERC165(_matchOrganizer).supportsInterface(
                 type(IPLMMatchOrganizer).interfaceId
             ),
-            "Given contract doesn't support IPLMMatchOrganizer."
+            "Given contract doesn't support IPLMMatchOrganizer"
         );
         matchOrganizer = IPLMMatchOrganizer(_matchOrganizer);
     }

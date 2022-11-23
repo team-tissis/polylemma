@@ -43,12 +43,12 @@ contract PLMMatchOrganizer is IPLMMatchOrganizer, ReentrancyGuard, IERC165 {
     }
 
     modifier onlyPolylemmers() {
-        require(msg.sender == polylemmers, "sender is not polylemmers");
+        require(msg.sender == polylemmers, "sender != polylemmers");
         _;
     }
 
     modifier blockNumberIsPositive() {
-        require(block.number > 0, "block number is zero.");
+        require(block.number > 0, "block.number == 0");
         _;
     }
 
@@ -56,16 +56,13 @@ contract PLMMatchOrganizer is IPLMMatchOrganizer, ReentrancyGuard, IERC165 {
     modifier subscribed() {
         require(
             !dealer.subscIsExpired(msg.sender),
-            "sender's subscription is expired."
+            "sender's subscription is expired"
         );
         _;
     }
 
     modifier onlyBattleField() {
-        require(
-            msg.sender == address(battleField),
-            "sender is not battleField."
-        );
+        require(msg.sender == address(battleField), "sender != battleField.");
         _;
     }
 
@@ -129,14 +126,14 @@ contract PLMMatchOrganizer is IPLMMatchOrganizer, ReentrancyGuard, IERC165 {
         // Prevent the proposer from proposing twice or more.
         require(
             matchStates[msg.sender] == MatchState.NotInvolved,
-            "proposing, or in battle."
+            "Player can't create proposal"
         );
 
         for (uint256 slotIdx = 0; slotIdx < FIXED_SLOTS_NUM; slotIdx++) {
             // Check that the proposed fixed slots tokens are owned by the proposer.
             require(
                 msg.sender == token.ownerOf(fixedSlots[slotIdx]),
-                "The proposer is not the owner of the character."
+                "Proposer != owner of the character."
             );
 
             // Check that the token was minted in the past.
@@ -147,7 +144,7 @@ contract PLMMatchOrganizer is IPLMMatchOrganizer, ReentrancyGuard, IERC165 {
                         block.number - 1
                     )
                     .fromBlock < block.number,
-                "token just minted now cannot be used."
+                "Token just minted now cannot be used"
             );
         }
 
@@ -194,13 +191,13 @@ contract PLMMatchOrganizer is IPLMMatchOrganizer, ReentrancyGuard, IERC165 {
         // Check that the player designated by the address is truely a proposer.
         require(
             matchStates[proposer] == MatchState.Proposed,
-            "called address is not in proposal"
+            "Designated proposer isn't invalid"
         );
 
         // Check that the challenger is not a proposer.
         require(
             matchStates[msg.sender] == MatchState.NotInvolved,
-            "sender is in Battle or proposing."
+            "Sender can't request challenge"
         );
 
         // Check that the proposer is subscribed.
@@ -214,7 +211,7 @@ contract PLMMatchOrganizer is IPLMMatchOrganizer, ReentrancyGuard, IERC165 {
             // Check that the fixed slots tokens are owned by the visitor.
             require(
                 msg.sender == token.ownerOf(fixedSlots[slotIdx]),
-                "submitted character is not owned by the sender."
+                "sender != owner of the submitted character"
             );
 
             // Check that the token is minted in the past.
@@ -225,7 +222,7 @@ contract PLMMatchOrganizer is IPLMMatchOrganizer, ReentrancyGuard, IERC165 {
                         block.number - 1
                     )
                     .fromBlock < block.number,
-                "token just minted now cannot used in battle."
+                "Token just minted now cannot used"
             );
         }
 
@@ -254,7 +251,7 @@ contract PLMMatchOrganizer is IPLMMatchOrganizer, ReentrancyGuard, IERC165 {
         require(
             visitorTotalLevel >= proposal.lowerBound &&
                 visitorTotalLevel <= proposal.upperBound,
-            "not satisfy level condition."
+            "Violate level condition"
         );
 
         // pay stamina
@@ -335,7 +332,7 @@ contract PLMMatchOrganizer is IPLMMatchOrganizer, ReentrancyGuard, IERC165 {
             IERC165(_battleField).supportsInterface(
                 type(IPLMBattleField).interfaceId
             ),
-            "Given contract doesn't support IPLMBattleField."
+            "Given contract doesn't support IPLMBattleField"
         );
         battleField = IPLMBattleField(_battleField);
     }
