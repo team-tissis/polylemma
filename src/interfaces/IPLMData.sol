@@ -3,6 +3,7 @@ interface IPLMData {
     ///      STRUCTS     ///
     ////////////////////////
 
+    // TODO: member変数の入れ替え
     struct CharacterInfo {
         bytes32 name;
         uint256 imgId;
