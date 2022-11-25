@@ -30,6 +30,64 @@ contract PLMData is IPLMData {
     /// @notice Progressive taxation of coin issuance through billing
     uint256[] public poolingPercentageTable = [5, 10, 20, 23, 33, 40, 45];
 
+    function _mulFloat(
+        uint256 x,
+        uint256 denominator,
+        uint256 numerator
+    ) internal pure returns (uint32) {
+        return uint32((x * denominator) / numerator);
+    }
+
+    function _rate(uint8 x) internal view returns (bool) {
+        return uint256(PLMSeeder.generateRandomSlotNonce()) % 100 < x;
+    }
+
+    function _typeCompatibility(
+        string calldata playerType,
+        string calldata enemyType
+    ) internal pure returns (uint8, uint8) {
+        bytes32 playerTypeBytes = keccak256(abi.encodePacked(playerType));
+        bytes32 enemyTypeBytes = keccak256(abi.encodePacked(enemyType));
+        bytes32 fire = keccak256(abi.encodePacked("fire"));
+        bytes32 grass = keccak256(abi.encodePacked("grass"));
+        bytes32 water = keccak256(abi.encodePacked("water"));
+        if (playerTypeBytes == enemyTypeBytes) {
+            return (1, 1);
+        } else if (
+            (playerTypeBytes == fire && enemyTypeBytes == grass) ||
+            (playerTypeBytes == grass && enemyTypeBytes == water) ||
+            (playerTypeBytes == water && enemyTypeBytes == fire)
+        ) {
+            return (12, 10);
+        } else if (
+            (enemyTypeBytes == fire && playerTypeBytes == grass) ||
+            (enemyTypeBytes == grass && playerTypeBytes == water) ||
+            (enemyTypeBytes == water && playerTypeBytes == fire)
+        ) {
+            return (8, 10);
+        } else {
+            // TODO: Error handling
+            return (1, 1);
+        }
+    }
+
+    function _calcRarity(uint8[1] memory attributeIds)
+        internal
+        view
+        returns (uint8)
+    {
+        return attributeRarities[attributeIds[0]];
+    }
+
+    /// @dev This logic is derived from Pokemon
+    function _calcNecessaryExp(CharacterInfo memory charInfo)
+        internal
+        pure
+        returns (uint256)
+    {
+        return uint256(charInfo.level)**2;
+    }
+
     /// @notice function to simulate the battle and return back result to BattleField contract.
     function _calcDamage(
         uint8 numRounds,
@@ -200,7 +258,7 @@ contract PLMData is IPLMData {
 
     /// @notice get the percentage of pooling of PLMCoins minted when player charged MATIC.
     function getPoolingPercentage(uint256 amount)
-        public
+        external
         view
         returns (uint256)
     {
@@ -222,7 +280,7 @@ contract PLMData is IPLMData {
     }
 
     function getCharacterTypes()
-        public
+        external
         view
         override
         returns (string[] memory)
@@ -310,63 +368,5 @@ contract PLMData is IPLMData {
 
     function getNumImg() external view returns (uint256) {
         return numImg;
-    }
-
-    function _mulFloat(
-        uint256 x,
-        uint256 denominator,
-        uint256 numerator
-    ) internal pure returns (uint32) {
-        return uint32((x * denominator) / numerator);
-    }
-
-    function _rate(uint8 x) internal view returns (bool) {
-        return uint256(PLMSeeder.generateRandomSlotNonce()) % 100 < x;
-    }
-
-    function _typeCompatibility(
-        string calldata playerType,
-        string calldata enemyType
-    ) internal pure returns (uint8, uint8) {
-        bytes32 playerTypeBytes = keccak256(abi.encodePacked(playerType));
-        bytes32 enemyTypeBytes = keccak256(abi.encodePacked(enemyType));
-        bytes32 fire = keccak256(abi.encodePacked("fire"));
-        bytes32 grass = keccak256(abi.encodePacked("grass"));
-        bytes32 water = keccak256(abi.encodePacked("water"));
-        if (playerTypeBytes == enemyTypeBytes) {
-            return (1, 1);
-        } else if (
-            (playerTypeBytes == fire && enemyTypeBytes == grass) ||
-            (playerTypeBytes == grass && enemyTypeBytes == water) ||
-            (playerTypeBytes == water && enemyTypeBytes == fire)
-        ) {
-            return (12, 10);
-        } else if (
-            (enemyTypeBytes == fire && playerTypeBytes == grass) ||
-            (enemyTypeBytes == grass && playerTypeBytes == water) ||
-            (enemyTypeBytes == water && playerTypeBytes == fire)
-        ) {
-            return (8, 10);
-        } else {
-            // TODO: Error handling
-            return (1, 1);
-        }
-    }
-
-    function _calcRarity(uint8[1] memory attributeIds)
-        internal
-        view
-        returns (uint8)
-    {
-        return attributeRarities[attributeIds[0]];
-    }
-
-    /// @dev This logic is derived from Pokemon
-    function _calcNecessaryExp(CharacterInfo memory charInfo)
-        internal
-        pure
-        returns (uint256)
-    {
-        return uint256(charInfo.level)**2;
     }
 }
