@@ -13,20 +13,17 @@ contract PLMCoin is ERC20, IPLMCoin {
     /// @notice contract address of the dealer of polylemma.
     address public dealer;
 
-    bool dealerIsSet = false;
-
     constructor() ERC20("polylemma", "PLM") {
         polylemmers = msg.sender;
     }
 
     modifier onlyDealer() {
-        require(dealerIsSet, "dealer has not been set.");
-        require(msg.sender == dealer, "sender is not dealer.");
+        require(msg.sender == dealer, "sender != dealer");
         _;
     }
 
     modifier onlyPolylemmers() {
-        require(msg.sender == polylemmers, "sender is not deployer.");
+        require(msg.sender == polylemmers, "sender != deployer");
         _;
     }
 
@@ -49,7 +46,6 @@ contract PLMCoin is ERC20, IPLMCoin {
     ///         ("polylemmers" is contract deployer's address.)
     function setDealer(address _dealer) external onlyPolylemmers {
         dealer = _dealer;
-        dealerIsSet = true;
     }
 
     //////////////////////////
