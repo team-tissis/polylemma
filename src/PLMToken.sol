@@ -143,6 +143,8 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
         return (lower, true);
     }
 
+    /// 関数の引数にbytesForFunctionSelector   bytes4(keccak256(“func_name(type1,type2)”))
+    /// (Bool success, bytes returnval) = call(functionSelector, 引数たち)
     /// @notice Run binary search in character info checkpoints.
     function _searchCharInfoCheckpointIdx(uint256 tokenId, uint256 blockNumber)
         internal
@@ -334,7 +336,7 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
 
     /// @notice increment level with consuming his coin
     function updateLevel(uint256 tokenId) external nonReentrant {
-        require(msg.sender == ownerOf(tokenId), "sender is not owner");
+        require(msg.sender == ownerOf(tokenId), "sender != owner");
         require(getCurrentCharacterInfo(tokenId).level <= 255, "level max");
 
         uint256 necessaryExp = _necessaryExp(tokenId);

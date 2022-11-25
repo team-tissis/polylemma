@@ -56,15 +56,15 @@ contract PLMDealer is PLMGacha, IPLMDealer {
     }
 
     modifier onlyPolylemmers() {
-        require(msg.sender == polylemmers, "sender is not polylemmers");
+        require(msg.sender == polylemmers, "sender != polylemmers");
         _;
     }
     modifier onlyMatchOrganizer() {
-        require(msg.sender == matchOrganizer, "sender is not matchOrganizer");
+        require(msg.sender == matchOrganizer, "sender != matchOrganizer");
         _;
     }
     modifier onlyBattleField() {
-        require(msg.sender == battleField, "sender is not battleField");
+        require(msg.sender == battleField, "sender != battleField");
         _;
     }
 
