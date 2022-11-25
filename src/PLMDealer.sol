@@ -42,9 +42,6 @@ contract PLMDealer is PLMGacha, IPLMDealer {
     /// @notice admin's address
     address polylemmers;
 
-    bool matchOrganizerIsSet = false;
-    bool battleFieldIsSet = false;
-
     /// @notice Mapping from each account to one's subscription expired block number.
     mapping(address => uint256) subscExpiredBlock;
 
@@ -63,12 +60,10 @@ contract PLMDealer is PLMGacha, IPLMDealer {
         _;
     }
     modifier onlyMatchOrganizer() {
-        require(matchOrganizerIsSet, "matchOrganizer has not been set.");
         require(msg.sender == matchOrganizer, "sender is not matchOrganizer");
         _;
     }
     modifier onlyBattleField() {
-        require(battleFieldIsSet, "battleField has not been set.");
         require(msg.sender == battleField, "sender is not battleField");
         _;
     }
@@ -108,7 +103,7 @@ contract PLMDealer is PLMGacha, IPLMDealer {
         uint256 totalAmount = address(this).balance;
 
         // Check that withdrawal is possible.
-        require(amount <= totalAmount, "cannot withdraw over total balance.");
+        require(amount <= totalAmount, "cannot withdraw in excess of balance");
 
         // Execute withdrawal.
         (bool success, ) = payable(dealer).call{value: amount}("");
@@ -154,10 +149,6 @@ contract PLMDealer is PLMGacha, IPLMDealer {
 
     /// @notice need approvement of coin to dealer
     function restoreFullStamina(address player) external nonReentrant {
-        require(
-            coin.balanceOf(msg.sender) >= 1,
-            "player does not have enough coin"
-        );
         require(
             _currentStamina(player) < STAMINA_MAX,
             "player's stamina is full"
@@ -236,9 +227,6 @@ contract PLMDealer is PLMGacha, IPLMDealer {
 
     /// @notice Function to extend subscription period. Need approvement of coin to dealer
     function extendSubscPeriod() external {
-        // Check the user owns enough PLMCoin to extend one's subscription period.
-        require(coin.balanceOf(msg.sender) >= SUBSC_FEE_PER_UNIT_PERIOD);
-
         uint256 currentExpiredBlock = getSubscExpiredBlock(msg.sender);
 
         // TODO: modify here from transfer to safeTransfer.
@@ -395,7 +383,6 @@ contract PLMDealer is PLMGacha, IPLMDealer {
         external
         onlyPolylemmers
     {
-        matchOrganizerIsSet = true;
         matchOrganizer = _matchOrganizer;
     }
 
@@ -403,7 +390,6 @@ contract PLMDealer is PLMGacha, IPLMDealer {
     /// @dev   This function must be called when initializing contracts by the deployer manually. ("polylemmers" is contract deployer's address.)
     ///        "battleField" address is stored in this contract to make some functions able to be called from only battleField.
     function setBattleField(address _battleField) external onlyPolylemmers {
-        battleFieldIsSet = true;
         battleField = _battleField;
     }
 }
