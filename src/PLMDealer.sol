@@ -218,6 +218,12 @@ contract PLMDealer is PLMGacha, IPLMDealer {
     /// FUNCTIONS ABOUT SUBSCRIPTION ///
     ////////////////////////////////////
 
+    function _extendSubscPeriod(address account) internal {
+        subscExpiredBlock[account] =
+            getSubscExpiredBlock(account).max(block.number) +
+            SUBSC_UNIT_PERIOD_BLOCK_NUM;
+    }
+
     /// @notice Function to return whether the account's subscription is expired or not.
     function subscIsExpired(address account) external view returns (bool) {
         return block.number > getSubscExpiredBlock(account);
@@ -287,12 +293,6 @@ contract PLMDealer is PLMGacha, IPLMDealer {
 
     function getSubscUnitPeriodBlockNum() external pure returns (uint256) {
         return SUBSC_UNIT_PERIOD_BLOCK_NUM;
-    }
-
-    function _extendSubscPeriod(address account) internal {
-        subscExpiredBlock[account] =
-            getSubscExpiredBlock(account).max(block.number) +
-            SUBSC_UNIT_PERIOD_BLOCK_NUM;
     }
 
     //////////////////////////////////
