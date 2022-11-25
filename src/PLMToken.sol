@@ -187,6 +187,8 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
         return (lower, true);
     }
 
+    // function _checkpoint(WhichCheckpoint which, uint256 index) returns (uint256 cpFromBlock) {}
+
     /// @notice Function to mint new PLMToken to the account (to).
     /// @dev 1. generate seed to assign attirbutes to the minted token using Seeder.
     ///      2. write checkpoint of total supply.
@@ -556,7 +558,7 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
         }
     }
 
-    function getImgURI(uint256 imgId) external returns (string memory) {
+    function getImgURI(uint256 imgId) external view returns (string memory) {
         return _imgURI(imgId);
     }
 

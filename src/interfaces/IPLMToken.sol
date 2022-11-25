@@ -3,6 +3,11 @@ import {IERC721Enumerable} from "openzeppelin-contracts/token/ERC721/extensions/
 import {IPLMData} from "./IPLMData.sol";
 
 interface IPLMToken is IERC721, IERC721Enumerable, IPLMData {
+    /// @notice Enum to represent battle's state.
+    enum WhichCheckpoints {
+        CharInfo, // 0
+        TotalSupply, // 1
+    }
     /// @notice A checkpoint for marking change of characterInfo from a given block.
     struct CharInfoCheckpoint {
         uint256 fromBlock;
