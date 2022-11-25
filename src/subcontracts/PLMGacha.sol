@@ -26,14 +26,6 @@ contract PLMGacha is IPLMGacha, ReentrancyGuard {
     ///         2. mint PLMToken by this contract
     ///         2. transfer minted token from this contract to the sender
     function gacha(bytes32 name) external nonReentrant {
-        require(
-            coin.allowance(msg.sender, address(this)) >= GACHA_FEE,
-            "coin allowance insufficient /gacha"
-        );
-        require(
-            coin.balanceOf(msg.sender) >= GACHA_FEE,
-            "not sufficient balance /gacha"
-        );
         try token.mint(name) returns (uint256 tokenId) {
             try coin.transferFrom(msg.sender, address(this), GACHA_FEE) {
                 token.transferFrom(address(this), msg.sender, tokenId);
