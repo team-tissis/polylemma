@@ -74,7 +74,6 @@ contract PLMDealer is PLMGacha, IPLMDealer {
     ///      - When the current block number is less than max stamina point, this function return max stamina.
     function _currentStamina(address player) internal view returns (uint8) {
         if (block.number < STAMINA_MAX) {
-            // TODO:
             return STAMINA_MAX;
         } else if (block.number > staminaFromBlock[player]) {
             return
@@ -83,7 +82,6 @@ contract PLMDealer is PLMGacha, IPLMDealer {
                         STAMINA_RESTORE_SPEED).min(STAMINA_MAX)
                 );
         } else {
-            // TODO
             return 0;
         }
     }

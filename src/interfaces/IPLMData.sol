@@ -5,13 +5,13 @@ interface IPLMData {
 
     // TODO: member変数の入れ替え
     struct CharacterInfo {
-        bytes32 name;
-        uint256 imgId;
-        uint256 fromBlock;
-        string characterType;
         uint8 level;
         uint8 rarity;
+        uint256 imgId;
+        uint256 fromBlock;
         uint8[1] attributeIds;
+        bytes32 name;
+        string characterType;
     }
 
     ////////////////////////

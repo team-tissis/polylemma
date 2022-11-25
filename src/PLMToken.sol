@@ -67,7 +67,6 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
         _;
     }
 
-    /// TODO: checkPointableにする情報は一部でじゅうぶん。
     /// @notice core logic of levelup.
     /// @dev Because character info has changed by levelup, the new character info
     ///      is written into checkpoints in this function.
@@ -78,13 +77,13 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
             checkNum - 1
         ].charInfo;
         CharacterInfo memory charInfoNew = CharacterInfo(
-            charInfoOld.name,
-            charInfoOld.imgId,
-            charInfoOld.fromBlock,
-            charInfoOld.characterType,
             charInfoOld.level + 1,
             charInfoOld.rarity,
-            charInfoOld.attributeIds
+            charInfoOld.imgId,
+            charInfoOld.fromBlock,
+            charInfoOld.attributeIds,
+            charInfoOld.name,
+            charInfoOld.characterType
         );
 
         _writeCharInfoCheckpoint(tokenId, checkNum, charInfoOld, charInfoNew);
@@ -200,18 +199,18 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
         );
         string[] memory characterTypes = _characterTypes();
         CharacterInfo memory mintedCharInfo = CharacterInfo(
-            name,
-            seed.imgId,
-            block.number,
-            characterTypes[seed.characterType],
             1,
             _calcRarity([seed.attribute]),
-            [seed.attribute]
+            seed.imgId,
+            block.number,
+            [seed.attribute],
+            name,
+            characterTypes[seed.characterType]
         );
 
         // write character info checkpoint
         uint32 charInfoCheckNum = numCharInfoCheckpoints[tokenId];
-        CharacterInfo memory dummyInfo = CharacterInfo("", 0, 0, "", 0, 0, [0]);
+        CharacterInfo memory dummyInfo = CharacterInfo(0, 0, 0, 0, [0], "", "");
         _writeCharInfoCheckpoint(
             tokenId,
             charInfoCheckNum,
@@ -244,13 +243,13 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
             charInfoCheckNum - 1
         ].charInfo;
         CharacterInfo memory charInfoNew = CharacterInfo(
-            charInfoOld.name,
-            charInfoOld.imgId,
-            block.number,
-            charInfoOld.characterType,
             charInfoOld.level,
             charInfoOld.rarity,
-            charInfoOld.attributeIds
+            charInfoOld.imgId,
+            block.number,
+            charInfoOld.attributeIds,
+            charInfoOld.name,
+            charInfoOld.characterType
         );
 
         _writeCharInfoCheckpoint(
@@ -519,7 +518,7 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
         view
         returns (CharacterInfo memory)
     {
-        CharacterInfo memory dummyInfo = CharacterInfo("", 0, 0, "", 0, 0, [0]);
+        CharacterInfo memory dummyInfo = CharacterInfo(0, 0, 0, 0, [0], "", "");
         uint32 nCharInfoCheckpoints = numCharInfoCheckpoints[tokenId];
         return
             nCharInfoCheckpoints > 0
@@ -540,7 +539,7 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
         view
         returns (CharacterInfo memory)
     {
-        CharacterInfo memory dummyInfo = CharacterInfo("", 0, 0, "", 0, 0, [0]);
+        CharacterInfo memory dummyInfo = CharacterInfo(0, 0, 0, 0, [0], "", "");
         require(blockNumber < block.number, "blockNumber lager than latest");
 
         (uint32 index, bool found) = _searchCharInfoCheckpointIdx(

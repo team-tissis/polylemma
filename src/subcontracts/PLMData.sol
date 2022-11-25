@@ -5,15 +5,8 @@ import {PLMSeeder} from "../lib/PLMSeeder.sol";
 import {IPLMData} from "../interfaces/IPLMData.sol";
 
 contract PLMData is IPLMData {
-    // TODO: monsterblocksのmonster名で仮置きした
     // TODO: 入替可能なようにconstructorで初期化&setHogeで入替可能にするべき
-    string[] public characterTypes = [
-        "Fire",
-        "Grass",
-        "Water"
-        // "dark",
-        // "light"
-    ];
+    string[] public characterTypes = ["Fire", "Grass", "Water"];
 
     /// @notice ratio of probability of type occurrence
     uint8[] public characterTypeOdds = [1, 1, 1];
@@ -302,11 +295,6 @@ contract PLMData is IPLMData {
         override
         returns (uint8[] memory)
     {
-        require(
-            characterTypes.length == characterTypeOdds.length,
-            "characterTypes.length != characterTypeOdds.length"
-        );
-
         uint256 numCharacterTypes = characterTypes.length;
         uint8[] memory cumulativeCharacterTypeOdds = new uint8[](
             numCharacterTypes
