@@ -333,24 +333,10 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
 
     /// @notice increment level with consuming his coin
     function updateLevel(uint256 tokenId) external nonReentrant {
-        require(
-            msg.sender == ownerOf(tokenId),
-            "Permission denied. Sender is not owner of this token"
-        );
-        require(getCurrentCharacterInfo(tokenId).level <= 255, "level is max.");
+        require(msg.sender == ownerOf(tokenId), "sender is not owner");
+        require(getCurrentCharacterInfo(tokenId).level <= 255, "level max");
 
         uint256 necessaryExp = _necessaryExp(tokenId);
-        // whether user have delgated this contract to spend coin for levelup
-        require(
-            coin.allowance(msg.sender, address(this)) >= necessaryExp,
-            "not enough Coin allowance"
-        );
-        // whether user have ehough coin to increment level
-        require(
-            coin.balanceOf(msg.sender) >= necessaryExp,
-            "not enough coin to update level"
-        );
-
         try coin.transferFrom(msg.sender, polylemmers, necessaryExp) {
             _updateLevel(tokenId);
         } catch Error(string memory reason) {
@@ -553,10 +539,7 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
         returns (CharacterInfo memory)
     {
         CharacterInfo memory dummyInfo = CharacterInfo("", 0, 0, "", 0, 0, [0]);
-        require(
-            blockNumber < block.number,
-            "PLMToken::getPriorCharInfo: not yet determined"
-        );
+        require(blockNumber < block.number, "blockNumber lager than latest");
 
         (uint32 index, bool found) = _searchCharInfoCheckpointIdx(
             tokenId,
@@ -580,10 +563,7 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
         returns (uint256)
     {
         uint256 dummyTotalSupply = 0;
-        require(
-            blockNumber < block.number,
-            "PLMToken::getPriorTokenSupply: not yet determined"
-        );
+        require(blockNumber < block.number, "blockNumber lager than latest");
 
         (uint32 index, bool found) = _searchTotalSupplyCheckpointIdx(
             blockNumber
