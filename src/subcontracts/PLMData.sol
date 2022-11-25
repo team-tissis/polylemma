@@ -42,6 +42,10 @@ contract PLMData is IPLMData {
         return uint256(PLMSeeder.generateRandomSlotNonce()) % 100 < x;
     }
 
+    function _characterTypes() internal view returns (string[] memory) {
+        return characterTypes;
+    }
+
     function _typeCompatibility(
         string calldata playerType,
         string calldata enemyType
