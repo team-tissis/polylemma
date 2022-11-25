@@ -749,7 +749,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard, IERC165 {
         playerInfoTable[playerId].randomSlot.state = RandomSlotState.Committed;
 
         // Generate nonce after player committed the playerSeed.
-        bytes32 nonce = PLMSeeder.generateRandomSlotNonce();
+        bytes32 nonce = PLMSeeder.randomFromBlockHash();
 
         // Emit the event that tells frontend that the randomSlotNonce is generated for the player designated
         // by playerId.

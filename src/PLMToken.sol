@@ -109,6 +109,7 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
         view
         returns (uint32, bool)
     {
+        /// from here ////
         if (numTotalSupplyCheckpoints == 0) {
             return (0, false);
         }
@@ -150,6 +151,7 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
         returns (uint32, bool)
     {
         uint32 nCharInfoCheckpoints = numCharInfoCheckpoints[tokenId];
+        /// from here ////
         if (nCharInfoCheckpoints == 0) {
             return (0, false);
         }
@@ -192,7 +194,7 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
         uint256 tokenId,
         bytes32 name
     ) internal returns (uint256) {
-        PLMSeeder.Seed memory seed = PLMSeeder.generateSeed(
+        PLMSeeder.Seed memory seed = PLMSeeder.generateTokenSeed(
             tokenId,
             IPLMData(address(this))
         );
