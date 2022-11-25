@@ -196,7 +196,7 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
             tokenId,
             IPLMData(address(this))
         );
-        string[] memory characterTypes = getCharacterTypes();
+        string[] memory characterTypes = _characterTypes();
         CharacterInfo memory mintedCharInfo = CharacterInfo(
             name,
             seed.imgId,
