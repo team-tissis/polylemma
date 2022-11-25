@@ -112,13 +112,13 @@ contract PLMSeederTest is Test {
             string[] memory characterTypes = IPLMData(address(tokenContract))
                 .getCharacterTypes();
             IPLMData.CharacterInfo memory minted = IPLMData.CharacterInfo(
-                "a",
+                1,
+                1,
                 1,
                 block.number,
-                characterTypes[seed.characterType],
-                1,
-                1,
-                [seed.attribute]
+                [seed.attribute],
+                "a",
+                characterTypes[seed.characterType]
             );
             generatedAttributes[i] = minted.attributeIds[0];
             // generatedAbility[i] = minted.abilityIds[0];
