@@ -39,7 +39,7 @@ contract PLMData is IPLMData {
     }
 
     function _rate(uint8 x) internal view returns (bool) {
-        return uint256(PLMSeeder.generateRandomSlotNonce()) % 100 < x;
+        return uint256(PLMSeeder.randomFromBlockHash()) % 100 < x;
     }
 
     function _characterTypes() internal view returns (string[] memory) {
