@@ -105,7 +105,7 @@ contract PLMSeederTest is Test {
             tokenId++;
             currentBlock++;
             vm.roll(currentBlock);
-            PLMSeeder.Seed memory seed = PLMSeeder.generateSeed(
+            PLMSeeder.Seed memory seed = PLMSeeder.generateTokenSeed(
                 tokenId,
                 IPLMData(address(tokenContract))
             );
