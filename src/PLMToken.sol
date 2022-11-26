@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
+import "forge-std/Test.sol";
+
 import {Base64} from "openzeppelin-contracts/utils/Base64.sol";
 import {Strings} from "openzeppelin-contracts/utils/Strings.sol";
 import {PLMSeeder} from "./lib/PLMSeeder.sol";
+import {Utils} from "./lib/Utils.sol";
 
 import {ReentrancyGuard} from "openzeppelin-contracts/security/ReentrancyGuard.sol";
 import {ERC721} from "openzeppelin-contracts/token/ERC721/ERC721.sol";
@@ -98,87 +101,38 @@ contract PLMToken is ERC721Enumerable, IPLMToken, ReentrancyGuard {
         _writeCharInfoCheckpoint(tokenId, checkNum, charInfoOld, charInfoNew);
     }
 
-    /// @notice Run binary search in a type of checkpoints.
-    /// @dev this function can be used for any checkpoints types.
-    /// @param which Which checkpoints type (Enum)
-    /// @param blockNumber block number of an interest checkpoint
-    /// @param tokenId it is used when searching CharInfoCheckpoints. In other cases, any value can be taken.
-    function _searchCheckpointIdx(
-        WhichCheckpoints which,
-        uint256 blockNumber,
-        uint256 tokenId
-    ) internal view returns (uint32, bool) {
-        uint32 nCheckpoints = _numCheckpoints(which, tokenId);
-        /// from here ////
-        if (nCheckpoints == 0) {
-            return (0, false);
-        }
-
-        // First check most recent balance
-        if (
-            _checkpointFromBlock(which, nCheckpoints - 1, tokenId) <=
-            blockNumber
-        ) {
-            return (nCheckpoints - 1, true);
-        }
-
-        // Nest check implicit zero balance
-        if (_checkpointFromBlock(which, 0, tokenId) > blockNumber) {
-            return (0, false);
-        }
-
-        /// @notice calc the array index where the blockNumber that you want to search is placed by binary search
-        uint32 lower = 0;
-        uint32 upper = nCheckpoints - 1;
-        while (upper > lower) {
-            uint32 center = upper - (upper - lower) / 2; // ceil, avoiding overflow
-            uint256 fromBlock = _checkpointFromBlock(which, center, tokenId);
-            if (fromBlock == blockNumber) {
-                return (center, true);
-            } else if (fromBlock < blockNumber) {
-                lower = center;
-            } else {
-                upper = center - 1;
-            }
-        }
-        return (lower, true);
-    }
-
     /// @notice get checkpointFromBloc
-    /// @dev this function can be used for any checkpoints types.
-    /// @param which Which checkpoints type (Enum)
     /// @param index  index of checkpoints mapping
     /// @param tokenId it is used when searching CharInfoCheckpoints. In other cases, any value can be taken.
-    function _checkpointFromBlock(
-        WhichCheckpoints which,
-        uint32 index,
-        uint256 tokenId
-    ) internal view returns (uint256) {
-        if (which == WhichCheckpoints.CharInfo) {
-            return charInfoCheckpoints[tokenId][index].fromBlock;
-        } else if (which == WhichCheckpoints.TotalSupply) {
-            return totalSupplyCheckpoints[index].fromBlock;
-        } else {
-            return 0;
-        }
+    function _charInfoCheckpointFromBlock(uint256 tokenId, uint32 index)
+        public
+        view
+        returns (uint256)
+    {
+        return charInfoCheckpoints[tokenId][index].fromBlock;
+    }
+
+    function _totalSupplyCheckpointFromBlock(uint32 index)
+        public
+        view
+        returns (uint256)
+    {
+        return totalSupplyCheckpoints[index].fromBlock;
     }
 
     /// @notice get nCheckpoints
     /// @dev this function can be used for any checkpoints types.
-    /// @param which Which checkpoints type (Enum)
     /// @param tokenId it is used when searching CharInfoCheckpoints. In other cases, any value can be taken.
-    function _numCheckpoints(WhichCheckpoints which, uint256 tokenId)
-        internal
+    function _numCharInfoCheckpoints(uint256 tokenId)
+        public
         view
         returns (uint32)
     {
-        if (which == WhichCheckpoints.CharInfo) {
-            return numCharInfoCheckpoints[tokenId];
-        } else if (which == WhichCheckpoints.TotalSupply) {
-            return numTotalSupplyCheckpoints;
-        } else {
-            return 0;
-        }
+        return numCharInfoCheckpoints[tokenId];
+    }
+
+    function _numTotalSupplyCheckpoints() public view returns (uint32) {
+        return numTotalSupplyCheckpoints;
     }
 
     /// @notice Function to mint new PLMToken to the account (to).
@@ -547,6 +501,7 @@ contract PLMToken is ERC721Enumerable, IPLMToken, ReentrancyGuard {
      * @param blockNumber The block number to get the charInfo at
      * @return CharacterInfo of the token had as of the given block
      */
+
     function getPriorCharacterInfo(uint256 tokenId, uint256 blockNumber)
         external
         view
@@ -555,10 +510,18 @@ contract PLMToken is ERC721Enumerable, IPLMToken, ReentrancyGuard {
         CharacterInfo memory dummyInfo = CharacterInfo(0, 0, 0, 0, 0, [0], "");
         require(blockNumber < block.number, "blockNumber lager than latest");
 
-        (uint32 index, bool found) = _searchCheckpointIdx(
-            WhichCheckpoints.CharInfo,
+        uint256[] memory numArgs = new uint256[](1);
+        numArgs[0] = tokenId;
+        uint256[] memory elementArgs = new uint256[](1);
+        elementArgs[0] = tokenId;
+
+        (uint32 index, bool found) = Utils.getPrior(
             blockNumber,
-            tokenId
+            address(this),
+            "_numCharInfoCheckpoints(uint256)",
+            "_charInfoCheckpointFromBlock(uint256,uint32)",
+            numArgs,
+            elementArgs
         );
 
         if (!found) {
@@ -580,10 +543,17 @@ contract PLMToken is ERC721Enumerable, IPLMToken, ReentrancyGuard {
         uint256 dummyTotalSupply = 0;
         require(blockNumber < block.number, "blockNumber lager than latest");
 
-        (uint32 index, bool found) = _searchCheckpointIdx(
-            WhichCheckpoints.TotalSupply,
+        uint256[] memory numArgs;
+        uint256[] memory elementArgs;
+
+        // TODO change
+        (uint32 index, bool found) = Utils.getPrior(
             blockNumber,
-            0
+            address(this),
+            "_numTotalSupplyCheckpoints()",
+            "_totalSupplyCheckpointFromBlock(uint32)",
+            numArgs,
+            elementArgs
         );
 
         if (!found) {
