@@ -108,22 +108,22 @@ interface IPLMBattleField {
     ////////////////////////
 
     event BattleStarted(address indexed homeAddr, address indexed visitorAddr);
-    event PlayerSeedCommitted(PlayerId playerId);
+    event PlayerSeedCommitted(PlayerId indexed playerId);
     event RandomSlotNounceGenerated(PlayerId playerId, bytes32 nonce);
     event PlayerSeedRevealed(
-        uint8 numRounds,
-        PlayerId playerId,
+        uint8 indexed numRounds,
+        PlayerId indexed playerId,
         bytes32 playerSeed
     );
-    event ChoiceCommitted(uint8 numRounds, PlayerId playerId);
+    event ChoiceCommitted(uint8 indexed numRounds, PlayerId indexed playerId);
     event ChoiceRevealed(
-        uint8 numRounds,
-        PlayerId playerId,
+        uint8 indexed numRounds,
+        PlayerId indexed playerId,
         uint8 levelPoint,
         Choice choice
     );
     event RoundCompleted(
-        uint8 numRounds,
+        uint8 indexed numRounds,
         bool isDraw,
         PlayerId winner,
         PlayerId loser,
@@ -131,7 +131,7 @@ interface IPLMBattleField {
         uint32 loserDamage
     );
     event BattleCompleted(
-        uint8 numRounds,
+        uint8 indexed numRounds,
         bool isDraw,
         PlayerId winner,
         PlayerId loser,
@@ -149,8 +149,8 @@ interface IPLMBattleField {
 
     // Events for delayer detection.
     event LatePlayerSeedCommitDetected(PlayerId delayer);
-    event LateChoiceCommitDetected(uint8 numRounds, PlayerId delayer);
-    event LateChoiceRevealDetected(uint8 numRounds, PlayerId delayer);
+    event LateChoiceCommitDetected(uint8 indexed numRounds, PlayerId delayer);
+    event LateChoiceRevealDetected(uint8 indexed numRounds, PlayerId delayer);
     event BattleCanceled();
 
     //////////////////////////////
@@ -180,11 +180,6 @@ interface IPLMBattleField {
         uint256[4] calldata homeFixedSlots,
         uint256[4] calldata visitorFixedSlots
     ) external;
-
-    function playerSeedIsRevealed(PlayerId playerId)
-        external
-        view
-        returns (bool);
 
     ////////////////////////
     ///      GETTERS     ///
@@ -246,6 +241,16 @@ interface IPLMBattleField {
     function getRoundResults() external view returns (RoundResult[] memory);
 
     function getBattleResult() external view returns (BattleResult memory);
+
+    function getRandomSlotState(PlayerId playerId)
+        external
+        view
+        returns (RandomSlotState);
+
+    function getRandomSlotLevel(PlayerId playerId)
+        external
+        view
+        returns (uint8);
 
     ////////////////////////
     ///      SETTERS     ///

@@ -1,27 +1,37 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import {PLMSeeder} from "../lib/PLMSeeder.sol";
-import {IPLMData} from "../interfaces/IPLMData.sol";
+import {PLMSeeder} from "./lib/PLMSeeder.sol";
+import {IPLMData} from "./interfaces/IPLMData.sol";
+import {IPLMTypes} from "./interfaces/IPLMTypes.sol";
+import {IPLMLevels} from "./interfaces/IPLMLevels.sol";
 
 contract PLMData is IPLMData {
-    // TODO: 入替可能なようにconstructorで初期化&setHogeで入替可能にするべき
-    string[] public characterTypes = ["Fire", "Grass", "Water"];
+    /// @notice interface to character type database.
+    IPLMTypes types;
 
-    /// @notice ratio of probability of type occurrence
-    uint8[] public characterTypeOdds = [1, 1, 1];
+    /// @notice interface to level database.
+    IPLMLevels levels;
+
+    /// @notice address of the account who has the right to change databases.
+    address polylemmers;
 
     /// @notice rarity of attribute
-    uint8[] public attributeRarities = [1, 4, 3, 3, 3, 2, 2, 1, 4, 5];
+    uint8[] attributeRarities = [1, 4, 3, 3, 3, 2, 2, 1, 4, 5];
 
     /// @notice ratio of probability of attribute occurrence
-    uint8[] public attributeOddsPerRarity = [35, 30, 20, 10, 5];
+    uint8[] attributeOddsPerRarity = [35, 30, 20, 10, 5];
 
-    /// @notice number of PLMToken images
-    uint256 numImg = 38;
+    constructor(IPLMTypes _types, IPLMLevels _levels) {
+        types = _types;
+        levels = _levels;
+        polylemmers = msg.sender;
+    }
 
-    /// @notice Progressive taxation of coin issuance through billing
-    uint256[] public poolingPercentageTable = [5, 10, 20, 23, 33, 40, 45];
+    modifier onlyPolylemmers() {
+        require(msg.sender == polylemmers, "sender != polylemmers");
+        _;
+    }
 
     function _mulFloat(
         uint256 x,
@@ -35,72 +45,22 @@ contract PLMData is IPLMData {
         return uint256(PLMSeeder.randomFromBlockHash()) % 100 < x;
     }
 
-    function _characterTypes() internal view returns (string[] memory) {
-        return characterTypes;
-    }
-
-    function _typeCompatibility(
-        string calldata playerType,
-        string calldata enemyType
-    ) internal pure returns (uint8, uint8) {
-        bytes32 playerTypeBytes = keccak256(abi.encodePacked(playerType));
-        bytes32 enemyTypeBytes = keccak256(abi.encodePacked(enemyType));
-        bytes32 fire = keccak256(abi.encodePacked("fire"));
-        bytes32 grass = keccak256(abi.encodePacked("grass"));
-        bytes32 water = keccak256(abi.encodePacked("water"));
-        if (playerTypeBytes == enemyTypeBytes) {
-            return (1, 1);
-        } else if (
-            (playerTypeBytes == fire && enemyTypeBytes == grass) ||
-            (playerTypeBytes == grass && enemyTypeBytes == water) ||
-            (playerTypeBytes == water && enemyTypeBytes == fire)
-        ) {
-            return (12, 10);
-        } else if (
-            (enemyTypeBytes == fire && playerTypeBytes == grass) ||
-            (enemyTypeBytes == grass && playerTypeBytes == water) ||
-            (enemyTypeBytes == water && playerTypeBytes == fire)
-        ) {
-            return (8, 10);
-        } else {
-            // TODO: Error handling
-            return (1, 1);
-        }
-    }
-
-    function _calcRarity(uint8[1] memory attributeIds)
-        internal
-        view
-        returns (uint8)
-    {
-        return attributeRarities[attributeIds[0]];
-    }
-
-    /// @dev This logic is derived from Pokemon
-    function _calcNecessaryExp(CharacterInfo memory charInfo)
-        internal
-        pure
-        returns (uint256)
-    {
-        return uint256(charInfo.level)**2;
-    }
-
     /// @notice function to simulate the battle and return back result to BattleField contract.
     function _calcDamage(
         uint8 numRounds,
-        CharacterInfo calldata playerChar,
+        CharacterInfoMinimal calldata playerChar,
         uint8 playerLevelPoint,
         uint32 playerBondLevel,
-        CharacterInfo calldata enemyChar
+        CharacterInfoMinimal calldata enemyChar
     ) internal view returns (uint32) {
         uint32 bigNumber = 16384;
         uint8 baseDamageRate = 10;
 
         uint256 denominator;
         uint256 numerator;
-        (denominator, numerator) = _typeCompatibility(
-            playerChar.characterType,
-            enemyChar.characterType
+        (denominator, numerator) = types.getTypeCompatibility(
+            playerChar.characterTypeId,
+            enemyChar.characterTypeId
         );
 
         uint32 damage = playerChar.level * baseDamageRate;
@@ -181,48 +141,35 @@ contract PLMData is IPLMData {
         return damage;
     }
 
-    // TODO: 一旦レベルポイントは最大値をそのまま返す。
-    /// @notice Points that players can freely distribute just before the start of battle.
-    /// @dev levelPoints is the maximum level in the party.
-    function _calcLevelPoint(CharacterInfo[4] calldata charInfos)
-        internal
-        pure
-        returns (uint8)
-    {
-        uint8 maxLevel = 0;
-        for (uint8 i = 0; i < 4; i++) {
-            if (charInfos[i].level > maxLevel) {
-                maxLevel = charInfos[i].level;
-            }
-        }
-        return maxLevel;
-    }
-
-    // TODO: 一旦ランダムスロットのレベルは固定スロットの平均値を返す。
-    /// @notice Determine the level of random slots from the level of fixed slots
-    function _calcRandomSlotLevel(CharacterInfo[4] calldata charInfos)
-        internal
-        pure
-        returns (uint8)
-    {
-        uint16 sumLevel = 0;
-        for (uint256 i = 0; i < 4; i++) {
-            sumLevel += uint16(charInfos[i].level);
-        }
-        return uint8(sumLevel / 4);
-    }
-
     ////////////////////////
     ///      GETTERS     ///
     ////////////////////////
 
+    /// @notice Function to calculate current bond level.
+    function getCurrentBondLevel(uint8 level, uint256 fromBlock)
+        external
+        view
+        returns (uint32)
+    {
+        return levels.getCurrentBondLevel(level, fromBlock);
+    }
+
+    /// @notice Function to calculate prior bond level.
+    function getPriorBondLevel(
+        uint8 level,
+        uint256 fromBlock,
+        uint256 toBlock
+    ) external view returns (uint32) {
+        return levels.getPriorBondLevel(level, fromBlock, toBlock);
+    }
+
     /// @notice function to simulate the battle and return back result to BattleField contract.
     function getDamage(
         uint8 numRounds,
-        CharacterInfo calldata playerChar,
+        CharacterInfoMinimal calldata playerChar,
         uint8 playerLevelPoint,
         uint32 playerBondLevel,
-        CharacterInfo calldata enemyChar
+        CharacterInfoMinimal calldata enemyChar
     ) external view returns (uint32) {
         return
             _calcDamage(
@@ -236,69 +183,41 @@ contract PLMData is IPLMData {
 
     /// @notice get points that players can freely distribute just before the start of battle.
     /// @dev levelPoints is the maximum level in the party.
-    function getLevelPoint(CharacterInfo[4] calldata charInfos)
+    function getLevelPoint(CharacterInfoMinimal[4] calldata charInfos)
         external
-        pure
+        view
         returns (uint8)
     {
-        return _calcLevelPoint(charInfos);
+        return levels.getLevelPoint(charInfos);
     }
 
     /// @notice get the level of random slots from the level of fixed slots
-    function getRandomSlotLevel(CharacterInfo[4] calldata charInfos)
+    function getRandomSlotLevel(CharacterInfoMinimal[4] calldata charInfos)
         external
-        pure
+        view
         returns (uint8)
     {
-        return _calcRandomSlotLevel(charInfos);
+        return levels.getRandomSlotLevel(charInfos);
     }
 
-    /// @notice get the percentage of pooling of PLMCoins minted when player charged MATIC.
-    function getPoolingPercentage(uint256 amount)
-        external
-        view
-        returns (uint256)
-    {
-        if (0 < amount && amount <= 80 ether) {
-            return poolingPercentageTable[0];
-        } else if (80 ether < amount && amount <= 160 ether) {
-            return poolingPercentageTable[1];
-        } else if (160 ether < amount && amount <= 200 ether) {
-            return poolingPercentageTable[2];
-        } else if (200 ether < amount && amount <= 240 ether) {
-            return poolingPercentageTable[3];
-        } else if (240 ether < amount && amount <= 280 ether) {
-            return poolingPercentageTable[4];
-        } else if (280 ether < amount && amount <= 320 ether) {
-            return poolingPercentageTable[5];
-        } else {
-            return poolingPercentageTable[6];
-        }
-    }
-
-    function getCharacterTypes()
-        external
-        view
-        override
-        returns (string[] memory)
-    {
-        return characterTypes;
+    function getCharacterTypes() external view returns (string[] memory) {
+        return types.getCharacterTypes();
     }
 
     function getNumCharacterTypes() external view returns (uint256) {
-        return characterTypes.length;
+        return types.getNumCharacterTypes();
     }
 
     function getCumulativeCharacterTypeOdds()
         external
         view
-        override
         returns (uint8[] memory)
     {
-        uint256 numCharacterTypes = characterTypes.length;
+        uint256 numCharacterTypes = types.getNumCharacterTypes();
         uint8[] memory cumulativeCharacterTypeOdds = new uint8[](
             numCharacterTypes
         );
+        uint8[] memory characterTypeOdds = types.getCharacterTypeOdds();
         cumulativeCharacterTypeOdds[0] = characterTypeOdds[0];
         for (uint256 i = 1; i < numCharacterTypes; i++) {
             cumulativeCharacterTypeOdds[i] =
@@ -308,23 +227,17 @@ contract PLMData is IPLMData {
         return cumulativeCharacterTypeOdds;
     }
 
-    function getAttributeRarities()
-        external
-        view
-        override
-        returns (uint8[] memory)
-    {
+    function getAttributeRarities() external view returns (uint8[] memory) {
         return attributeRarities;
     }
 
-    function getNumAttributes() external view override returns (uint256) {
+    function getNumAttributes() external view returns (uint256) {
         return attributeRarities.length;
     }
 
     function getCumulativeAttributeOdds()
         external
         view
-        override
         returns (uint8[] memory)
     {
         uint256 numRarities = attributeOddsPerRarity.length;
@@ -358,7 +271,42 @@ contract PLMData is IPLMData {
         return cumulativeAttributeOdds;
     }
 
-    function getNumImg() external view returns (uint256) {
-        return numImg;
+    /// @dev This logic is derived from Pokemon
+    function getNecessaryExp(CharacterInfoMinimal memory charInfo)
+        external
+        pure
+        returns (uint256)
+    {
+        return uint256(charInfo.level)**2;
+    }
+
+    /// @notice Function to get the rarity of the attributes designated by attributesIds.
+    function getRarity(uint8[1] memory attributeIds)
+        external
+        view
+        returns (uint8)
+    {
+        return attributeRarities[attributeIds[0]];
+    }
+
+    /// @notice Function to get the name of the type of typeId.
+    function getTypeName(uint8 typeId) external view returns (string memory) {
+        return types.getTypeName(typeId);
+    }
+
+    ////////////////////////
+    ///      SETTERS     ///
+    ////////////////////////
+
+    function setNewTypes(IPLMTypes newTypes) external onlyPolylemmers {
+        address oldTypesAddr = address(types);
+        types = newTypes;
+        emit TypesDatabaseUpdated(oldTypesAddr, address(newTypes));
+    }
+
+    function setNewLevels(IPLMLevels newLevels) external onlyPolylemmers {
+        address oldLevelsAddr = address(levels);
+        levels = newLevels;
+        emit LevelsDatabaseUpdated(oldLevelsAddr, address(newLevels));
     }
 }

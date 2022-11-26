@@ -1,44 +1,59 @@
+import {IPLMToken} from "./IPLMToken.sol";
+import {IPLMTypes} from "./IPLMTypes.sol";
+import {IPLMLevels} from "./IPLMLevels.sol";
+
 interface IPLMData {
     ////////////////////////
-    ///      STRUCTS     ///
+    ///    STRUCTURES    ///
     ////////////////////////
 
-    struct CharacterInfo {
+    /// @notice Minimal character information used in data
+    struct CharacterInfoMinimal {
         uint8 level;
-        uint8 rarity;
-        uint256 imgId;
-        uint256 fromBlock;
+        uint8 characterTypeId;
         uint8[1] attributeIds;
-        bytes32 name;
-        string characterType;
+        uint256 fromBlock;
     }
+
+    ////////////////////////
+    ///      EVENTS      ///
+    ////////////////////////
+
+    event TypesDatabaseUpdated(address oldDatabase, address newDatabase);
+    event LevelsDatabaseUpdated(address oldDatabase, address newDatabase);
 
     ////////////////////////
     ///      GETTERS     ///
     ////////////////////////
 
-    function getDamage(
-        uint8 numRounds,
-        CharacterInfo calldata playerChar,
-        uint8 playerLevelPoint,
-        uint32 playerBondLevel,
-        CharacterInfo calldata enemyChar
-    ) external view returns (uint32);
-
-    function getLevelPoint(CharacterInfo[4] calldata charInfos)
-        external
-        pure
-        returns (uint8);
-
-    function getRandomSlotLevel(CharacterInfo[4] calldata charInfos)
-        external
-        pure
-        returns (uint8);
-
-    function getPoolingPercentage(uint256 amount)
+    function getCurrentBondLevel(uint8 level, uint256 fromBlock)
         external
         view
-        returns (uint256);
+        returns (uint32);
+
+    function getPriorBondLevel(
+        uint8 level,
+        uint256 fromBlock,
+        uint256 toBlock
+    ) external view returns (uint32);
+
+    function getDamage(
+        uint8 numRounds,
+        CharacterInfoMinimal calldata playerChar,
+        uint8 playerLevelPoint,
+        uint32 playerBondLevel,
+        CharacterInfoMinimal calldata enemyChar
+    ) external view returns (uint32);
+
+    function getLevelPoint(CharacterInfoMinimal[4] calldata charInfos)
+        external
+        view
+        returns (uint8);
+
+    function getRandomSlotLevel(CharacterInfoMinimal[4] calldata charInfos)
+        external
+        view
+        returns (uint8);
 
     function getCharacterTypes() external view returns (string[] memory);
 
@@ -58,5 +73,23 @@ interface IPLMData {
         view
         returns (uint8[] memory);
 
-    function getNumImg() external view returns (uint256);
+    function getNecessaryExp(CharacterInfoMinimal memory charInfo)
+        external
+        view
+        returns (uint256);
+
+    function getRarity(uint8[1] memory attributeIds)
+        external
+        view
+        returns (uint8);
+
+    function getTypeName(uint8 typeId) external view returns (string memory);
+
+    ////////////////////////
+    ///      SETTERS     ///
+    ////////////////////////
+
+    function setNewTypes(IPLMTypes newTypes) external;
+
+    function setNewLevels(IPLMLevels newLevels) external;
 }

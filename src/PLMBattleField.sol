@@ -8,6 +8,7 @@ import {ReentrancyGuard} from "openzeppelin-contracts/security/ReentrancyGuard.s
 
 import {IPLMToken} from "./interfaces/IPLMToken.sol";
 import {IPLMDealer} from "./interfaces/IPLMDealer.sol";
+import {IPLMData} from "./interfaces/IPLMData.sol";
 import {IPLMBattleField} from "./interfaces/IPLMBattleField.sol";
 import {IPLMMatchOrganizer} from "./interfaces/IPLMMatchOrganizer.sol";
 import {IERC165} from "openzeppelin-contracts/utils/introspection/IERC165.sol";
@@ -42,6 +43,9 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard, IERC165 {
 
     /// @notice interface to the characters' information.
     IPLMToken token;
+
+    /// @notice interface to the database of polylemma.
+    IPLMData data;
 
     /// @notice interface to the MatchOrganizer.
     IPLMMatchOrganizer matchOrganizer;
@@ -88,6 +92,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard, IERC165 {
     constructor(IPLMDealer _dealer, IPLMToken _token) {
         dealer = _dealer;
         token = _token;
+        data = IPLMData(_token.getDataAddr());
         polylemmers = msg.sender;
     }
 
@@ -194,34 +199,27 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard, IERC165 {
         _markSlot(PlayerId.Visitor);
 
         // Calculate the damage of both players.
-        IPLMToken.CharacterInfo memory homeChar = _chosenCharacterInfo(
+        // Minimalize character info
+        IPLMData.CharacterInfoMinimal memory homeChar = _chosenCharacterInfo(
             PlayerId.Home
         );
-        IPLMToken.CharacterInfo memory visitorChar = _chosenCharacterInfo(
+        IPLMData.CharacterInfoMinimal memory visitorChar = _chosenCharacterInfo(
             PlayerId.Visitor
         );
 
-        uint32 homeDamage = token.getDamage(
+        uint32 homeDamage = data.getDamage(
             numRounds,
             homeChar,
             choiceCommitLog[numRounds][PlayerId.Home].levelPoint,
-            token.getPriorBondLevel(
-                homeChar.level,
-                visitorChar.fromBlock,
-                _fromBlock(PlayerId.Visitor)
-            ),
+            _bondLevelAtBattleStart(homeChar.level, homeChar.fromBlock),
             visitorChar
         );
 
-        uint32 visitorDamage = token.getDamage(
+        uint32 visitorDamage = data.getDamage(
             numRounds,
             visitorChar,
             choiceCommitLog[numRounds][PlayerId.Visitor].levelPoint,
-            token.getPriorBondLevel(
-                visitorChar.level,
-                visitorChar.fromBlock,
-                _fromBlock(PlayerId.Visitor)
-            ),
+            _bondLevelAtBattleStart(visitorChar.level, visitorChar.fromBlock),
             homeChar
         );
 
@@ -552,18 +550,21 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard, IERC165 {
     function _chosenCharacterInfo(PlayerId playerId)
         internal
         view
-        returns (IPLMToken.CharacterInfo memory)
+        returns (IPLMData.CharacterInfoMinimal memory)
     {
         Choice choice = choiceCommitLog[numRounds][playerId].choice;
 
         if (choice == Choice.Random) {
             // Player's choice is in a random slot.
-            return _randomSlotCharInfo(playerId);
+            return token.minimalizeCharInfo(_randomSlotCharInfo(playerId));
         } else if (choice == Choice.Hidden) {
             revert("Unreachable");
         } else {
             // Player's choice is in fixed slots.
-            return _fixedSlotCharInfoByIdx(playerId, uint8(choice));
+            return
+                token.minimalizeCharInfo(
+                    _fixedSlotCharInfoByIdx(playerId, uint8(choice))
+                );
         }
     }
 
@@ -686,6 +687,19 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard, IERC165 {
             token.getPriorCharacterInfo(
                 _fixedSlotTokenIdByIdx(playerId, slotIdx),
                 _fromBlock(playerId)
+            );
+    }
+
+    function _bondLevelAtBattleStart(uint8 level, uint256 fromBlock)
+        internal
+        view
+        returns (uint32)
+    {
+        return
+            data.getPriorBondLevel(
+                level,
+                fromBlock,
+                _fromBlock(PlayerId.Visitor)
             );
     }
 
@@ -1005,24 +1019,28 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard, IERC165 {
         uint256[4] memory homeFixedSlots,
         uint256[4] memory visitorFixedSlots
     ) external readyForBattleStart onlyMatchOrganizer {
-        IPLMToken.CharacterInfo[FIXED_SLOTS_NUM] memory homeCharInfos;
-        IPLMToken.CharacterInfo[FIXED_SLOTS_NUM] memory visitorCharInfos;
+        IPLMData.CharacterInfoMinimal[FIXED_SLOTS_NUM] memory homeCharInfos;
+        IPLMData.CharacterInfoMinimal[FIXED_SLOTS_NUM] memory visitorCharInfos;
 
         // Retrieve character infomation by tokenId in the fixed slots.
         for (uint8 slotIdx = 0; slotIdx < FIXED_SLOTS_NUM; slotIdx++) {
-            homeCharInfos[slotIdx] = token.getPriorCharacterInfo(
-                homeFixedSlots[slotIdx],
-                homeFromBlock
+            homeCharInfos[slotIdx] = token.minimalizeCharInfo(
+                token.getPriorCharacterInfo(
+                    homeFixedSlots[slotIdx],
+                    homeFromBlock
+                )
             );
-            visitorCharInfos[slotIdx] = token.getPriorCharacterInfo(
-                visitorFixedSlots[slotIdx],
-                visitorFromBlock
+            visitorCharInfos[slotIdx] = token.minimalizeCharInfo(
+                token.getPriorCharacterInfo(
+                    visitorFixedSlots[slotIdx],
+                    visitorFromBlock
+                )
             );
         }
 
         // Get level point for both players.
-        uint8 homeLevelPoint = token.getLevelPoint(homeCharInfos);
-        uint8 visitorLevelPoint = token.getLevelPoint(visitorCharInfos);
+        uint8 homeLevelPoint = data.getLevelPoint(homeCharInfos);
+        uint8 visitorLevelPoint = data.getLevelPoint(visitorCharInfos);
 
         // Initialize both players' information.
         // Initialize random slots of them too.
@@ -1032,7 +1050,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard, IERC165 {
             homeFixedSlots,
             [0, 0, 0, 0],
             RandomSlot(
-                token.getRandomSlotLevel(homeCharInfos),
+                data.getRandomSlotLevel(homeCharInfos),
                 bytes32(0),
                 0,
                 RandomSlotState.NotSet
@@ -1048,7 +1066,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard, IERC165 {
             visitorFixedSlots,
             [0, 0, 0, 0],
             RandomSlot(
-                token.getRandomSlotLevel(visitorCharInfos),
+                data.getRandomSlotLevel(visitorCharInfos),
                 bytes32(0),
                 0,
                 RandomSlotState.NotSet
@@ -1069,14 +1087,6 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard, IERC165 {
         numRounds = 0;
 
         emit BattleStarted(homeAddr, visitorAddr);
-    }
-
-    function playerSeedIsRevealed(PlayerId playerId)
-        external
-        view
-        returns (bool)
-    {
-        return _randomSlotState(playerId) == RandomSlotState.Revealed;
     }
 
     ////////////////////////
@@ -1187,12 +1197,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard, IERC165 {
         view
         returns (uint32)
     {
-        return
-            token.getPriorBondLevel(
-                level,
-                fromBlock,
-                _fromBlock(PlayerId.Visitor)
-            );
+        return _bondLevelAtBattleStart(level, fromBlock);
     }
 
     function getTotalSupplyAtFromBlock(PlayerId playerId)
@@ -1213,8 +1218,8 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard, IERC165 {
     }
 
     function getRoundResults() external view returns (RoundResult[] memory) {
-        RoundResult[] memory results = new RoundResult[](numRounds + 1);
-        for (uint256 i = 0; i < numRounds + 1; i++) {
+        RoundResult[] memory results = new RoundResult[](numRounds);
+        for (uint256 i = 0; i < numRounds; i++) {
             results[i] = roundResults[i];
         }
         return results;
@@ -1222,6 +1227,22 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard, IERC165 {
 
     function getBattleResult() external view returns (BattleResult memory) {
         return battleResult;
+    }
+
+    function getRandomSlotState(PlayerId playerId)
+        external
+        view
+        returns (RandomSlotState)
+    {
+        return _randomSlotState(playerId);
+    }
+
+    function getRandomSlotLevel(PlayerId playerId)
+        external
+        view
+        returns (uint8)
+    {
+        return _randomSlotLevel(playerId);
     }
 
     function supportsInterface(bytes4 interfaceId)
