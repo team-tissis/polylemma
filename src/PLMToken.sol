@@ -93,92 +93,53 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
     ///         The character can be enhanced up to the twice as much level as its normal level.
     function _calcBondLevel(
         uint8 level,
-        uint256 fromBlock,
-        uint256 toBlock
+        uint256 startBlock,
+        uint256 lastBlock
     ) internal pure returns (uint32) {
         // TODO: we should increase this factor.
         uint256 blockPeriod = 50;
-        uint32 ownershipPeriod = uint32((toBlock - fromBlock) / blockPeriod);
+        uint32 ownershipPeriod = uint32((lastBlock - startBlock) / blockPeriod);
         return ownershipPeriod < level * 2 ? ownershipPeriod : level * 2;
     }
 
-    /// @notice Run binary search in total supply checkpoint indices.
-    function _searchTotalSupplyCheckpointIdx(uint256 blockNumber)
-        internal
-        view
-        returns (uint32, bool)
-    {
+    /// @notice Run binary search in a type of checkpoints.
+    /// @dev this function can be used for any checkpoints types.
+    /// @param which Which checkpoints type (Enum)
+    /// @param blockNumber block number of an interest checkpoint
+    /// @param tokenId it is used when searching CharInfoCheckpoints. In other cases, any value can be taken.
+    function _searchCheckpointIdx(
+        WhichCheckpoints which,
+        uint256 blockNumber,
+        uint256 tokenId
+    ) internal view returns (uint32, bool) {
+        uint32 nCheckpoints = _numCheckpoints(which, tokenId);
         /// from here ////
-        if (numTotalSupplyCheckpoints == 0) {
+        if (nCheckpoints == 0) {
             return (0, false);
         }
 
         // First check most recent balance
         if (
-            totalSupplyCheckpoints[numTotalSupplyCheckpoints - 1].fromBlock <=
+            _checkpointFromBlock(which, nCheckpoints - 1, tokenId) <=
             blockNumber
         ) {
-            return (numTotalSupplyCheckpoints - 1, true);
-        }
-
-        // Next check implicit zero balance
-        if (totalSupplyCheckpoints[0].fromBlock > blockNumber) {
-            return (0, false);
-        }
-
-        /// @notice calc the array index where the blockNumber that you want to search is placed by binary search
-        uint32 lower = 0;
-        uint32 upper = numTotalSupplyCheckpoints - 1;
-        while (upper > lower) {
-            uint32 center = upper - (upper - lower) / 2; // ceil, avoiding overflow
-            TotalSupplyCheckpoint memory cp = totalSupplyCheckpoints[center];
-            if (cp.fromBlock == blockNumber) {
-                return (center, true);
-            } else if (cp.fromBlock < blockNumber) {
-                lower = center;
-            } else {
-                upper = center - 1;
-            }
-        }
-        return (lower, true);
-    }
-
-    /// 関数の引数にbytesForFunctionSelector   bytes4(keccak256(“func_name(type1,type2)”))
-    /// (Bool success, bytes returnval) = call(functionSelector, 引数たち)
-    /// @notice Run binary search in character info checkpoints.
-    function _searchCharInfoCheckpointIdx(uint256 tokenId, uint256 blockNumber)
-        internal
-        view
-        returns (uint32, bool)
-    {
-        uint32 nCharInfoCheckpoints = numCharInfoCheckpoints[tokenId];
-        /// from here ////
-        if (nCharInfoCheckpoints == 0) {
-            return (0, false);
-        }
-
-        // First check most recent balance
-        if (
-            charInfoCheckpoints[tokenId][nCharInfoCheckpoints - 1].fromBlock <=
-            blockNumber
-        ) {
-            return (nCharInfoCheckpoints - 1, true);
+            return (nCheckpoints - 1, true);
         }
 
         // Nest check implicit zero balance
-        if (charInfoCheckpoints[tokenId][0].fromBlock > blockNumber) {
+        if (_checkpointFromBlock(which, 0, tokenId) > blockNumber) {
             return (0, false);
         }
 
         /// @notice calc the array index where the blockNumber that you want to search is placed by binary search
         uint32 lower = 0;
-        uint32 upper = nCharInfoCheckpoints - 1;
+        uint32 upper = nCheckpoints - 1;
         while (upper > lower) {
             uint32 center = upper - (upper - lower) / 2; // ceil, avoiding overflow
-            CharInfoCheckpoint memory cp = charInfoCheckpoints[tokenId][center];
-            if (cp.fromBlock == blockNumber) {
+            uint256 fromBlock = _checkpointFromBlock(which, center, tokenId);
+            if (fromBlock == blockNumber) {
                 return (center, true);
-            } else if (cp.fromBlock < blockNumber) {
+            } else if (fromBlock < blockNumber) {
                 lower = center;
             } else {
                 upper = center - 1;
@@ -187,7 +148,42 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
         return (lower, true);
     }
 
-    // function _checkpoint(WhichCheckpoint which, uint256 index) returns (uint256 cpFromBlock) {}
+    /// @notice get checkpointFromBloc
+    /// @dev this function can be used for any checkpoints types.
+    /// @param which Which checkpoints type (Enum)
+    /// @param index  index of checkpoints mapping
+    /// @param tokenId it is used when searching CharInfoCheckpoints. In other cases, any value can be taken.
+    function _checkpointFromBlock(
+        WhichCheckpoints which,
+        uint32 index,
+        uint256 tokenId
+    ) internal view returns (uint256) {
+        if (which == WhichCheckpoints.CharInfo) {
+            return charInfoCheckpoints[tokenId][index].fromBlock;
+        } else if (which == WhichCheckpoints.TotalSupply) {
+            return totalSupplyCheckpoints[index].fromBlock;
+        } else {
+            return 0;
+        }
+    }
+
+    /// @notice get nCheckpoints
+    /// @dev this function can be used for any checkpoints types.
+    /// @param which Which checkpoints type (Enum)
+    /// @param tokenId it is used when searching CharInfoCheckpoints. In other cases, any value can be taken.
+    function _numCheckpoints(WhichCheckpoints which, uint256 tokenId)
+        internal
+        view
+        returns (uint32)
+    {
+        if (which == WhichCheckpoints.CharInfo) {
+            return numCharInfoCheckpoints[tokenId];
+        } else if (which == WhichCheckpoints.TotalSupply) {
+            return numTotalSupplyCheckpoints;
+        } else {
+            return 0;
+        }
+    }
 
     /// @notice Function to mint new PLMToken to the account (to).
     /// @dev 1. generate seed to assign attirbutes to the minted token using Seeder.
@@ -546,9 +542,10 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
         CharacterInfo memory dummyInfo = CharacterInfo(0, 0, 0, 0, [0], "", "");
         require(blockNumber < block.number, "blockNumber lager than latest");
 
-        (uint32 index, bool found) = _searchCharInfoCheckpointIdx(
-            tokenId,
-            blockNumber
+        (uint32 index, bool found) = _searchCheckpointIdx(
+            WhichCheckpoints.CharInfo,
+            blockNumber,
+            tokenId
         );
 
         if (!found) {
@@ -570,8 +567,10 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
         uint256 dummyTotalSupply = 0;
         require(blockNumber < block.number, "blockNumber lager than latest");
 
-        (uint32 index, bool found) = _searchTotalSupplyCheckpointIdx(
-            blockNumber
+        (uint32 index, bool found) = _searchCheckpointIdx(
+            WhichCheckpoints.TotalSupply,
+            blockNumber,
+            0
         );
 
         if (!found) {
