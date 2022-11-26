@@ -3,7 +3,6 @@ interface IPLMData {
     ///      STRUCTS     ///
     ////////////////////////
 
-    // TODO: member変数の入れ替え
     struct CharacterInfo {
         uint8 level;
         uint8 rarity;
