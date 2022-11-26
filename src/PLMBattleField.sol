@@ -295,9 +295,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard, IERC165 {
         if (
             numRounds == MAX_ROUNDS || diffWinCount > (MAX_ROUNDS - numRounds)
         ) {
-            // This battle ends.
             battleState = BattleState.RoundSettled;
-            _settleBattle();
 
             // Check draw condition.
             bool isDraw = homeWinCount == visitorWinCount;
@@ -317,6 +315,10 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard, IERC165 {
                 winnerCount,
                 loserCount
             );
+
+            // This battle ends.
+            _settleBattle();
+
             emit BattleCompleted(
                 numRounds - 1,
                 isDraw,
@@ -395,18 +397,12 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard, IERC165 {
 
     /// @notice Core logic to finalization of the battle.
     function _settleBattle() internal {
-        uint8 homeWinCount = _winCount(PlayerId.Home);
-        uint8 visitorWinCount = _winCount(PlayerId.Visitor);
-
-        // Pay rewards (PLMCoin) to the winner from dealer.
-        if (homeWinCount > visitorWinCount) {
-            // home Wins !!
-            _payRewards(PlayerId.Home, PlayerId.Visitor);
-        } else if (homeWinCount < visitorWinCount) {
-            // visitor Wins !!
-            _payRewards(PlayerId.Visitor, PlayerId.Home);
-        } else {
+        if (battleResult.isDraw) {
+            // this battle is draw. pay rewards to both of players from dealer.
             _payRewardsDraw();
+        } else {
+            // Pay rewards (PLMCoin) to the winner from dealer.
+            _payRewards(battleResult.winner, battleResult.loser);
         }
 
         // Update the proposal state.
