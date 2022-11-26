@@ -93,12 +93,12 @@ contract PLMToken is ERC721Enumerable, PLMData, IPLMToken, ReentrancyGuard {
     ///         The character can be enhanced up to the twice as much level as its normal level.
     function _calcBondLevel(
         uint8 level,
-        uint256 startBlock,
-        uint256 lastBlock
+        uint256 fromBlock,
+        uint256 toBlock
     ) internal pure returns (uint32) {
         // TODO: we should increase this factor.
         uint256 blockPeriod = 50;
-        uint32 ownershipPeriod = uint32((lastBlock - startBlock) / blockPeriod);
+        uint32 ownershipPeriod = uint32((toBlock - fromBlock) / blockPeriod);
         return ownershipPeriod < level * 2 ? ownershipPeriod : level * 2;
     }
 
