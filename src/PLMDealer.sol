@@ -30,6 +30,12 @@ contract PLMDealer is PLMGacha, IPLMDealer {
     /// @notice The amount of stamina consumed when playing battle with other players.
     uint8 constant STAMINA_PER_BATTLE = 10;
 
+    /// @notice The length of the period preventing accounts from re-charging (1 day).
+    uint16 constant CHARGE_LOCKED_PERIOD = 43200;
+
+    /// @notice Progressive taxation of coin issuance through billing
+    uint256[] poolingPercentageTable = [5, 10, 20, 23, 33, 40, 45];
+
     /// @notice contract address of the matchOrganizer.
     address matchOrganizer;
 
@@ -48,6 +54,9 @@ contract PLMDealer is PLMGacha, IPLMDealer {
     /// @notice The block number when the stamina is zero for each player.
     mapping(address => uint256) staminaFromBlock;
 
+    /// @notice The block number of the player's previous charge.
+    mapping(address => uint256) previousChargeBlock;
+
     constructor(IPLMToken _token, IPLMCoin _coin) {
         dealer = address(this);
         polylemmers = msg.sender;
@@ -65,6 +74,18 @@ contract PLMDealer is PLMGacha, IPLMDealer {
     }
     modifier onlyBattleField() {
         require(msg.sender == battleField, "sender != battleField");
+        _;
+    }
+
+    /// @notice Check that enough time has passed from the previous charge.
+    modifier rechargeable() {
+        // block.number == 0 means the sender hasn't charged yet.
+        require(
+            previousChargeBlock[msg.sender] == 0 ||
+                previousChargeBlock[msg.sender] + CHARGE_LOCKED_PERIOD <=
+                block.number,
+            "charge is locked"
+        );
         _;
     }
 
@@ -218,20 +239,29 @@ contract PLMDealer is PLMGacha, IPLMDealer {
     /// FUNCTIONS ABOUT SUBSCRIPTION ///
     ////////////////////////////////////
 
+    /// @notice Function to get the subscription expired block number of the account.
+    function _subscExpiredBlock(address account)
+        internal
+        view
+        returns (uint256)
+    {
+        return subscExpiredBlock[account];
+    }
+
     function _extendSubscPeriod(address account) internal {
         subscExpiredBlock[account] =
-            getSubscExpiredBlock(account).max(block.number) +
+            _subscExpiredBlock(account).max(block.number) +
             SUBSC_UNIT_PERIOD_BLOCK_NUM;
     }
 
     /// @notice Function to return whether the account's subscription is expired or not.
     function subscIsExpired(address account) external view returns (bool) {
-        return block.number > getSubscExpiredBlock(account);
+        return block.number > _subscExpiredBlock(account);
     }
 
     /// @notice Function to extend subscription period. Need approvement of coin to dealer
     function extendSubscPeriod() external {
-        uint256 currentExpiredBlock = getSubscExpiredBlock(msg.sender);
+        uint256 currentExpiredBlock = _subscExpiredBlock(msg.sender);
 
         // TODO: modify here from transfer to safeTransfer.
         // Transfer PLMCoin from user to dealer as subscription fee.
@@ -243,7 +273,7 @@ contract PLMDealer is PLMGacha, IPLMDealer {
         emit SubscExtended(
             msg.sender,
             currentExpiredBlock,
-            getSubscExpiredBlock(msg.sender)
+            _subscExpiredBlock(msg.sender)
         );
     }
 
@@ -251,7 +281,7 @@ contract PLMDealer is PLMGacha, IPLMDealer {
     /// @notice Function to ban account for the period designated by banPeriod.
     /// @dev This function is called from BattleField contract when cheating detected.
     function banAccount(address account, uint256 banPeriod) external {
-        uint256 currentExpiredBlock = getSubscExpiredBlock(account);
+        uint256 currentExpiredBlock = _subscExpiredBlock(account);
 
         // Deal with underflow.
         subscExpiredBlock[account] = subscExpiredBlock[account] >= banPeriod
@@ -261,13 +291,13 @@ contract PLMDealer is PLMGacha, IPLMDealer {
         emit SubscShortened(
             msg.sender,
             currentExpiredBlock,
-            getSubscExpiredBlock(account)
+            _subscExpiredBlock(account)
         );
     }
 
     /// @notice Function to get the subscription expired block number of the account.
     function getSubscExpiredBlock(address account)
-        public
+        external
         view
         returns (uint256)
     {
@@ -276,13 +306,12 @@ contract PLMDealer is PLMGacha, IPLMDealer {
 
     /// @notice Function to get the number blocks remained until subscription expired block.
     function getSubscRemainingBlockNum(address account)
-        public
+        external
         view
         returns (uint256)
     {
-        uint256 remainingBlockNum = block.number <=
-            getSubscExpiredBlock(account)
-            ? getSubscExpiredBlock(account) - block.number
+        uint256 remainingBlockNum = block.number <= _subscExpiredBlock(account)
+            ? _subscExpiredBlock(account) - block.number
             : 0;
         return remainingBlockNum;
     }
@@ -322,15 +351,42 @@ contract PLMDealer is PLMGacha, IPLMDealer {
         returns (uint256)
     {
         // get the pooling percentage from PLMData contract.
-        uint256 poolingPercentage = token.getPoolingPercentage(totalAmount);
+        uint256 poolingPercentage = _poolingPercentage(totalAmount);
         return (totalAmount * (100 - poolingPercentage)) / 100;
+    }
+
+    /// @notice get the percentage of pooling of PLMCoins minted when player charged
+    ///         MATIC
+    function _poolingPercentage(uint256 amount)
+        internal
+        view
+        returns (uint256)
+    {
+        if (0 < amount && amount <= 80 ether) {
+            return poolingPercentageTable[0];
+        } else if (80 ether < amount && amount <= 160 ether) {
+            return poolingPercentageTable[1];
+        } else if (160 ether < amount && amount <= 200 ether) {
+            return poolingPercentageTable[2];
+        } else if (200 ether < amount && amount <= 240 ether) {
+            return poolingPercentageTable[3];
+        } else if (240 ether < amount && amount <= 280 ether) {
+            return poolingPercentageTable[4];
+        } else if (280 ether < amount && amount <= 320 ether) {
+            return poolingPercentageTable[5];
+        } else {
+            return poolingPercentageTable[6];
+        }
     }
 
     /// @notice Function used by game users to charge MATIC to get PLMCoin.
     /// @dev The price of PLMCoin is pegged to MATIC as 1:1.
-    function charge() external payable {
+    ///      If enough time hasn't passed from the previous chargement, then this
+    ///      operation cannot be executable. This violation is detected in the
+    ///      modifier (rechargeable).
+    function charge() external payable rechargeable {
         // This is the first function users call when they join this game.
-        //  functions to initialize smothing are called here.
+        // functions to initialize smothing are called here.
         if (staminaFromBlock[msg.sender] == 0) {
             initializeStamina(msg.sender);
         }
@@ -343,6 +399,9 @@ contract PLMDealer is PLMGacha, IPLMDealer {
         // Distribute minted PLMCoins to the charger and the PLMCoin pool (dealer).
         _transferPLMCoinWithPooling(msg.sender, mintValue);
         require(success, "Failed to send deposit Ether");
+
+        // Record the block number of current chargement.
+        previousChargeBlock[msg.sender] = block.number;
     }
 
     //////////////////////////////////////////////////////////////////////////////

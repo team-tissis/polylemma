@@ -8,12 +8,16 @@ import {PLMCoin} from "../src/PLMCoin.sol";
 import {PLMToken} from "../src/PLMToken.sol";
 import {PLMMatchOrganizer} from "../src/PLMMatchOrganizer.sol";
 import {PLMSeeder} from "../src/lib/PLMSeeder.sol";
-import {PLMData} from "../src/subcontracts/PLMData.sol";
+import {PLMData} from "../src/PLMData.sol";
+import {PLMTypesV1} from "../src/data-contracts/PLMTypesV1.sol";
+import {PLMLevelsV1} from "../src/data-contracts/PLMLevelsV1.sol";
 
 import {IPLMCoin} from "../src/interfaces/IPLMCoin.sol";
 import {IPLMToken} from "../src/interfaces/IPLMToken.sol";
 import {IPLMDealer} from "../src/interfaces/IPLMDealer.sol";
 import {IPLMData} from "../src/interfaces/IPLMData.sol";
+import {IPLMTypes} from "../src/interfaces/IPLMTypes.sol";
+import {IPLMLevels} from "../src/interfaces/IPLMLevels.sol";
 
 contract PLMSeederTest is Test {
     uint32 currentBlock = 0;
@@ -28,10 +32,16 @@ contract PLMSeederTest is Test {
     PLMCoin coinContract;
     PLMToken tokenContract;
     PLMDealer dealerContract;
+    PLMData dataContract;
+    PLMTypesV1 typesContract;
+    PLMLevelsV1 levelsContract;
 
     IPLMToken token;
     IPLMCoin coin;
     IPLMDealer dealer;
+    IPLMData data;
+    IPLMTypes types;
+    IPLMLevels levels;
 
     PLMMatchOrganizer mo;
 
@@ -42,7 +52,13 @@ contract PLMSeederTest is Test {
         // deploy contract
         coinContract = new PLMCoin();
         coin = IPLMCoin(address(coinContract));
-        tokenContract = new PLMToken(coin, 100000);
+        typesContract = new PLMTypesV1();
+        types = IPLMTypes(address(typesContract));
+        levelsContract = new PLMLevelsV1();
+        levels = IPLMLevels(address(levelsContract));
+        dataContract = new PLMData(types, levels);
+        data = IPLMData(address(dataContract));
+        tokenContract = new PLMToken(coin, data, 100000);
         token = IPLMToken(address(tokenContract));
 
         dealerContract = new PLMDealer(token, coin);
@@ -107,18 +123,19 @@ contract PLMSeederTest is Test {
             vm.roll(currentBlock);
             PLMSeeder.Seed memory seed = PLMSeeder.generateTokenSeed(
                 tokenId,
-                IPLMData(address(tokenContract))
+                token
             );
-            string[] memory characterTypes = IPLMData(address(tokenContract))
-                .getCharacterTypes();
-            IPLMData.CharacterInfo memory minted = IPLMData.CharacterInfo(
+            string[] memory characterTypes = IPLMData(
+                tokenContract.getDataAddr()
+            ).getCharacterTypes();
+            IPLMToken.CharacterInfo memory minted = IPLMToken.CharacterInfo(
                 1,
                 1,
+                seed.characterType,
                 1,
                 block.number,
                 [seed.attribute],
-                "a",
-                characterTypes[seed.characterType]
+                "a"
             );
             generatedAttributes[i] = minted.attributeIds[0];
             // generatedAbility[i] = minted.abilityIds[0];

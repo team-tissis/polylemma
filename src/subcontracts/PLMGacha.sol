@@ -11,10 +11,10 @@ contract PLMGacha is IPLMGacha, ReentrancyGuard {
     uint256 constant GACHA_FEE = 5;
 
     /// @notice interface to the token contract of polylemma
-    IPLMToken public token;
+    IPLMToken token;
 
     /// @notice interface to the coin contract of polylemma.
-    IPLMCoin public coin;
+    IPLMCoin coin;
 
     /////////////////////////
     ///  GACHA FUNCTIONS  ///

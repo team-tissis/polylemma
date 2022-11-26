@@ -49,16 +49,21 @@ library PLMSeeder {
     /// @dev generate seeds of traits from current-block's hash for to mint character
     /// @param tokenId tokenId to be minted
     /// @return Seed the struct of trait seed that is indexId of trait array
-    function generateTokenSeed(uint256 tokenId, IPLMData data)
+    function generateTokenSeed(uint256 tokenId, IPLMToken token)
         external
         view
         returns (Seed memory)
     {
+        // fetch database interface
+        IPLMData data = IPLMData(token.getDataAddr());
+
         // TODO: 画像は属性や特性と比較して総数が多いため、現行の実装を踏襲するとものによって排出確率を変更する実装が汚くなってしまうから、一旦一様分布で対応する。
         uint256 pseudoRandomnessImg = _randomFromTokenId(tokenId);
-        uint256 numImg = data.getNumImg();
+        uint256 numImg = token.getNumImg();
 
         uint256 pseudoRandomnessType = _randomFromTokenId(tokenId + 1);
+
+        // TODO: この関数は Seeder の中に追いやりたい。
         uint8[] memory cumulativeCharacterTypeOdds = data
             .getCumulativeCharacterTypeOdds();
 

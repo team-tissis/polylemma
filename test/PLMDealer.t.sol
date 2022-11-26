@@ -5,9 +5,15 @@ import "forge-std/Test.sol";
 import {PLMDealer} from "../src/PLMDealer.sol";
 import {PLMCoin} from "../src/PLMCoin.sol";
 import {PLMToken} from "../src/PLMToken.sol";
+import {PLMData} from "../src/PLMData.sol";
+import {PLMTypesV1} from "../src/data-contracts/PLMTypesV1.sol";
+import {PLMLevelsV1} from "../src/data-contracts/PLMLevelsV1.sol";
 
 import {IPLMCoin} from "../src/interfaces/IPLMCoin.sol";
 import {IPLMToken} from "../src/interfaces/IPLMToken.sol";
+import {IPLMData} from "../src/interfaces/IPLMData.sol";
+import {IPLMTypes} from "../src/interfaces/IPLMTypes.sol";
+import {IPLMLevels} from "../src/interfaces/IPLMLevels.sol";
 
 contract PLMCoinTest is Test {
     address polylemmer = address(10);
@@ -17,9 +23,16 @@ contract PLMCoinTest is Test {
     PLMDealer dealer;
 
     PLMCoin coinContract;
+    PLMData dataContract;
     PLMToken tokenContract;
+    PLMTypesV1 typesContract;
+    PLMLevelsV1 levelsContract;
+
     IPLMCoin coin;
+    IPLMData data;
     IPLMToken token;
+    IPLMTypes types;
+    IPLMLevels levels;
 
     function setUp() public {
         // send transaction by deployer
@@ -28,7 +41,13 @@ contract PLMCoinTest is Test {
         // deploy contract
         coinContract = new PLMCoin();
         coin = IPLMCoin(address(coinContract));
-        tokenContract = new PLMToken(coin, 100000);
+        typesContract = new PLMTypesV1();
+        types = IPLMTypes(address(typesContract));
+        levelsContract = new PLMLevelsV1();
+        levels = IPLMLevels(address(levelsContract));
+        dataContract = new PLMData(types, levels);
+        data = IPLMData(address(dataContract));
+        tokenContract = new PLMToken(coin, data, 100000);
         token = IPLMToken(address(tokenContract));
 
         dealer = new PLMDealer(token, coin);
@@ -142,6 +161,7 @@ contract PLMCoinTest is Test {
         vm.startPrank(user);
         uint256 preDealerBalance = coin.balanceOf(address(dealer));
         uint256 preUserBalance = coin.balanceOf(address(user));
+        vm.roll(31000 + 43200);
         dealer.charge{value: maticForEx}();
         assert(coin.balanceOf(user) > preUserBalance);
         assert(coin.balanceOf(address(dealer)) >= preDealerBalance);

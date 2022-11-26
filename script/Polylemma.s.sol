@@ -5,28 +5,38 @@ import "forge-std/Script.sol";
 
 import {PLMCoin} from "src/PLMCoin.sol";
 import {PLMToken} from "src/PLMToken.sol";
+import {PLMData} from "src/PLMData.sol";
 import {PLMDealer} from "src/PLMDealer.sol";
 import {PLMMatchOrganizer} from "src/PLMMatchOrganizer.sol";
 import {PLMBattleField} from "src/PLMBattleField.sol";
+import {PLMTypesV1} from "src/data-contracts/PLMTypesV1.sol";
+import {PLMLevelsV1} from "src/data-contracts/PLMLevelsV1.sol";
 
 import {IPLMToken} from "../src/interfaces/IPLMToken.sol";
 import {IPLMCoin} from "../src/interfaces/IPLMCoin.sol";
+import {IPLMData} from "../src/interfaces/IPLMData.sol";
 import {IPLMDealer} from "../src/interfaces/IPLMDealer.sol";
 import {IPLMBattleField} from "src/interfaces/IPLMBattleField.sol";
 import {IPLMMatchOrganizer} from "src/interfaces/IPLMMatchOrganizer.sol";
+import {IPLMTypes} from "src/interfaces/IPLMTypes.sol";
+import {IPLMLevels} from "src/interfaces/IPLMLevels.sol";
 
 contract PolylemmaScript is Script {
     PLMToken tokenContract;
     PLMCoin coinContract;
+    PLMData dataContract;
     PLMDealer dealerContract;
     PLMMatchOrganizer matchOrganizer;
     PLMBattleField battleField;
+    PLMTypesV1 typesContract;
+    PLMLevelsV1 levelsContract;
 
     IPLMToken token;
     IPLMCoin coin;
     IPLMDealer dealer;
-
-    IPLMToken.CharacterInfo characterInfo;
+    IPLMData data;
+    IPLMTypes types;
+    IPLMLevels levels;
 
     uint256 constant tokenMaxSupply = 1000;
 
@@ -43,7 +53,16 @@ contract PolylemmaScript is Script {
         coinContract = new PLMCoin();
         coin = IPLMCoin(address(coinContract));
 
-        tokenContract = new PLMToken(coin, tokenMaxSupply);
+        levelsContract = new PLMLevelsV1();
+        levels = IPLMLevels(levelsContract);
+
+        typesContract = new PLMTypesV1();
+        types = IPLMTypes(typesContract);
+
+        dataContract = new PLMData(types, levels);
+        data = IPLMData(address(dataContract));
+
+        tokenContract = new PLMToken(coin, data, tokenMaxSupply);
         token = IPLMToken(address(tokenContract));
 
         dealer = new PLMDealer(token, coin);

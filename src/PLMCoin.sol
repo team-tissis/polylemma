@@ -4,14 +4,13 @@ pragma solidity ^0.8.17;
 import {ERC20} from "openzeppelin-contracts/token/ERC20/ERC20.sol";
 
 import {IPLMCoin} from "./interfaces/IPLMCoin.sol";
-import {IPLMData} from "./interfaces/IPLMData.sol";
 
 contract PLMCoin is ERC20, IPLMCoin {
     /// @notice admin's address
     address polylemmers;
 
     /// @notice contract address of the dealer of polylemma.
-    address public dealer;
+    address dealer;
 
     constructor() ERC20("polylemma", "PLM") {
         polylemmers = msg.sender;
