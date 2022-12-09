@@ -84,64 +84,49 @@ contract PLMSeederTest is Test {
         // (user)  charge MATIC and get PLMcoin
         vm.prank(user1);
         dealerContract.charge{value: maticForEx}();
-
-        //Prepare characters for debug
-        bytes20[4] memory names1 = [bytes20("a1"), "a2", "a3", "a4"];
-        bytes20[4] memory names2 = [bytes20("b1"), "b2", "b3", "b4"];
-        bytes20[4] memory names3 = [bytes20("c1"), "c2", "c3", "c4"];
-        uint8[4] memory levels1 = [1, 2, 2, 8]; // sum: 13
-        uint8[4] memory levels2 = [3, 4, 5, 2]; // sum: 14
-        uint8[4] memory levels3 = [10, 11, 10, 4]; // sum: 35
-
-        // // user1
-        // for (uint256 i = 0; i < names1.length; i++) {
-        //     _createCharacter(levels1[i], names1[i], user1);
-        // }
-
-        // // user2
-        // for (uint256 i = 0; i < names2.length; i++) {
-        //     _createCharacter(levels2[i], names2[i], user2);
-        // }
-
-        // // user3
-        // for (uint256 i = 0; i < names3.length; i++) {
-        //     _createCharacter(levels3[i], names3[i], user3);
-        // }
     }
 
     uint256 constant trialNum = 100;
 
+    /// @dev validate that generated seeds value do not violate the range. (100 trial)
     function testGenerateSeed() public {
         uint256 tokenId = 1;
-
-        string[trialNum] memory generatedTypes;
-        uint8[trialNum] memory generatedAttributes;
 
         for (uint256 i = 0; i < trialNum; i++) {
             tokenId++;
             currentBlock++;
             vm.roll(currentBlock);
+
             PLMSeeder.Seed memory seed = PLMSeeder.generateTokenSeed(
                 tokenId,
                 token
             );
-            string[] memory characterTypes = IPLMData(
-                tokenContract.getDataAddr()
-            ).getCharacterTypes();
-            IPLMToken.CharacterInfo memory minted = IPLMToken.CharacterInfo(
-                1,
-                1,
-                seed.characterType,
-                1,
-                block.number,
-                [seed.attribute],
-                "a"
-            );
-            generatedAttributes[i] = minted.attributeIds[0];
-            // generatedAbility[i] = minted.abilityIds[0];
-            console.log(minted.attributeIds[0]);
-        }
 
-        // console.log(generatedAbility);
+            uint256 numAttributes = data.getNumAttributes();
+            uint256 numCharacterTypes = data.getNumCharacterTypes();
+            assertTrue(seed.attribute <= numAttributes);
+            assertTrue(seed.characterType <= numCharacterTypes);
+
+            // console.log(minted.attributeIds[0]);
+        }
+    }
+
+    /// @dev test that randomFromBlockHash works correctly without errors
+    /// TODO: 乱数生成が正しく行われているかを検証する方法を知らないため、エラーなく動くかどうかだけ確認。
+    function testRandomFromBlockHash() public {
+        PLMSeeder.randomFromBlockHash();
+    }
+
+    /// @dev test that getRandomSlotTokenId returns currect range value.
+    function testGetRandomSlotTokenId() public {
+        uint256 nonce = 5;
+        uint256 playerSeed = 30;
+        uint256 totalSupply = 10;
+        uint256 tokenId = PLMSeeder.getRandomSlotTokenId(
+            bytes32(nonce),
+            bytes32(playerSeed),
+            totalSupply
+        );
+        assertTrue(tokenId <= totalSupply);
     }
 }
