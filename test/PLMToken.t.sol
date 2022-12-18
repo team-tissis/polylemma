@@ -16,6 +16,9 @@ import {IPLMTypes} from "../src/interfaces/IPLMTypes.sol";
 import {IPLMLevels} from "../src/interfaces/IPLMLevels.sol";
 
 contract PLMTokenTest is Test {
+    /////////////////////////////
+    //   utilities for test   ///
+    /////////////////////////////
     address polylemmer = address(10);
     address user = address(11);
     uint256 maticForEx = 100000 ether;
@@ -70,6 +73,12 @@ contract PLMTokenTest is Test {
         vm.prank(user);
         dealer.charge{value: maticForEx}();
     }
+
+    function testUpdateLevel() public {}
+
+    function testGetPriorCharancterInfo() public {}
+
+    function testGetPriorCharcterInfo() public {}
 
     function testMintWithCheckPoint() public {
         uint256 tokenId = 1;

@@ -20,9 +20,14 @@ import {IPLMTypes} from "../src/interfaces/IPLMTypes.sol";
 import {IPLMLevels} from "../src/interfaces/IPLMLevels.sol";
 
 contract PLMSeederTest is Test {
+    /////////////////////////////
+    //   utilities for test   ///
+    /////////////////////////////
     uint32 currentBlock = 0;
     uint256 maticForEx = 100000 ether;
     address polylemmer = address(10);
+
+    uint256 constant trialNum = 100;
 
     address user1 = address(11);
     address user2 = address(12);
@@ -45,6 +50,9 @@ contract PLMSeederTest is Test {
 
     PLMMatchOrganizer mo;
 
+    /////////////////////////////
+    //           TESTS        ///
+    /////////////////////////////
     function setUp() public {
         // send transaction by deployer
         vm.startPrank(polylemmer);
@@ -85,8 +93,6 @@ contract PLMSeederTest is Test {
         vm.prank(user1);
         dealerContract.charge{value: maticForEx}();
     }
-
-    uint256 constant trialNum = 100;
 
     /// @dev validate that generated seeds value do not violate the range. (100 trial)
     function testGenerateSeed() public {

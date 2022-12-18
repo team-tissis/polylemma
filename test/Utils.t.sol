@@ -6,7 +6,7 @@ import "../src/lib/Utils.sol";
 
 contract UtilsTest is Test {
     /////////////////////////////
-    // preparing indexed array //
+    //   utilities for test   ///
     /////////////////////////////
     uint256[] searchTargetArray = [
         2,
@@ -28,9 +28,6 @@ contract UtilsTest is Test {
         52
     ];
 
-    /////////////////////////////
-    //   utilities for test   ///
-    /////////////////////////////
     function sum(uint8 a, uint16 b) public pure returns (uint32) {
         return a + b;
     }
@@ -49,11 +46,11 @@ contract UtilsTest is Test {
         return searchTargetArray[index];
     }
 
-    function setUp() public {}
-
     /////////////////////////////
     //           TESTS        ///
     /////////////////////////////
+    function setUp() public {}
+
     /// @dev test that the curry function's output matches abi.encodeWithSelector, which is proper way to generate an argument for call().
     function testCurry() public {
         uint256[] memory args = new uint256[](2);
