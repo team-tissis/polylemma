@@ -438,7 +438,7 @@ contract PLMToken is ERC721Enumerable, IPLMToken, ReentrancyGuard {
         uint256[] memory allTokensOwned = new uint256[](balanceOfTokens);
         for (uint256 i = 0; i < balanceOfTokens; i++) {
             allTokensOwned[i] = ERC721Enumerable.tokenOfOwnerByIndex(
-                msg.sender,
+                account,
                 i
             );
         }
