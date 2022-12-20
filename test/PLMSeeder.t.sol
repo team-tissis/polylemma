@@ -2,30 +2,15 @@
 pragma solidity ^0.8.17;
 
 import "forge-std/Test.sol";
+import "./subcontracts/TestUtils.sol";
 
-import {PLMDealer} from "../src/PLMDealer.sol";
-import {PLMCoin} from "../src/PLMCoin.sol";
-import {PLMToken} from "../src/PLMToken.sol";
-import {PLMMatchOrganizer} from "../src/PLMMatchOrganizer.sol";
-import {PLMSeeder} from "../src/lib/PLMSeeder.sol";
-import {PLMData} from "../src/PLMData.sol";
-import {PLMTypesV1} from "../src/data-contracts/PLMTypesV1.sol";
-import {PLMLevelsV1} from "../src/data-contracts/PLMLevelsV1.sol";
+import "../src/lib/PLMSeeder.sol";
 
-import {IPLMCoin} from "../src/interfaces/IPLMCoin.sol";
-import {IPLMToken} from "../src/interfaces/IPLMToken.sol";
-import {IPLMDealer} from "../src/interfaces/IPLMDealer.sol";
-import {IPLMData} from "../src/interfaces/IPLMData.sol";
-import {IPLMTypes} from "../src/interfaces/IPLMTypes.sol";
-import {IPLMLevels} from "../src/interfaces/IPLMLevels.sol";
-
-contract PLMSeederTest is Test {
+contract PLMSeederTest is Test, TestUtils {
     /////////////////////////////
     //   utilities for test   ///
     /////////////////////////////
-    uint32 currentBlock = 0;
     uint256 maticForEx = 100000 ether;
-    address polylemmer = address(10);
 
     uint256 constant trialNum = 100;
 
@@ -34,64 +19,23 @@ contract PLMSeederTest is Test {
     address user3 = address(13);
     address user4 = address(14);
 
-    PLMCoin coinContract;
-    PLMToken tokenContract;
-    PLMDealer dealerContract;
-    PLMData dataContract;
-    PLMTypesV1 typesContract;
-    PLMLevelsV1 levelsContract;
-
-    IPLMToken token;
-    IPLMCoin coin;
-    IPLMDealer dealer;
-    IPLMData data;
-    IPLMTypes types;
-    IPLMLevels levels;
-
-    PLMMatchOrganizer mo;
-
     /////////////////////////////
     //           TESTS        ///
     /////////////////////////////
     function setUp() public {
-        // send transaction by deployer
-        vm.startPrank(polylemmer);
-
-        // deploy contract
-        coinContract = new PLMCoin();
-        coin = IPLMCoin(address(coinContract));
-        typesContract = new PLMTypesV1();
-        types = IPLMTypes(address(typesContract));
-        levelsContract = new PLMLevelsV1();
-        levels = IPLMLevels(address(levelsContract));
-        dataContract = new PLMData(types, levels);
-        data = IPLMData(address(dataContract));
-        tokenContract = new PLMToken(coin, data, 100000);
-        token = IPLMToken(address(tokenContract));
-
-        dealerContract = new PLMDealer(token, coin);
-        dealer = IPLMDealer(address(dealerContract));
-        mo = new PLMMatchOrganizer(dealer, token);
-
-        // set dealer
-        coin.setDealer(address(dealerContract));
-        token.setDealer(address(dealerContract));
-
-        // set block number to be enough length
-        currentBlock = dealerContract.getStaminaMax() + 1000;
-        vm.roll(currentBlock);
-        vm.stopPrank();
+        ///@dev initializing contracts, interfaces and some parameters for test
+        initializeTest();
 
         // initial mint of PLM
         uint256 ammount = 1e20;
         vm.prank(polylemmer);
-        dealerContract.mintAdditionalCoin(ammount);
+        dealer.mintAdditionalCoin(ammount);
 
         // send ether to user address
         vm.deal(user1, 10000000 ether);
         // (user)  charge MATIC and get PLMcoin
         vm.prank(user1);
-        dealerContract.charge{value: maticForEx}();
+        dealer.charge{value: maticForEx}();
     }
 
     /// @dev validate that generated seeds value do not violate the range. (100 trial)

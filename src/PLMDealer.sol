@@ -162,7 +162,7 @@ contract PLMDealer is PLMGacha, IPLMDealer {
 
     /// @dev set stamina max value
     /// @dev Function called in charge() that is the first function users call when they join this game.
-    function initializeStamina(address player) internal {
+    function _initializeStamina(address player) internal {
         _restoreStamina(player);
     }
 
@@ -388,7 +388,7 @@ contract PLMDealer is PLMGacha, IPLMDealer {
         // This is the first function users call when they join this game.
         // functions to initialize smothing are called here.
         if (staminaFromBlock[msg.sender] == 0) {
-            initializeStamina(msg.sender);
+            _initializeStamina(msg.sender);
         }
 
         // MINT PLMCoin whose amount is equal to the amount of MATIC the user charged.

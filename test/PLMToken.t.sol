@@ -2,65 +2,19 @@
 pragma solidity ^0.8.17;
 
 import "forge-std/Test.sol";
-import {PLMDealer} from "../src/PLMDealer.sol";
-import {PLMCoin} from "../src/PLMCoin.sol";
-import {PLMToken} from "../src/PLMToken.sol";
-import {PLMData} from "../src/PLMData.sol";
-import {PLMTypesV1} from "../src/data-contracts/PLMTypesV1.sol";
-import {PLMLevelsV1} from "../src/data-contracts/PLMLevelsV1.sol";
 
-import {IPLMCoin} from "../src/interfaces/IPLMCoin.sol";
-import {IPLMToken} from "../src/interfaces/IPLMToken.sol";
-import {IPLMData} from "../src/interfaces/IPLMData.sol";
-import {IPLMTypes} from "../src/interfaces/IPLMTypes.sol";
-import {IPLMLevels} from "../src/interfaces/IPLMLevels.sol";
+import "./subcontracts/TestUtils.sol";
 
-contract PLMTokenTest is Test {
+contract PLMTokenTest is Test, TestUtils {
     /////////////////////////////
     //   utilities for test   ///
     /////////////////////////////
-    address polylemmer = address(10);
     address user = address(11);
     uint256 maticForEx = 100000 ether;
-    uint32 currentBlock = 0;
-    PLMDealer dealer;
-
-    PLMCoin coinContract;
-    PLMToken tokenContract;
-    PLMData dataContract;
-    PLMTypesV1 typesContract;
-    PLMLevelsV1 levelsContract;
-    IPLMToken token;
-    IPLMCoin coin;
-    IPLMData data;
-    IPLMTypes types;
-    IPLMLevels levels;
 
     function setUp() public {
-        // send transaction by deployer
-        vm.startPrank(polylemmer);
-
-        // deploy contract
-        coinContract = new PLMCoin();
-        coin = IPLMCoin(address(coinContract));
-        typesContract = new PLMTypesV1();
-        types = IPLMTypes(address(typesContract));
-        levelsContract = new PLMLevelsV1();
-        levels = IPLMLevels(address(levelsContract));
-        dataContract = new PLMData(types, levels);
-        data = IPLMData(address(dataContract));
-        tokenContract = new PLMToken(coin, data, 100000);
-        token = IPLMToken(address(tokenContract));
-        dealer = new PLMDealer(token, coin);
-
-        // set dealer
-        coin.setDealer(address(dealer));
-        token.setDealer(address(dealer));
-
-        // set block number to be enough length
-        currentBlock = dealer.getStaminaMax() + 1000;
-        vm.roll(currentBlock);
-        vm.stopPrank();
+        ///@dev initializing contracts, interfaces and some parameters for test
+        initializeTest();
 
         // initial mint of PLM
         uint256 ammount = 100000000000000;
@@ -85,7 +39,7 @@ contract PLMTokenTest is Test {
 
     function _packCharInfo(PLMToken.CharacterInfo memory _charInfo)
         internal
-        view
+        pure
         returns (bytes32)
     {
         return

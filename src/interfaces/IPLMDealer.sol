@@ -52,6 +52,8 @@ interface IPLMDealer is IPLMGacha {
 
     function getStaminaMax() external pure returns (uint8);
 
+    function getStaminaPerBattle() external pure returns (uint8);
+
     ////////////////////////////////////
     /// FUNCTIONS ABOUT SUBSCRIPTION ///
     ////////////////////////////////////

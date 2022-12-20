@@ -2,53 +2,18 @@
 pragma solidity ^0.8.17;
 
 import "forge-std/Test.sol";
-import {PLMDealer} from "../src/PLMDealer.sol";
-import {PLMCoin} from "../src/PLMCoin.sol";
-import {PLMToken} from "../src/PLMToken.sol";
-import {PLMData} from "../src/PLMData.sol";
-import {PLMMatchOrganizer} from "../src/PLMMatchOrganizer.sol";
-import {PLMBattleField} from "../src/PLMBattleField.sol";
-import {PLMTypesV1} from "../src/data-contracts/PLMTypesV1.sol";
-import {PLMLevelsV1} from "../src/data-contracts/PLMLevelsV1.sol";
+import "./subcontracts/TestUtils.sol";
 
-import {IPLMCoin} from "../src/interfaces/IPLMCoin.sol";
-import {IPLMToken} from "../src/interfaces/IPLMToken.sol";
-import {IPLMDealer} from "../src/interfaces/IPLMDealer.sol";
-import {IPLMData} from "../src/interfaces/IPLMData.sol";
-import {IPLMMatchOrganizer} from "../src/interfaces/IPLMMatchOrganizer.sol";
-import {IPLMBattleField} from "../src/interfaces/IPLMBattleField.sol";
-import {IPLMTypes} from "../src/interfaces/IPLMTypes.sol";
-import {IPLMLevels} from "../src/interfaces/IPLMLevels.sol";
-
-contract BattleTest is Test {
+contract BattleTest is Test, TestUtils {
     uint256 constant PLAYER_SEED_COMMIT_TIME_LIMIT = 15;
     uint256 constant CHOICE_COMMIT_TIME_LIMIT = 30;
     uint256 constant CHOICE_REVEAL_TIME_LIMIT = 15;
-    uint256 currentBlock = 0;
     uint256 maticForEx = 100000 ether;
-    address polylemmer = address(10);
 
     address home = address(11);
     address visitor = address(12);
     address user3 = address(13);
     address user4 = address(14);
-
-    PLMCoin coinContract;
-    PLMToken tokenContract;
-    PLMDealer dealerContract;
-    PLMData dataContract;
-    PLMTypesV1 typesContract;
-    PLMLevelsV1 levelsContract;
-
-    IPLMToken token;
-    IPLMCoin coin;
-    IPLMDealer dealer;
-    IPLMData data;
-    IPLMTypes types;
-    IPLMLevels levels;
-
-    PLMMatchOrganizer mo;
-    PLMBattleField bf;
 
     /// for battle
     bytes32 bindingFactor1 = bytes32("sdaskfjdiopfvj0pr2904738cdf");
@@ -58,38 +23,8 @@ contract BattleTest is Test {
     bytes32 playerSeed2 = bytes32("sdakfj34879346fvdsdasds738cdf");
 
     function setUp() public {
-        // send transaction by deployer
-        vm.startPrank(polylemmer);
-
-        // deploy contract
-        coinContract = new PLMCoin();
-        coin = IPLMCoin(address(coinContract));
-        typesContract = new PLMTypesV1();
-        types = IPLMTypes(address(typesContract));
-        levelsContract = new PLMLevelsV1();
-        levels = IPLMLevels(address(levelsContract));
-        dataContract = new PLMData(types, levels);
-        data = IPLMData(address(dataContract));
-        tokenContract = new PLMToken(coin, data, 100000);
-        token = IPLMToken(address(tokenContract));
-
-        dealerContract = new PLMDealer(token, coin);
-        dealer = IPLMDealer(address(dealerContract));
-        mo = new PLMMatchOrganizer(dealer, token);
-        bf = new PLMBattleField(dealer, token);
-
-        // set dealer
-        coin.setDealer(address(dealerContract));
-        token.setDealer(address(dealerContract));
-        dealer.setMatchOrganizer(address(mo));
-        dealer.setBattleField(address(bf));
-        mo.setPLMBattleField(address(bf));
-        bf.setPLMMatchOrganizer(address(mo));
-
-        // set block number to be enough length
-        currentBlock = dealerContract.getStaminaMax() * 300 + 1000;
-        vm.roll(currentBlock);
-        vm.stopPrank();
+        ///@dev initializing contracts, interfaces and some parameters for test
+        initializeTest();
 
         // initial mint of PLM
         uint256 ammount = 1e20;
