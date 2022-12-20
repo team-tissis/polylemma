@@ -74,34 +74,61 @@ contract PLMTokenTest is Test {
         dealer.charge{value: maticForEx}();
     }
 
-    function testUpdateLevel() public {}
+    // utils
+    function _mintTokensByDealer(uint256 numMint) internal {
+        vm.startPrank(address(dealer));
+        for (uint256 i = 0; i < numMint; i++) {
+            token.mint("test-mon1");
+        }
+        vm.stopPrank();
+    }
 
-    function testGetPriorCharancterInfo() public {}
+    function _packCharInfo(PLMToken.CharacterInfo memory _charInfo)
+        internal
+        view
+        returns (bytes32)
+    {
+        return
+            keccak256(
+                abi.encodePacked(
+                    _charInfo.level,
+                    _charInfo.rarity,
+                    _charInfo.characterTypeId,
+                    _charInfo.imgId,
+                    _charInfo.fromBlock,
+                    _charInfo.attributeIds,
+                    _charInfo.name
+                )
+            );
+    }
 
-    function testGetPriorCharcterInfo() public {}
-
-    function testMintWithCheckPoint() public {
+    function testMint() public {
         uint256 tokenId = 1;
-
-        // check empty checkpoint impl
-        PLMToken.CharacterInfo memory checkpointBeforeMint = token
-            .getCurrentCharacterInfo(tokenId);
-
-        assertEq(checkpointBeforeMint.name, "");
-        assertEq(checkpointBeforeMint.characterTypeId, 0);
-        assertEq(checkpointBeforeMint.level, 0);
-        assertEq(checkpointBeforeMint.rarity, 0);
-        assertEq(checkpointBeforeMint.attributeIds[0], 0);
-
+        bytes32 monsterName = "test-mon";
         // check impl. of first checkpoint created by mint
-        vm.startPrank(user);
-        coin.approve(address(dealer), dealer.getGachaFee());
-        dealer.gacha("test-mon");
-        PLMToken.CharacterInfo memory checkpointAfterMint = token
-            .getCurrentCharacterInfo(tokenId);
+        vm.startPrank(address(dealer));
+        token.mint(monsterName);
+        assertEq(
+            token.ownerOf(tokenId),
+            address(dealer),
+            "Owner initializing is wrong"
+        );
+        assertEq(
+            token.getCurrentCharacterInfo(tokenId).level,
+            1,
+            "Invalid level initializing"
+        );
+        assertEq(
+            keccak256(
+                abi.encodePacked(token.getCurrentCharacterInfo(tokenId).name)
+            ),
+            keccak256(abi.encodePacked(monsterName)),
+            "Invalid name initializing"
+        );
+    }
 
-        assertEq(checkpointAfterMint.name, "test-mon");
-        assertEq(checkpointAfterMint.level, 1);
+    function testUpdateLevel() public {
+        // mint new PLMToken
     }
 
     function testLevelUpWithCheckPoint() public {
@@ -184,5 +211,112 @@ contract PLMTokenTest is Test {
         token.updateLevel(tokenId);
         string memory tokenURI3 = token.tokenURI(tokenId);
         console.log(tokenURI3);
+    }
+
+    ////////////////////////
+    ///      GETTERS     ///
+    ////////////////////////
+    function testGetAllTokenOwned() public {
+        _mintTokensByDealer(3);
+
+        uint256[] memory validTokensOwned = new uint256[](3);
+        validTokensOwned[0] = 1;
+        validTokensOwned[1] = 2;
+        validTokensOwned[2] = 3;
+
+        assertEq(
+            validTokensOwned,
+            token.getAllTokenOwned(address(dealer)),
+            "Invalid tokens"
+        );
+    }
+
+    function testGetAllCharacterInfo() public {
+        _mintTokensByDealer(3);
+
+        PLMToken.CharacterInfo[]
+            memory validCharacterInfos = new PLMToken.CharacterInfo[](3);
+
+        validCharacterInfos[0] = token.getCurrentCharacterInfo(1);
+        validCharacterInfos[1] = token.getCurrentCharacterInfo(2);
+        validCharacterInfos[2] = token.getCurrentCharacterInfo(3);
+
+        // TODO: 構造体をそのままkeccakできない。for loopは避けられない？？
+        for (uint256 i = 0; i < 3; i++) {
+            assertEq(
+                _packCharInfo(validCharacterInfos[i]),
+                _packCharInfo(token.getAllCharacterInfo()[i]),
+                "Invalid characterInfos"
+            );
+        }
+    }
+
+    function testGetElapsedFromBlock() public {
+        vm.roll(1);
+        _mintTokensByDealer(1);
+
+        uint256 tokenId = 1;
+
+        vm.roll(5);
+        assertEq(token.getElapsedFromBlock(tokenId), 5 - 1);
+    }
+
+    function testGetNecessaryExp() public {
+        _mintTokensByDealer(1);
+        uint256 tokenId = 1;
+
+        IPLMData.CharacterInfoMinimal memory charInfoMinimal = IPLMData
+            .CharacterInfoMinimal(1, 1, [1], 1);
+        assertEq(charInfoMinimal.level**2, token.getNecessaryExp(tokenId));
+    }
+
+    function testGetDealer() public {
+        assertEq(address(dealer), token.getDealer());
+    }
+
+    // TODO: have not implemented enough test yet
+    function testGetCurrentCharacterInfo() public {
+        _mintTokensByDealer(1);
+        PLMToken.CharacterInfo memory charInfo = token.getCurrentCharacterInfo(
+            1
+        );
+
+        console.log("level:%s,", charInfo.level);
+        // "level:%s, rarity:%s, characterTypeId:%s, imgId:%s, fromBlock:%s, attributeId:%s, name:%s",
+    }
+
+    // TODO: have not implemented yet
+    function testGetPriorCharacterInfo() public {
+        _mintTokensByDealer(1);
+        // PLMToken.CharacterInfo memory charInfo = token.getPriorCharacterInfo(
+        //     1,
+        //     1
+        // );
+    }
+
+    function testGetImgURI() public {
+        string
+            memory imgURI = "https://raw.githubusercontent.com/team-tissis/polylemma-img/main/images/1.png";
+        assertEq(
+            keccak256(abi.encodePacked(imgURI)),
+            keccak256(abi.encodePacked(token.getImgURI(1)))
+        );
+    }
+
+    // TODO: need debug
+    // totalSupply を-1した値が返ってきてしまう
+    // function testGetPriorTotalSupply() public {
+    //     vm.roll(2);
+    //     _mintTokensByDealer(3);
+    //     console.log(token.balanceOf(address(dealer)));
+    //     assertEq(token.getPriorTotalSupply(2), 3);
+    // }
+
+    function testGetNumImg() public {
+        assertEq(38, token.getNumImg());
+    }
+
+    function testGetDataAddress() public {
+        assertEq(address(dataContract), token.getDataAddr());
     }
 }

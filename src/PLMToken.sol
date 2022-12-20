@@ -418,7 +418,7 @@ contract PLMToken is ERC721Enumerable, IPLMToken, ReentrancyGuard {
 
     function minimalizeCharInfo(CharacterInfo memory charInfo)
         external
-        view
+        pure
         returns (IPLMData.CharacterInfoMinimal memory)
     {
         return _minimalizeCharInfo(charInfo);

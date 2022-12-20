@@ -49,6 +49,7 @@ contract UtilsTest is Test {
     /////////////////////////////
     //           TESTS        ///
     /////////////////////////////
+    /// @dev No setup operation.
     function setUp() public {}
 
     /// @dev test that the curry function's output matches abi.encodeWithSelector, which is proper way to generate an argument for call().
