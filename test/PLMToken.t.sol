@@ -14,7 +14,7 @@ contract PLMTokenTest is Test, TestUtils {
 
     function setUp() public {
         ///@dev initializing contracts, interfaces and some parameters for test
-        initializeTest();
+        baseSetUp();
 
         // initial mint of PLM
         uint256 ammount = 100000000000000;

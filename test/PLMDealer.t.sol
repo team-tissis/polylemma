@@ -26,7 +26,7 @@ contract PLMDealerTest is Test, TestUtils {
     }
 
     function setUp() public {
-        initializeTest();
+        baseSetUp();
 
         // initial mint of PLM
         uint256 ammount = 100000;

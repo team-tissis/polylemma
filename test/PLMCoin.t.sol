@@ -9,7 +9,7 @@ contract PLMCoinTest is Test, TestUtils {
 
     function setUp() public {
         ///@dev initializing contracts, interfaces and some parameters for test
-        initializeTest();
+        baseSetUp();
     }
 
     function testMintByDealer() public {

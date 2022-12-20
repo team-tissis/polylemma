@@ -50,7 +50,7 @@ contract TestUtils is Test {
     ///@dev token max supply (constructor param.)
     uint256 max_supply = 100000;
 
-    function initializeTest() internal {
+    function baseSetUp() internal {
         // send transaction by deployer
         vm.startPrank(polylemmer);
 
