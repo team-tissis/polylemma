@@ -1,0 +1,44 @@
+{
+    "contracts": [
+        {
+            "contractName": "PLMSeeder",
+            "contractAddress": "0xD3395Ece9cBA08D2Abe5A22Fdcf2bE0144fAA738"
+        },
+        {
+            "contractName": "Utils",
+            "contractAddress": "0xe69c1eE0BE396E221eABB0b86027f046F815f726"
+        },
+        {
+            "contractName": "PLMCoin",
+            "contractAddress": "0xF9e6181C9D26cDFa801cbbfaDD2D8e59daec0CcD"
+        },
+        {
+            "contractName": "PLMLevelsV1",
+            "contractAddress": "0x6fb529eE3D6C6Ad122021A002F3609f8670674f9"
+        },
+        {
+            "contractName": "PLMTypesV1",
+            "contractAddress": "0xBEe712d0024FF196749B6DcE6E6C3Fed6E079290"
+        },
+        {
+            "contractName": "PLMData",
+            "contractAddress": "0xBB3491c528f987e2847A715F7372A7AC25c2ee43"
+        },
+        {
+            "contractName": "PLMToken",
+            "contractAddress": "0x10a5eEeB157F2232d350CbDc88E45509eD71F818"
+        },
+        {
+            "contractName": "PLMDealer",
+            "contractAddress": "0xDf95eEBBBB566B5144e4cFD58765E9099C06C232"
+        },
+        {
+            "contractName": "PLMMatchOrganizer",
+            "contractAddress": "0x70D389aC09F88fEaB31C3C2B0a6cfdFE90741C53"
+        },
+        {
+            "contractName": "PLMBattleField",
+            "contractAddress": "0x1216671Ad3Ff1e86a2e41cd97149A79eF911568a"
+        }
+    ]
+}
