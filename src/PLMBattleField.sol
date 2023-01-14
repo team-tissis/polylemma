@@ -30,13 +30,16 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard, IERC165 {
     uint256 constant BAN_DATE_LENGTH_FOR_DELAYER_ACCOUNT = 2;
 
     /// @notice The limit of playerSeed commitment for each player. About 30 seconds.
-    uint256 constant PLAYER_SEED_COMMIT_TIME_LIMIT = 15;
+    /// TODO; 元に戻す
+    uint256 constant PLAYER_SEED_COMMIT_TIME_LIMIT = 600;
 
     /// @notice The limit of commitment for each player. About 60 seconds.
-    uint256 constant CHOICE_COMMIT_TIME_LIMIT = 30;
+    /// TODO; 元に戻す
+    uint256 constant CHOICE_COMMIT_TIME_LIMIT = 600;
 
     /// @notice The limit of revealment for each player. About 30 seconds.
-    uint256 constant CHOICE_REVEAL_TIME_LIMIT = 15;
+    /// TODO; 元に戻す
+    uint256 constant CHOICE_REVEAL_TIME_LIMIT = 600;
 
     /// @notice interface to the dealer of polylemma.
     IPLMDealer dealer;
