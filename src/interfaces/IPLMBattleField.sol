@@ -141,16 +141,19 @@ interface IPLMBattleField {
 
     // Events for cheater detection.
     event ExceedingLevelPointCheatDetected(
-        PlayerId cheater,
+        PlayerId indexed cheater,
         uint8 remainingLevelPoint,
         uint8 cheaterLevelPoint
     );
-    event ReusingUsedSlotCheatDetected(PlayerId cheater, Choice targetSlot);
+    event ReusingUsedSlotCheatDetected(
+        PlayerId indexed cheater,
+        Choice targetSlot
+    );
 
     // Events for delayer detection.
-    event LatePlayerSeedCommitDetected(PlayerId delayer);
-    event LateChoiceCommitDetected(uint8 indexed numRounds, PlayerId delayer);
-    event LateChoiceRevealDetected(uint8 indexed numRounds, PlayerId delayer);
+    event LatePlayerSeedCommitDetected(PlayerId indexed delayer);
+    event LateChoiceCommitDetected(uint8 numRounds, PlayerId indexed delayer);
+    event LateChoiceRevealDetected(uint8 numRounds, PlayerId indexed delayer);
     event BattleCanceled();
 
     //////////////////////////////
