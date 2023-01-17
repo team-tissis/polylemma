@@ -489,6 +489,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard, IERC165 {
         }
     }
 
+    /// TODO:　それとも正常にコミットできた後この関数を呼んだとしても遅れていることになる。
     /// @notice Function to detect late playerSeed commitment.
     function _isLateForPlayerSeedCommit() internal view returns (bool) {
         return
@@ -1006,6 +1007,52 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard, IERC165 {
         _dealWithDelayerAndCancelBattle(enemyId);
     }
 
+    /// @notice Function to report enemy player for late Seed Commit.
+    /// @dev TODO
+    /// @param playerId: The player's identifier.
+    function reportLatePlayerSeedCommit(PlayerId playerId)
+        external
+        inRound
+        onlyPlayerOf(playerId)
+    {
+        // TODO: implement here
+        PlayerId enemyId = _enemyId(playerId);
+
+        require(
+            _randomSlotState(enemyId) == RandomSlotState.NotSet &&
+                _isLateForPlayerSeedCommit(),
+            "Reported player isn't late"
+        );
+
+        emit LatePlayerSeedCommitDetected(enemyId);
+
+        // Deal with the delayer (enemy player) and cancel this battle.
+        _dealWithDelayerAndCancelBattle(enemyId);
+    }
+
+    /// @notice Function to report enemy player for late commitment.
+    /// @dev TODO
+    /// @param playerId: The player's identifier.
+    function reportLateChoiceCommit(PlayerId playerId)
+        external
+        inRound
+        onlyPlayerOf(playerId)
+    {
+        PlayerId enemyId = _enemyId(playerId);
+
+        // Detect enemy player's late revealment.
+        require(
+            _playerState(enemyId) == PlayerState.Standby &&
+                _isLateForChoiceCommit(),
+            "Reported player isn't late"
+        );
+
+        emit LateChoiceCommitDetected(numRounds, enemyId);
+
+        // Deal with the delayer (enemy player) and cancel this battle.
+        _dealWithDelayerAndCancelBattle(enemyId);
+    }
+
     /// @notice Function to start the battle.
     /// @dev This function is called from match organizer.
     /// @param homeAddr: the address of the player assigned to home.
@@ -1291,5 +1338,7 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard, IERC165 {
         battleState = BattleState.Settled;
         matchOrganizer.forceResetMatchState(_playerAddr(PlayerId.Home));
         matchOrganizer.forceResetMatchState(_playerAddr(PlayerId.Visitor));
+        emit BattleCanceled();
+        emit ForceInited();
     }
 }

@@ -155,6 +155,7 @@ interface IPLMBattleField {
     event LateChoiceCommitDetected(uint8 numRounds, PlayerId indexed delayer);
     event LateChoiceRevealDetected(uint8 numRounds, PlayerId indexed delayer);
     event BattleCanceled();
+    event ForceInited();
 
     //////////////////////////////
     /// BATTLE FIELD FUNCTIONS ///
@@ -174,6 +175,10 @@ interface IPLMBattleField {
     ) external;
 
     function reportLateReveal(PlayerId playerId) external;
+
+    function reportLatePlayerSeedCommit(PlayerId playerId) external;
+
+    function reportLateChoiceCommit(PlayerId playerId) external;
 
     function startBattle(
         address homeAddr,
