@@ -362,17 +362,17 @@ contract PLMDealer is PLMGacha, IPLMDealer {
         view
         returns (uint256)
     {
-        if (0 < amount && amount <= 80 ether) {
+        if (0 < amount && amount <= 80) {
             return poolingPercentageTable[0];
-        } else if (80 ether < amount && amount <= 160 ether) {
+        } else if (80 < amount && amount <= 160) {
             return poolingPercentageTable[1];
-        } else if (160 ether < amount && amount <= 200 ether) {
+        } else if (160 < amount && amount <= 200) {
             return poolingPercentageTable[2];
-        } else if (200 ether < amount && amount <= 240 ether) {
+        } else if (200 < amount && amount <= 240) {
             return poolingPercentageTable[3];
-        } else if (240 ether < amount && amount <= 280 ether) {
+        } else if (240 < amount && amount <= 280) {
             return poolingPercentageTable[4];
-        } else if (280 ether < amount && amount <= 320 ether) {
+        } else if (280 < amount && amount <= 320) {
             return poolingPercentageTable[5];
         } else {
             return poolingPercentageTable[6];
