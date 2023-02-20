@@ -986,14 +986,12 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard, IERC165 {
     ///      choice revealmenet timelimit, then the delayer will be banned,
     ///      the battle will be canceled, and the stamina of the honest player will
     ///      be refunded.
-    /// @param playerId: The player's identifier.
-    function reportLateReveal(PlayerId playerId)
+    /// @param enemyId: The player's identifier.
+    function reportLateReveal(PlayerId enemyId)
         external
         inRound
-        onlyPlayerOf(playerId)
+        onlyPlayerOf(_enemyId(enemyId))
     {
-        PlayerId enemyId = _enemyId(playerId);
-
         // Detect enemy player's late revealment.
         require(
             _playerState(enemyId) == PlayerState.Committed &&
