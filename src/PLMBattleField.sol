@@ -109,6 +109,15 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard, IERC165 {
         _;
     }
 
+    /// @notice Check that the battle state is standby.
+    modifier standby() {
+        require(
+            battleState == BattleState.Standby,
+            "Battle state isn't standby yet"
+        );
+        _;
+    }
+
     /// @notice Check that the battle round has already started.
     modifier inRound() {
         require(
@@ -979,6 +988,48 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard, IERC165 {
         }
     }
 
+    /// @notice Function to report enemy player for late Seed Commit.
+    /// @dev TODO
+    /// @param enemyId: The player's identifier.
+    function reportLatePlayerSeedCommit(PlayerId enemyId)
+        external
+        standby
+        onlyPlayerOf(_enemyId(enemyId))
+    {
+        // Detect enemy player's late player seed commit.
+        require(
+            _randomSlotState(enemyId) == RandomSlotState.NotSet &&
+                _isLateForPlayerSeedCommit(),
+            "Reported player isn't late"
+        );
+
+        emit LatePlayerSeedCommitDetected(enemyId);
+
+        // Deal with the delayer (enemy player) and cancel this battle.
+        _dealWithDelayerAndCancelBattle(enemyId);
+    }
+
+    /// @notice Function to report enemy player for late commitment.
+    /// @dev TODO
+    /// @param enemyId: The player's identifier.
+    function reportLateChoiceCommit(PlayerId enemyId)
+        external
+        inRound
+        onlyPlayerOf(_enemyId(enemyId))
+    {
+        // Detect enemy player's late choice commit.
+        require(
+            _playerState(enemyId) == PlayerState.Standby &&
+                _isLateForChoiceCommit(),
+            "Reported player isn't late"
+        );
+
+        emit LateChoiceCommitDetected(numRounds, enemyId);
+
+        // Deal with the delayer (enemy player) and cancel this battle.
+        _dealWithDelayerAndCancelBattle(enemyId);
+    }
+
     /// @notice Function to report enemy player for late revealment.
     /// @dev This function is prepared to deal with the case that one of the player
     ///      don't reveal his/her choice and it locked the battle forever.
@@ -1000,52 +1051,6 @@ contract PLMBattleField is IPLMBattleField, ReentrancyGuard, IERC165 {
         );
 
         emit LateChoiceRevealDetected(numRounds, enemyId);
-
-        // Deal with the delayer (enemy player) and cancel this battle.
-        _dealWithDelayerAndCancelBattle(enemyId);
-    }
-
-    /// @notice Function to report enemy player for late Seed Commit.
-    /// @dev TODO
-    /// @param playerId: The player's identifier.
-    function reportLatePlayerSeedCommit(PlayerId playerId)
-        external
-        inRound
-        onlyPlayerOf(playerId)
-    {
-        // TODO: implement here
-        PlayerId enemyId = _enemyId(playerId);
-
-        require(
-            _randomSlotState(enemyId) == RandomSlotState.NotSet &&
-                _isLateForPlayerSeedCommit(),
-            "Reported player isn't late"
-        );
-
-        emit LatePlayerSeedCommitDetected(enemyId);
-
-        // Deal with the delayer (enemy player) and cancel this battle.
-        _dealWithDelayerAndCancelBattle(enemyId);
-    }
-
-    /// @notice Function to report enemy player for late commitment.
-    /// @dev TODO
-    /// @param playerId: The player's identifier.
-    function reportLateChoiceCommit(PlayerId playerId)
-        external
-        inRound
-        onlyPlayerOf(playerId)
-    {
-        PlayerId enemyId = _enemyId(playerId);
-
-        // Detect enemy player's late revealment.
-        require(
-            _playerState(enemyId) == PlayerState.Standby &&
-                _isLateForChoiceCommit(),
-            "Reported player isn't late"
-        );
-
-        emit LateChoiceCommitDetected(numRounds, enemyId);
 
         // Deal with the delayer (enemy player) and cancel this battle.
         _dealWithDelayerAndCancelBattle(enemyId);
