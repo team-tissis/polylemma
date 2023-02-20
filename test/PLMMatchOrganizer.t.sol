@@ -21,9 +21,10 @@ import {IPLMTypes} from "../src/interfaces/IPLMTypes.sol";
 import {IPLMLevels} from "../src/interfaces/IPLMLevels.sol";
 
 contract BattleTest is Test {
-    uint256 constant PLAYER_SEED_COMMIT_TIME_LIMIT = 15;
-    uint256 constant CHOICE_COMMIT_TIME_LIMIT = 30;
-    uint256 constant CHOICE_REVEAL_TIME_LIMIT = 15;
+    // FIXME: 定数はハードコードせずにbattleFieldを参照するべき．
+    uint256 constant PLAYER_SEED_COMMIT_TIME_LIMIT = 600;
+    uint256 constant CHOICE_COMMIT_TIME_LIMIT = 600;
+    uint256 constant CHOICE_REVEAL_TIME_LIMIT = 600;
     uint256 currentBlock = 0;
     uint256 maticForEx = 100000 ether;
     address polylemmer = address(10);
