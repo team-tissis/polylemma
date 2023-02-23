@@ -508,7 +508,7 @@ contract PLMToken is ERC721Enumerable, IPLMToken, ReentrancyGuard {
         returns (CharacterInfo memory)
     {
         CharacterInfo memory dummyInfo = CharacterInfo(0, 0, 0, 0, 0, [0], "");
-        require(blockNumber < block.number, "blockNumber lager than latest");
+        require(blockNumber <= block.number, "blockNumber larger than latest");
 
         uint256[] memory numArgs = new uint256[](1);
         numArgs[0] = tokenId;

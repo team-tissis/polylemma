@@ -147,12 +147,10 @@ contract PLMDealer is PLMGacha, IPLMDealer {
         staminaFromBlock[player] = _safeSubUint256(block.number, restAmount);
     }
 
-    // TODO: utils
-    function _safeSubUint256(uint256 x, uint256 y)
-        internal
-        pure
-        returns (uint256)
-    {
+    function _safeSubUint256(
+        uint256 x,
+        uint256 y
+    ) internal pure returns (uint256) {
         if (x >= y) {
             return x - y;
         } else {
@@ -177,10 +175,9 @@ contract PLMDealer is PLMGacha, IPLMDealer {
     }
 
     /// @dev rewrite the retained block numbers that indicate the time when stamina is zero to shift it into the feature
-    function consumeStaminaForBattle(address player)
-        external
-        onlyMatchOrganizer
-    {
+    function consumeStaminaForBattle(
+        address player
+    ) external onlyMatchOrganizer {
         require(
             block.number >=
                 staminaFromBlock[player] +
@@ -240,11 +237,9 @@ contract PLMDealer is PLMGacha, IPLMDealer {
     ////////////////////////////////////
 
     /// @notice Function to get the subscription expired block number of the account.
-    function _subscExpiredBlock(address account)
-        internal
-        view
-        returns (uint256)
-    {
+    function _subscExpiredBlock(
+        address account
+    ) internal view returns (uint256) {
         return subscExpiredBlock[account];
     }
 
@@ -296,20 +291,16 @@ contract PLMDealer is PLMGacha, IPLMDealer {
     }
 
     /// @notice Function to get the subscription expired block number of the account.
-    function getSubscExpiredBlock(address account)
-        external
-        view
-        returns (uint256)
-    {
+    function getSubscExpiredBlock(
+        address account
+    ) external view returns (uint256) {
         return subscExpiredBlock[account];
     }
 
     /// @notice Function to get the number blocks remained until subscription expired block.
-    function getSubscRemainingBlockNum(address account)
-        external
-        view
-        returns (uint256)
-    {
+    function getSubscRemainingBlockNum(
+        address account
+    ) external view returns (uint256) {
         uint256 remainingBlockNum = block.number <= _subscExpiredBlock(account)
             ? _subscExpiredBlock(account) - block.number
             : 0;
@@ -332,9 +323,10 @@ contract PLMDealer is PLMGacha, IPLMDealer {
     /// @dev The distribution is determined in a progressive taxation manner.
     /// @param account: game player's account who charged MATIC to get PLMCoin.
     /// @param totalAmount: sum of the amount of PLMCoin distributed to the player and PLMCoin pool.
-    function _transferPLMCoinWithPooling(address account, uint256 totalAmount)
-        internal
-    {
+    function _transferPLMCoinWithPooling(
+        address account,
+        uint256 totalAmount
+    ) internal {
         // Calcuate how much PLMCoin are stored in the PLMCoin pool.
         uint256 leftAmount = _calcLeftAmount(totalAmount);
         uint256 poolingAmount = totalAmount - leftAmount;
@@ -345,11 +337,9 @@ contract PLMDealer is PLMGacha, IPLMDealer {
     }
 
     /// @notice Function to calculate the unpooled amount.
-    function _calcLeftAmount(uint256 totalAmount)
-        internal
-        view
-        returns (uint256)
-    {
+    function _calcLeftAmount(
+        uint256 totalAmount
+    ) internal view returns (uint256) {
         // get the pooling percentage from PLMData contract.
         uint256 poolingPercentage = _poolingPercentage(totalAmount);
         return (totalAmount * (100 - poolingPercentage)) / 100;
@@ -357,11 +347,9 @@ contract PLMDealer is PLMGacha, IPLMDealer {
 
     /// @notice get the percentage of pooling of PLMCoins minted when player charged
     ///         MATIC
-    function _poolingPercentage(uint256 amount)
-        internal
-        view
-        returns (uint256)
-    {
+    function _poolingPercentage(
+        uint256 amount
+    ) internal view returns (uint256) {
         if (0 < amount && amount <= 80) {
             return poolingPercentageTable[0];
         } else if (80 < amount && amount <= 160) {
@@ -410,10 +398,10 @@ contract PLMDealer is PLMGacha, IPLMDealer {
 
     /// @dev reward is paid from dealer conteract address
     ///      coin.transfer is not called directly bacause the function needs to be called by payer of reward, dealer.
-    function _tryPayReward(address winner, uint256 amount)
-        internal
-        returns (bool, uint256)
-    {
+    function _tryPayReward(
+        address winner,
+        uint256 amount
+    ) internal returns (bool, uint256) {
         uint256 balance = coin.balanceOf(address(this));
         bool success = balance >= amount;
         uint256 rewardAmount = success ? amount : balance;
@@ -436,10 +424,9 @@ contract PLMDealer is PLMGacha, IPLMDealer {
     /// @notice set match organizer contract address, function called by only Polylemmers EOA
     /// @dev   This function must be called when initializing contracts by the deployer manually. ("polylemmers" is contract deployer's address.)
     ///        "matchOrganizer" address is stored in this contract to make some functions able to be called from only matchOrganizer.
-    function setMatchOrganizer(address _matchOrganizer)
-        external
-        onlyPolylemmers
-    {
+    function setMatchOrganizer(
+        address _matchOrganizer
+    ) external onlyPolylemmers {
         matchOrganizer = _matchOrganizer;
     }
 

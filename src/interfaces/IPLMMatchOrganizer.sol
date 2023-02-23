@@ -49,8 +49,10 @@ interface IPLMMatchOrganizer {
 
     function isNotInvolved(address player) external view returns (bool);
 
-    function requestChallenge(address proposer, uint256[4] calldata fixedSlots)
-        external;
+    function requestChallenge(
+        address proposer,
+        uint256[4] calldata fixedSlots
+    ) external;
 
     function resetMatchStates(address home, address visitor) external;
 
