@@ -11,11 +11,9 @@ library PLMSeeder {
         uint8 attribute;
     }
 
-    function _randomFromTokenId(uint256 tokenId)
-        internal
-        view
-        returns (uint256)
-    {
+    function _randomFromTokenId(
+        uint256 tokenId
+    ) internal view returns (uint256) {
         return
             uint256(
                 keccak256(
@@ -49,11 +47,10 @@ library PLMSeeder {
     /// @dev generate seeds of traits from current-block's hash for to mint character
     /// @param tokenId tokenId to be minted
     /// @return Seed the struct of trait seed that is indexId of trait array
-    function generateTokenSeed(uint256 tokenId, IPLMToken token)
-        external
-        view
-        returns (Seed memory)
-    {
+    function generateTokenSeed(
+        uint256 tokenId,
+        IPLMToken token
+    ) external view returns (Seed memory) {
         // fetch database interface
         IPLMData data = IPLMData(token.getDataAddr());
 

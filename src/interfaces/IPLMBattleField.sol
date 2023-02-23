@@ -23,12 +23,6 @@ interface IPLMBattleField {
         Revealed // 2
     }
 
-    /// @notice Enum to represent players' identities.
-    enum PlayerId {
-        Home, // 0
-        Visitor // 1
-    }
-
     /// @notice Players' states in each round.
     enum PlayerState {
         Standby, // 0
@@ -61,8 +55,8 @@ interface IPLMBattleField {
     /// @notice Struct to store the information on the winner and loser of each round
     struct RoundResult {
         bool isDraw;
-        PlayerId winner;
-        PlayerId loser;
+        address winner;
+        address loser;
         uint32 winnerDamage;
         uint32 loserDamage;
     }
@@ -71,8 +65,8 @@ interface IPLMBattleField {
     struct BattleResult {
         uint8 numRounds;
         bool isDraw;
-        PlayerId winner;
-        PlayerId loser;
+        address winner;
+        address loser;
         uint8 winnerCount;
         uint8 loserCount;
     }
@@ -107,78 +101,106 @@ interface IPLMBattleField {
     ///      EVENTS      ///
     ////////////////////////
 
-    event BattleStarted(address indexed homeAddr, address indexed visitorAddr);
-    event PlayerSeedCommitted(PlayerId indexed playerId);
-    event RandomSlotNounceGenerated(PlayerId playerId, bytes32 nonce);
+    event BattleStarted(
+        uint256 battleId,
+        address indexed homeAddr,
+        address indexed visitorAddr
+    );
+    event PlayerSeedCommitted(uint256 battleId, address indexed player);
+    event RandomSlotNounceGenerated(
+        uint256 battleId,
+        address player,
+        bytes32 nonce
+    );
     event PlayerSeedRevealed(
+        uint256 battleId,
         uint8 indexed numRounds,
-        PlayerId indexed playerId,
+        address indexed player,
         bytes32 playerSeed
     );
-    event ChoiceCommitted(uint8 indexed numRounds, PlayerId indexed playerId);
-    event ChoiceRevealed(
+    event ChoiceCommitted(
+        uint256 battleId,
         uint8 indexed numRounds,
-        PlayerId indexed playerId,
+        address indexed player
+    );
+    event ChoiceRevealed(
+        uint256 battleId,
+        uint8 indexed numRounds,
+        address indexed player,
         uint8 levelPoint,
         Choice choice
     );
     event RoundCompleted(
+        uint256 battleId,
         uint8 indexed numRounds,
         bool isDraw,
-        PlayerId winner,
-        PlayerId loser,
+        address winner,
+        address loser,
         uint32 winnerDamage,
         uint32 loserDamage
     );
     event BattleCompleted(
+        uint256 battleId,
         uint8 indexed numRounds,
         bool isDraw,
-        PlayerId winner,
-        PlayerId loser,
+        address winner,
+        address loser,
         uint8 winnerCount,
         uint8 loserCount
     );
 
     // Events for cheater detection.
     event ExceedingLevelPointCheatDetected(
-        PlayerId indexed cheater,
+        uint256 battleId,
+        address indexed cheater,
         uint8 remainingLevelPoint,
         uint8 cheaterLevelPoint
     );
     event ReusingUsedSlotCheatDetected(
-        PlayerId indexed cheater,
+        uint256 battlId,
+        address indexed cheater,
         Choice targetSlot
     );
 
     // Events for delayer detection.
-    event LatePlayerSeedCommitDetected(PlayerId indexed delayer);
-    event LateChoiceCommitDetected(uint8 numRounds, PlayerId indexed delayer);
-    event LateChoiceRevealDetected(uint8 numRounds, PlayerId indexed delayer);
-    event BattleCanceled();
-    event ForceInited();
+    event LatePlayerSeedCommitDetected(
+        uint256 battleId,
+        address indexed delayer
+    );
+    event LateChoiceCommitDetected(
+        uint256 battleId,
+        uint8 numRounds,
+        address indexed delayer
+    );
+    event LateChoiceRevealDetected(
+        uint256 battleId,
+        uint8 numRounds,
+        address indexed delayer
+    );
+    event BattleCanceled(uint256 battleId);
+    event ForceInited(uint256 battleId);
 
     //////////////////////////////
     /// BATTLE FIELD FUNCTIONS ///
     //////////////////////////////
 
-    function commitPlayerSeed(PlayerId playerId, bytes32 commitString) external;
+    function commitPlayerSeed(bytes32 commitString) external;
 
-    function revealPlayerSeed(PlayerId playerId, bytes32 playerSeed) external;
+    function revealPlayerSeed(bytes32 playerSeed) external;
 
-    function commitChoice(PlayerId playerId, bytes32 commitString) external;
+    function commitChoice(bytes32 commitString) external;
 
     function revealChoice(
-        PlayerId playerId,
         uint8 levelPoint,
         Choice choice,
         bytes32 bindingFactor
     ) external;
 
-    function reportLateReveal(PlayerId playerId) external;
+    function reportLateReveal() external;
 
-    function reportLatePlayerSeedCommit(PlayerId playerId) external;
+    function reportLatePlayerSeedCommit() external;
 
-    function reportLateChoiceCommit(PlayerId playerId) external;
+    function reportLateChoiceCommit() external;
 
     function startBattle(
         address homeAddr,
@@ -188,77 +210,6 @@ interface IPLMBattleField {
         uint256[4] calldata homeFixedSlots,
         uint256[4] calldata visitorFixedSlots
     ) external;
-
-    ////////////////////////
-    ///      GETTERS     ///
-    ////////////////////////
-
-    function getBattleState() external view returns (BattleState);
-
-    function getPlayerState(PlayerId playerId)
-        external
-        view
-        returns (PlayerState);
-
-    function getRemainingLevelPoint(PlayerId playerId)
-        external
-        view
-        returns (uint256);
-
-    function getNonce(PlayerId playerId) external view returns (bytes32);
-
-    function getFixedSlotCharInfo(PlayerId playerId)
-        external
-        view
-        returns (IPLMToken.CharacterInfo[4] memory);
-
-    function getVirtualRandomSlotCharInfo(PlayerId playerId, uint256 tokenId)
-        external
-        view
-        returns (IPLMToken.CharacterInfo memory);
-
-    function getRandomSlotCharInfo(PlayerId playerId)
-        external
-        view
-        returns (IPLMToken.CharacterInfo memory);
-
-    function getCharsUsedRounds(PlayerId playerId)
-        external
-        view
-        returns (uint8[5] memory);
-
-    function getPlayerIdFromAddr(address playerAddr)
-        external
-        view
-        returns (PlayerId);
-
-    function getBondLevelAtBattleStart(uint8 level, uint256 fromBlock)
-        external
-        view
-        returns (uint32);
-
-    function getTotalSupplyAtFromBlock(PlayerId playerId)
-        external
-        view
-        returns (uint256);
-
-    function getCurrentRound() external view returns (uint8);
-
-    function getMaxLevelPoint(PlayerId playerId) external view returns (uint8);
-
-    function getRoundResults() external view returns (RoundResult[] memory);
-
-    function getBattleResult() external view returns (BattleResult memory);
-
-    function getRandomSlotState(PlayerId playerId)
-        external
-        view
-        returns (RandomSlotState);
-
-    function getRandomSlotLevel(PlayerId playerId)
-        external
-        view
-        returns (uint8);
 
     ////////////////////////
     ///      SETTERS     ///

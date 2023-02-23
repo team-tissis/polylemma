@@ -35,7 +35,6 @@ library Utils {
         uint256 targetValue,
         address funcAddress
     ) public view returns (uint32, bool) {
-        console.log(msg.sender);
         uint32 numElements = _callGetLength(lengthFuncPacked, funcAddress);
 
         if (numElements == 0) {
@@ -128,5 +127,67 @@ library Utils {
             }
         }
         return abi.encodePacked(funcSig, packed);
+    }
+
+    function bytesToAddress(bytes calldata data)
+        external
+        pure
+        returns (address addr)
+    {
+        bytes memory b = data;
+        assembly {
+            addr := mload(add(b, 20))
+        }
+    }
+
+    function bytesToUint256(bytes calldata data)
+        external
+        pure
+        returns (uint256 num)
+    {
+        bytes memory b = data;
+        assembly {
+            num := mload(add(b, 0x20))
+        }
+    }
+
+    function bytesToUint32(bytes calldata data)
+        external
+        pure
+        returns (uint32 num)
+    {
+        bytes memory b = data;
+        assembly {
+            num := mload(add(b, 0x20))
+        }
+    }
+
+    function bytesToUint8(bytes calldata data)
+        external
+        pure
+        returns (uint8 num)
+    {
+        bytes memory b = data;
+        assembly {
+            num := mload(add(b, 0x20))
+        }
+    }
+
+    function bytesToBool(bytes calldata data) external pure returns (bool bin) {
+        bytes memory b = data;
+        assembly {
+            bin := mload(add(b, 0x20))
+        }
+    }
+
+    function bytesToUint(bytes memory b) internal pure returns (uint256) {
+        uint256 number;
+        for (uint256 i = 0; i < b.length; i++) {
+            number =
+                number +
+                uint256(uint8(b[i])) *
+                (2**(8 * (b.length - (i + 1))));
+        }
+        return number;
     }
 }

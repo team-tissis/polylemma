@@ -8,5 +8,6 @@
     ],
     "solidity.formatter": "prettier",
     "solidity.linter": "solium",
-    "editor.formatOnSave": true
+    "editor.formatOnSave": true,
+    "solidity.validationDelay": 5
 }

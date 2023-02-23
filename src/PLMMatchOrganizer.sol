@@ -66,14 +66,14 @@ contract PLMMatchOrganizer is IPLMMatchOrganizer, ReentrancyGuard, IERC165 {
         _;
     }
 
-    function _createProposal(address home, BattleProposal memory proposal)
-        internal
-    {
+    function _createProposal(
+        address home,
+        BattleProposal memory proposal
+    ) internal {
         proposals[home] = proposal;
         proposalsBoard.push(proposal);
     }
 
-    // FIXME: this function can be optimized.
     function _deleteProposal(address home) internal {
         uint256 ind = 0;
         for (uint256 i; i < proposalsBoard.length; i++) {
@@ -182,12 +182,10 @@ contract PLMMatchOrganizer is IPLMMatchOrganizer, ReentrancyGuard, IERC165 {
     /// if it passes all requirements for battle beginning, it calls startBattle()
     /// @param proposer the address of home whose proposal visitor wants to request against
     /// @param fixedSlots the character party that the visitor is gonna use in battle he requests to join.
-    function requestChallenge(address proposer, uint256[4] calldata fixedSlots)
-        external
-        nonReentrant
-        blockNumberIsPositive
-        subscribed
-    {
+    function requestChallenge(
+        address proposer,
+        uint256[4] calldata fixedSlots
+    ) external nonReentrant blockNumberIsPositive subscribed {
         // Check that the player designated by the address is truely a proposer.
         require(
             matchStates[proposer] == MatchState.Proposed,
@@ -278,10 +276,10 @@ contract PLMMatchOrganizer is IPLMMatchOrganizer, ReentrancyGuard, IERC165 {
     }
 
     /// @dev This function is called from battle field contract when settling the battle.
-    function resetMatchStates(address home, address visitor)
-        external
-        onlyBattleField
-    {
+    function resetMatchStates(
+        address home,
+        address visitor
+    ) external onlyBattleField {
         matchStates[home] = MatchState.NotInvolved;
         matchStates[visitor] = MatchState.NotInvolved;
     }
@@ -297,7 +295,6 @@ contract PLMMatchOrganizer is IPLMMatchOrganizer, ReentrancyGuard, IERC165 {
     ///      GETTER      ///
     ////////////////////////
 
-    // FIXME: this functio will be optimized in the future version.
     function getProposalList() external view returns (BattleProposal[] memory) {
         return proposalsBoard;
     }
@@ -306,11 +303,9 @@ contract PLMMatchOrganizer is IPLMMatchOrganizer, ReentrancyGuard, IERC165 {
         return matchStates[player];
     }
 
-    function supportsInterface(bytes4 interfaceId)
-        external
-        pure
-        returns (bool)
-    {
+    function supportsInterface(
+        bytes4 interfaceId
+    ) external pure returns (bool) {
         return
             interfaceId == type(IERC165).interfaceId ||
             interfaceId == type(IPLMMatchOrganizer).interfaceId;
