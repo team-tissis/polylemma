@@ -62,7 +62,7 @@ interface IPLMToken is IERC721, IERC721Enumerable {
 
     function mint(bytes32 name) external returns (uint256);
 
-    function updateLevel(uint256 tokenId) external;
+    function updateLevel(uint256 tokenId, uint8 num) external;
 
     function tokenURI(uint256 tokenId) external view returns (string memory);
 
@@ -87,7 +87,10 @@ interface IPLMToken is IERC721, IERC721Enumerable {
         uint256 tokenId
     ) external view returns (uint256);
 
-    function getNecessaryExp(uint256 tokenId) external view returns (uint256);
+    function getNecessaryExp(
+        uint256 tokenId,
+        uint8 num
+    ) external view returns (uint256);
 
     function getDealer() external view returns (address);
 

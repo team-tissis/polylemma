@@ -21,7 +21,7 @@ interface IPLMGacha {
     ///  GACHA FUNCTIONS  ///
     /////////////////////////
 
-    function gacha(bytes32 name) external;
+    function gacha(bytes32[] calldata names, uint256 num) external;
 
     /////////////////////////
     ///      GETTERS      ///

@@ -80,14 +80,14 @@ contract PLMToken is ERC721Enumerable, IPLMToken, ReentrancyGuard {
     /// @notice core logic of levelup.
     /// @dev Because character info has changed by levelup, the new character info
     ///      is written into checkpoints in this function.
-    function _updateLevel(uint256 tokenId) internal {
+    function _updateLevel(uint256 tokenId, uint8 num) internal {
         uint32 checkNum = numCharInfoCheckpoints[tokenId];
 
         CharacterInfo memory charInfoOld = charInfoCheckpoints[tokenId][
             checkNum - 1
         ].charInfo;
         CharacterInfo memory charInfoNew = CharacterInfo(
-            charInfoOld.level + 1,
+            charInfoOld.level + num,
             charInfoOld.rarity,
             charInfoOld.characterTypeId,
             charInfoOld.imgId,
@@ -258,11 +258,14 @@ contract PLMToken is ERC721Enumerable, IPLMToken, ReentrancyGuard {
                 : "";
     }
 
-    function _necessaryExp(uint256 tokenId) internal view returns (uint256) {
+    function _necessaryExp(
+        uint256 tokenId,
+        uint8 num
+    ) internal view returns (uint256) {
         IPLMData.CharacterInfoMinimal memory charInfo = _minimalizeCharInfo(
             _currentCharacterInfo(tokenId)
         );
-        return data.getNecessaryExp(charInfo);
+        return data.getNecessaryExp(charInfo, num);
     }
 
     function _minimalizeCharInfo(
@@ -312,14 +315,17 @@ contract PLMToken is ERC721Enumerable, IPLMToken, ReentrancyGuard {
     ///     _burn(tokenId);
     /// }
 
-    /// @notice increment level with consuming his coin
-    function updateLevel(uint256 tokenId) external nonReentrant {
+    /// @notice update level by num while consuming his coin
+    function updateLevel(uint256 tokenId, uint8 num) external nonReentrant {
         require(msg.sender == ownerOf(tokenId), "sender != owner");
-        require(_currentCharacterInfo(tokenId).level <= 255, "level max");
+        require(
+            _currentCharacterInfo(tokenId).level + num <= 255 && num >= 0,
+            "levelup by num is infeasible."
+        );
 
-        uint256 necessaryExp = _necessaryExp(tokenId);
+        uint256 necessaryExp = _necessaryExp(tokenId, num);
         try coin.transferFrom(msg.sender, polylemmers, necessaryExp) {
-            _updateLevel(tokenId);
+            _updateLevel(tokenId, num);
         } catch Error(string memory reason) {
             revert ErrorWithLog(reason);
         }
@@ -455,8 +461,11 @@ contract PLMToken is ERC721Enumerable, IPLMToken, ReentrancyGuard {
         return block.number - _currentCharacterInfo(tokenId).fromBlock;
     }
 
-    function getNecessaryExp(uint256 tokenId) external view returns (uint256) {
-        return _necessaryExp(tokenId);
+    function getNecessaryExp(
+        uint256 tokenId,
+        uint8 num
+    ) external view returns (uint256) {
+        return _necessaryExp(tokenId, num);
     }
 
     function getDealer() external view returns (address) {

@@ -950,8 +950,8 @@ contract BattleTest is Test {
         vm.startPrank(address(dealerContract));
         uint256 tokenId = token.mint(name);
         for (uint256 i; i < lev; i++) {
-            coin.approve(address(token), token.getNecessaryExp(tokenId));
-            token.updateLevel(tokenId);
+            coin.approve(address(token), token.getNecessaryExp(tokenId, 1));
+            token.updateLevel(tokenId, 1);
         }
 
         token.transferFrom(address(dealerContract), owner, tokenId);

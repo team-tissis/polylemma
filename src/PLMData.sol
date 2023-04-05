@@ -146,11 +146,10 @@ contract PLMData is IPLMData {
     ////////////////////////
 
     /// @notice Function to calculate current bond level.
-    function getCurrentBondLevel(uint8 level, uint256 fromBlock)
-        external
-        view
-        returns (uint32)
-    {
+    function getCurrentBondLevel(
+        uint8 level,
+        uint256 fromBlock
+    ) external view returns (uint32) {
         return levels.getCurrentBondLevel(level, fromBlock);
     }
 
@@ -183,20 +182,16 @@ contract PLMData is IPLMData {
 
     /// @notice get points that players can freely distribute just before the start of battle.
     /// @dev levelPoints is the maximum level in the party.
-    function getLevelPoint(CharacterInfoMinimal[4] calldata charInfos)
-        external
-        view
-        returns (uint8)
-    {
+    function getLevelPoint(
+        CharacterInfoMinimal[4] calldata charInfos
+    ) external view returns (uint8) {
         return levels.getLevelPoint(charInfos);
     }
 
     /// @notice get the level of random slots from the level of fixed slots
-    function getRandomSlotLevel(CharacterInfoMinimal[4] calldata charInfos)
-        external
-        view
-        returns (uint8)
-    {
+    function getRandomSlotLevel(
+        CharacterInfoMinimal[4] calldata charInfos
+    ) external view returns (uint8) {
         return levels.getRandomSlotLevel(charInfos);
     }
 
@@ -272,20 +267,22 @@ contract PLMData is IPLMData {
     }
 
     /// @dev This logic is derived from Pokemon
-    function getNecessaryExp(CharacterInfoMinimal memory charInfo)
-        external
-        pure
-        returns (uint256)
-    {
-        return uint256(charInfo.level)**2;
+    function getNecessaryExp(
+        CharacterInfoMinimal memory charInfo,
+        uint8 num
+    ) external pure returns (uint256) {
+        uint256 necessaryExp;
+        uint8 currentLevel = charInfo.level;
+        for (uint8 idx = 0; idx < num; idx++) {
+            necessaryExp += uint256(currentLevel + idx) ** 2;
+        }
+        return necessaryExp;
     }
 
     /// @notice Function to get the rarity of the attributes designated by attributesIds.
-    function getRarity(uint8[1] memory attributeIds)
-        external
-        view
-        returns (uint8)
-    {
+    function getRarity(
+        uint8[1] memory attributeIds
+    ) external view returns (uint8) {
         return attributeRarities[attributeIds[0]];
     }
 
