@@ -159,9 +159,6 @@ contract MultiSlotTest is Test {
         manager.setPLMBattleField(address(bf));
         strg.setBattleManager(address(manager));
 
-        // set block number to be enough length
-        currentBlock = dealerContract.getStaminaMax() * 300 + 1000;
-        vm.roll(currentBlock);
         vm.stopPrank();
 
         // initial mint of PLM
@@ -251,6 +248,10 @@ contract MultiSlotTest is Test {
     }
 
     function testMultiSlotBattles() public {
+        // prevent using just minted character in the same block.
+        currentBlock++;
+        vm.roll(currentBlock);
+
         _freeSubscribe(home1);
         _freeSubscribe(visitor1);
         _freeSubscribe(home2);

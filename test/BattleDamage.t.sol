@@ -55,9 +55,6 @@ contract BattleDamageTest is Test {
         coin.setDealer(address(dealer));
         token.setDealer(address(dealer));
 
-        // set block number to be enough length
-        currentBlock = dealer.getStaminaMax() + 1000;
-        vm.roll(currentBlock);
         vm.stopPrank();
 
         // initial mint of PLM

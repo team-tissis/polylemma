@@ -19,7 +19,8 @@ contract PLMCoinTest is Test {
     address polylemmer = address(10);
     address user = address(11);
     address matchOrganizer = address(20);
-    uint256 maticForEx = 10 ether;
+    address battleField = address(30);
+    uint256 maticForEx = 180 ether;
     PLMDealer dealer;
 
     PLMCoin coinContract;
@@ -56,10 +57,8 @@ contract PLMCoinTest is Test {
         coin.setDealer(address(dealer));
         token.setDealer(address(dealer));
         dealer.setMatchOrganizer(matchOrganizer);
+        dealer.setBattleField(battleField);
 
-        // set block number to be enough length
-        vm.roll(dealer.getStaminaMax() * 300 + 1000);
-        console.log("hoge");
         vm.stopPrank();
 
         // initial mint of PLM
@@ -149,7 +148,7 @@ contract PLMCoinTest is Test {
         vm.stopPrank();
 
         uint256 fromSubscExpi = dealer.getSubscExpiredBlock(user);
-        vm.prank(polylemmer);
+        vm.prank(battleField);
         dealer.banAccount(user, 10);
         assertEq(fromSubscExpi - 10, dealer.getSubscExpiredBlock(user));
     }

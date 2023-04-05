@@ -69,9 +69,6 @@ contract PLMSeederTest is Test {
         coin.setDealer(address(dealerContract));
         token.setDealer(address(dealerContract));
 
-        // set block number to be enough length
-        currentBlock = dealerContract.getStaminaMax() + 1000;
-        vm.roll(currentBlock);
         vm.stopPrank();
 
         // initial mint of PLM
