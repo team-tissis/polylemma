@@ -71,6 +71,58 @@ contract PLMTokenTest is Test {
         dealer.charge{value: maticForEx}();
     }
 
+    function stringToBytes32(
+        string memory source
+    ) private pure returns (bytes32 result) {
+        assembly {
+            result := mload(add(source, 32))
+        }
+    }
+
+    function testMultipleGachaAndLevelUp() public {
+        vm.startPrank(user);
+        uint8 num = 5;
+        bytes32[] memory names = new bytes32[](num);
+        names[0] = stringToBytes32("test-mon-1");
+        names[1] = stringToBytes32("test-mon-2");
+        names[2] = stringToBytes32("test-mon-3");
+        names[3] = stringToBytes32("test-mon-4");
+        names[4] = stringToBytes32("test-mon-5");
+
+        // multiple gacha
+        coin.approve(address(dealer), dealer.getGachaFee() * num);
+        dealer.gacha(names, num);
+
+        // retrieve character infos
+        PLMToken.CharacterInfo memory char1 = token.getCurrentCharacterInfo(1);
+        PLMToken.CharacterInfo memory char2 = token.getCurrentCharacterInfo(2);
+        PLMToken.CharacterInfo memory char3 = token.getCurrentCharacterInfo(3);
+        PLMToken.CharacterInfo memory char4 = token.getCurrentCharacterInfo(4);
+        PLMToken.CharacterInfo memory char5 = token.getCurrentCharacterInfo(5);
+
+        // check character names
+        assertEq(char1.name, "test-mon-1");
+        assertEq(char2.name, "test-mon-2");
+        assertEq(char3.name, "test-mon-3");
+        assertEq(char4.name, "test-mon-4");
+        assertEq(char5.name, "test-mon-5");
+
+        // check character level
+        assertEq(char1.level, 1);
+
+        // check single levelup
+        coin.approve(address(token), token.getNecessaryExp(2, 1));
+        token.updateLevel(2, 1);
+        char2 = token.getCurrentCharacterInfo(2);
+        assertEq(char2.level, 2);
+
+        // check multiple levelup
+        coin.approve(address(token), token.getNecessaryExp(3, 2));
+        token.updateLevel(3, 2);
+        char3 = token.getCurrentCharacterInfo(3);
+        assertEq(char3.level, 3);
+    }
+
     function testMintWithCheckPoint() public {
         uint256 tokenId = 1;
 
@@ -87,7 +139,9 @@ contract PLMTokenTest is Test {
         // check impl. of first checkpoint created by mint
         vm.startPrank(user);
         coin.approve(address(dealer), dealer.getGachaFee());
-        dealer.gacha("test-mon");
+        bytes32[] memory names = new bytes32[](1);
+        names[0] = stringToBytes32("test-mon");
+        dealer.gacha(names, 1);
         PLMToken.CharacterInfo memory checkpointAfterMint = token
             .getCurrentCharacterInfo(tokenId);
 
@@ -101,11 +155,13 @@ contract PLMTokenTest is Test {
         vm.startPrank(user);
         // gacha
         coin.approve(address(dealer), dealer.getGachaFee());
-        dealer.gacha("test-mon");
+        bytes32[] memory names = new bytes32[](1);
+        names[0] = (stringToBytes32("test-mon"));
+        dealer.gacha(names, 1);
 
         // level Up
-        coin.approve(address(token), token.getNecessaryExp(tokenId));
-        token.updateLevel(tokenId);
+        coin.approve(address(token), token.getNecessaryExp(tokenId, 1));
+        token.updateLevel(tokenId, 1);
 
         assertEq(token.getCurrentCharacterInfo(tokenId).level, 2);
     }
@@ -116,13 +172,15 @@ contract PLMTokenTest is Test {
         vm.startPrank(user);
         // gacha
         coin.approve(address(dealer), dealer.getGachaFee());
-        dealer.gacha("test-mon");
+        bytes32[] memory names = new bytes32[](1);
+        names[0] = (stringToBytes32("test-mon"));
+        dealer.gacha(names, 1);
 
         // level Up
         currentBlock++;
         vm.roll(currentBlock);
-        coin.approve(address(token), token.getNecessaryExp(tokenId));
-        token.updateLevel(tokenId);
+        coin.approve(address(token), token.getNecessaryExp(tokenId, 1));
+        token.updateLevel(tokenId, 1);
 
         assertEq(
             token.getPriorCharacterInfo(tokenId, currentBlock - 1).level,
@@ -137,14 +195,16 @@ contract PLMTokenTest is Test {
         vm.startPrank(user);
         // gacha
         coin.approve(address(dealer), dealer.getGachaFee());
-        dealer.gacha("test-mon");
+        bytes32[] memory names = new bytes32[](1);
+        names[0] = (stringToBytes32("test-mon"));
+        dealer.gacha(names, 1);
 
         // level Up
         currentBlock++;
         vm.roll(currentBlock);
         for (uint256 i = 0; i < 10; i++) {
-            coin.approve(address(token), token.getNecessaryExp(tokenId));
-            token.updateLevel(tokenId);
+            coin.approve(address(token), token.getNecessaryExp(tokenId, 1));
+            token.updateLevel(tokenId, 1);
         }
     }
 
@@ -158,21 +218,23 @@ contract PLMTokenTest is Test {
         uint256 tokenId = 1;
         vm.startPrank(user);
         coin.approve(address(dealer), dealer.getGachaFee());
-        dealer.gacha("test-mon");
+        bytes32[] memory names = new bytes32[](1);
+        names[0] = (stringToBytes32("test-mon"));
+        dealer.gacha(names, 1);
 
         // Level up and show tokenURI
         string memory tokenURI = token.tokenURI(tokenId);
         console.log(tokenURI);
 
         // Level up and show tokenURI
-        coin.approve(address(token), token.getNecessaryExp(tokenId));
-        token.updateLevel(tokenId);
+        coin.approve(address(token), token.getNecessaryExp(tokenId, 1));
+        token.updateLevel(tokenId, 1);
         string memory tokenURI2 = token.tokenURI(tokenId);
         console.log(tokenURI2);
 
         // Level up and show tokenURI
-        coin.approve(address(token), token.getNecessaryExp(tokenId));
-        token.updateLevel(tokenId);
+        coin.approve(address(token), token.getNecessaryExp(tokenId, 1));
+        token.updateLevel(tokenId, 1);
         string memory tokenURI3 = token.tokenURI(tokenId);
         console.log(tokenURI3);
     }

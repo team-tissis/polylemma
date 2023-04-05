@@ -62,54 +62,52 @@ interface IPLMToken is IERC721, IERC721Enumerable {
 
     function mint(bytes32 name) external returns (uint256);
 
-    function updateLevel(uint256 tokenId) external;
+    function updateLevel(uint256 tokenId, uint8 num) external;
 
     function tokenURI(uint256 tokenId) external view returns (string memory);
 
-    function minimalizeCharInfo(CharacterInfo memory charInfo)
-        external
-        view
-        returns (IPLMData.CharacterInfoMinimal memory);
+    function minimalizeCharInfo(
+        CharacterInfo memory charInfo
+    ) external view returns (IPLMData.CharacterInfoMinimal memory);
 
     ////////////////////////
     ///      GETTERS     ///
     ////////////////////////
 
-    function getAllTokenOwned(address account)
-        external
-        view
-        returns (uint256[] memory);
+    function getAllTokenOwned(
+        address account
+    ) external view returns (uint256[] memory);
 
     function getAllCharacterInfo()
         external
         view
         returns (CharacterInfo[] memory);
 
-    function getElapsedFromBlock(uint256 tokenId)
-        external
-        view
-        returns (uint256);
+    function getElapsedFromBlock(
+        uint256 tokenId
+    ) external view returns (uint256);
 
-    function getNecessaryExp(uint256 tokenId) external view returns (uint256);
+    function getNecessaryExp(
+        uint256 tokenId,
+        uint8 num
+    ) external view returns (uint256);
 
     function getDealer() external view returns (address);
 
-    function getCurrentCharacterInfo(uint256 tokenId)
-        external
-        view
-        returns (CharacterInfo memory);
+    function getCurrentCharacterInfo(
+        uint256 tokenId
+    ) external view returns (CharacterInfo memory);
 
-    function getPriorCharacterInfo(uint256 tokenId, uint256 blockNumber)
-        external
-        view
-        returns (CharacterInfo memory);
+    function getPriorCharacterInfo(
+        uint256 tokenId,
+        uint256 blockNumber
+    ) external view returns (CharacterInfo memory);
 
     function getImgURI(uint256 imgId) external view returns (string memory);
 
-    function getPriorTotalSupply(uint256 blockNumber)
-        external
-        view
-        returns (uint256);
+    function getPriorTotalSupply(
+        uint256 blockNumber
+    ) external view returns (uint256);
 
     function getNumImg() external view returns (uint256);
 

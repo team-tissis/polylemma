@@ -80,14 +80,14 @@ contract PLMToken is ERC721Enumerable, IPLMToken, ReentrancyGuard {
     /// @notice core logic of levelup.
     /// @dev Because character info has changed by levelup, the new character info
     ///      is written into checkpoints in this function.
-    function _updateLevel(uint256 tokenId) internal {
+    function _updateLevel(uint256 tokenId, uint8 num) internal {
         uint32 checkNum = numCharInfoCheckpoints[tokenId];
 
         CharacterInfo memory charInfoOld = charInfoCheckpoints[tokenId][
             checkNum - 1
         ].charInfo;
         CharacterInfo memory charInfoNew = CharacterInfo(
-            charInfoOld.level + 1,
+            charInfoOld.level + num,
             charInfoOld.rarity,
             charInfoOld.characterTypeId,
             charInfoOld.imgId,
@@ -104,30 +104,25 @@ contract PLMToken is ERC721Enumerable, IPLMToken, ReentrancyGuard {
     /// @notice get checkpointFromBloc
     /// @param index  index of checkpoints mapping
     /// @param tokenId it is used when searching CharInfoCheckpoints. In other cases, any value can be taken.
-    function _charInfoCheckpointFromBlock(uint256 tokenId, uint32 index)
-        public
-        view
-        returns (uint256)
-    {
+    function _charInfoCheckpointFromBlock(
+        uint256 tokenId,
+        uint32 index
+    ) public view returns (uint256) {
         return charInfoCheckpoints[tokenId][index].fromBlock;
     }
 
-    function _totalSupplyCheckpointFromBlock(uint32 index)
-        public
-        view
-        returns (uint256)
-    {
+    function _totalSupplyCheckpointFromBlock(
+        uint32 index
+    ) public view returns (uint256) {
         return totalSupplyCheckpoints[index].fromBlock;
     }
 
     /// @notice get nCheckpoints
     /// @dev this function can be used for any checkpoints types.
     /// @param tokenId it is used when searching CharInfoCheckpoints. In other cases, any value can be taken.
-    function _numCharInfoCheckpoints(uint256 tokenId)
-        public
-        view
-        returns (uint32)
-    {
+    function _numCharInfoCheckpoints(
+        uint256 tokenId
+    ) public view returns (uint32) {
         return numCharInfoCheckpoints[tokenId];
     }
 
@@ -263,18 +258,19 @@ contract PLMToken is ERC721Enumerable, IPLMToken, ReentrancyGuard {
                 : "";
     }
 
-    function _necessaryExp(uint256 tokenId) internal view returns (uint256) {
+    function _necessaryExp(
+        uint256 tokenId,
+        uint8 num
+    ) internal view returns (uint256) {
         IPLMData.CharacterInfoMinimal memory charInfo = _minimalizeCharInfo(
             _currentCharacterInfo(tokenId)
         );
-        return data.getNecessaryExp(charInfo);
+        return data.getNecessaryExp(charInfo, num);
     }
 
-    function _minimalizeCharInfo(CharacterInfo memory charInfo)
-        internal
-        pure
-        returns (IPLMData.CharacterInfoMinimal memory)
-    {
+    function _minimalizeCharInfo(
+        CharacterInfo memory charInfo
+    ) internal pure returns (IPLMData.CharacterInfoMinimal memory) {
         return
             IPLMData.CharacterInfoMinimal(
                 charInfo.level,
@@ -289,11 +285,9 @@ contract PLMToken is ERC721Enumerable, IPLMToken, ReentrancyGuard {
      * @param tokenId The id of token to get charInfo
      * @return CharacterInfo for `tokenId`
      */
-    function _currentCharacterInfo(uint256 tokenId)
-        internal
-        view
-        returns (CharacterInfo memory)
-    {
+    function _currentCharacterInfo(
+        uint256 tokenId
+    ) internal view returns (CharacterInfo memory) {
         CharacterInfo memory dummyInfo = CharacterInfo(0, 0, 0, 0, 0, [0], "");
         uint32 nCharInfoCheckpoints = numCharInfoCheckpoints[tokenId];
         return
@@ -321,14 +315,17 @@ contract PLMToken is ERC721Enumerable, IPLMToken, ReentrancyGuard {
     ///     _burn(tokenId);
     /// }
 
-    /// @notice increment level with consuming his coin
-    function updateLevel(uint256 tokenId) external nonReentrant {
+    /// @notice update level by num while consuming his coin
+    function updateLevel(uint256 tokenId, uint8 num) external nonReentrant {
         require(msg.sender == ownerOf(tokenId), "sender != owner");
-        require(_currentCharacterInfo(tokenId).level <= 255, "level max");
+        require(
+            _currentCharacterInfo(tokenId).level + num <= 255 && num >= 0,
+            "levelup by num is infeasible."
+        );
 
-        uint256 necessaryExp = _necessaryExp(tokenId);
+        uint256 necessaryExp = _necessaryExp(tokenId, num);
         try coin.transferFrom(msg.sender, polylemmers, necessaryExp) {
-            _updateLevel(tokenId);
+            _updateLevel(tokenId, num);
         } catch Error(string memory reason) {
             revert ErrorWithLog(reason);
         }
@@ -336,12 +333,9 @@ contract PLMToken is ERC721Enumerable, IPLMToken, ReentrancyGuard {
 
     /// @notice Function to return tokenURI.
     /// @dev The output of this function will be used by OpenSea.
-    function tokenURI(uint256 tokenId)
-        public
-        view
-        override(ERC721, IPLMToken)
-        returns (string memory)
-    {
+    function tokenURI(
+        uint256 tokenId
+    ) public view override(ERC721, IPLMToken) returns (string memory) {
         require(_exists(tokenId), "tokenId doesn't exist");
 
         CharacterInfo memory charInfo = _currentCharacterInfo(tokenId);
@@ -416,11 +410,9 @@ contract PLMToken is ERC721Enumerable, IPLMToken, ReentrancyGuard {
             );
     }
 
-    function minimalizeCharInfo(CharacterInfo memory charInfo)
-        external
-        view
-        returns (IPLMData.CharacterInfoMinimal memory)
-    {
+    function minimalizeCharInfo(
+        CharacterInfo memory charInfo
+    ) external view returns (IPLMData.CharacterInfoMinimal memory) {
         return _minimalizeCharInfo(charInfo);
     }
 
@@ -429,11 +421,9 @@ contract PLMToken is ERC721Enumerable, IPLMToken, ReentrancyGuard {
     ////////////////////////
 
     /// @notice Function to return the tokenIds of tokens owned by the account.
-    function getAllTokenOwned(address account)
-        external
-        view
-        returns (uint256[] memory)
-    {
+    function getAllTokenOwned(
+        address account
+    ) external view returns (uint256[] memory) {
         uint256 balanceOfTokens = ERC721.balanceOf(account);
         uint256[] memory allTokensOwned = new uint256[](balanceOfTokens);
         for (uint256 i = 0; i < balanceOfTokens; i++) {
@@ -465,16 +455,17 @@ contract PLMToken is ERC721Enumerable, IPLMToken, ReentrancyGuard {
     /// @notice Function to get the length of the owned period of the PLM token designated
     ///         by tokenId.
     /// @dev This function is called when calculating bond point in battle field contract.
-    function getElapsedFromBlock(uint256 tokenId)
-        external
-        view
-        returns (uint256)
-    {
+    function getElapsedFromBlock(
+        uint256 tokenId
+    ) external view returns (uint256) {
         return block.number - _currentCharacterInfo(tokenId).fromBlock;
     }
 
-    function getNecessaryExp(uint256 tokenId) external view returns (uint256) {
-        return _necessaryExp(tokenId);
+    function getNecessaryExp(
+        uint256 tokenId,
+        uint8 num
+    ) external view returns (uint256) {
+        return _necessaryExp(tokenId, num);
     }
 
     function getDealer() external view returns (address) {
@@ -486,11 +477,9 @@ contract PLMToken is ERC721Enumerable, IPLMToken, ReentrancyGuard {
      * @param tokenId The id of token to get charInfo
      * @return CharacterInfo for `tokenId`
      */
-    function getCurrentCharacterInfo(uint256 tokenId)
-        public
-        view
-        returns (CharacterInfo memory)
-    {
+    function getCurrentCharacterInfo(
+        uint256 tokenId
+    ) public view returns (CharacterInfo memory) {
         return _currentCharacterInfo(tokenId);
     }
 
@@ -502,11 +491,10 @@ contract PLMToken is ERC721Enumerable, IPLMToken, ReentrancyGuard {
      * @return CharacterInfo of the token had as of the given block
      */
 
-    function getPriorCharacterInfo(uint256 tokenId, uint256 blockNumber)
-        external
-        view
-        returns (CharacterInfo memory)
-    {
+    function getPriorCharacterInfo(
+        uint256 tokenId,
+        uint256 blockNumber
+    ) external view returns (CharacterInfo memory) {
         CharacterInfo memory dummyInfo = CharacterInfo(0, 0, 0, 0, 0, [0], "");
         require(blockNumber <= block.number, "blockNumber larger than latest");
 
@@ -535,11 +523,9 @@ contract PLMToken is ERC721Enumerable, IPLMToken, ReentrancyGuard {
         return _imgURI(imgId);
     }
 
-    function getPriorTotalSupply(uint256 blockNumber)
-        external
-        view
-        returns (uint256)
-    {
+    function getPriorTotalSupply(
+        uint256 blockNumber
+    ) external view returns (uint256) {
         uint256 dummyTotalSupply = 0;
         require(blockNumber < block.number, "blockNumber lager than latest");
 
@@ -583,10 +569,9 @@ contract PLMToken is ERC721Enumerable, IPLMToken, ReentrancyGuard {
         numImg = _numImg;
     }
 
-    function setBaseImgURI(string calldata _newBaseImgURI)
-        external
-        onlyPolylemmers
-    {
+    function setBaseImgURI(
+        string calldata _newBaseImgURI
+    ) external onlyPolylemmers {
         baseImgURI = _newBaseImgURI;
     }
 
@@ -594,11 +579,9 @@ contract PLMToken is ERC721Enumerable, IPLMToken, ReentrancyGuard {
     ///      UTILS       ///
     ////////////////////////
 
-    function bytes32ToString(bytes32 _bytes32)
-        public
-        pure
-        returns (string memory)
-    {
+    function bytes32ToString(
+        bytes32 _bytes32
+    ) public pure returns (string memory) {
         uint8 i = 0;
         while (i < 32 && _bytes32[i] != 0) {
             i++;

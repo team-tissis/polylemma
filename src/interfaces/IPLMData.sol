@@ -26,10 +26,10 @@ interface IPLMData {
     ///      GETTERS     ///
     ////////////////////////
 
-    function getCurrentBondLevel(uint8 level, uint256 fromBlock)
-        external
-        view
-        returns (uint32);
+    function getCurrentBondLevel(
+        uint8 level,
+        uint256 fromBlock
+    ) external view returns (uint32);
 
     function getPriorBondLevel(
         uint8 level,
@@ -45,15 +45,13 @@ interface IPLMData {
         CharacterInfoMinimal calldata enemyChar
     ) external view returns (uint32);
 
-    function getLevelPoint(CharacterInfoMinimal[4] calldata charInfos)
-        external
-        view
-        returns (uint8);
+    function getLevelPoint(
+        CharacterInfoMinimal[4] calldata charInfos
+    ) external view returns (uint8);
 
-    function getRandomSlotLevel(CharacterInfoMinimal[4] calldata charInfos)
-        external
-        view
-        returns (uint8);
+    function getRandomSlotLevel(
+        CharacterInfoMinimal[4] calldata charInfos
+    ) external view returns (uint8);
 
     function getCharacterTypes() external view returns (string[] memory);
 
@@ -73,15 +71,14 @@ interface IPLMData {
         view
         returns (uint8[] memory);
 
-    function getNecessaryExp(CharacterInfoMinimal memory charInfo)
-        external
-        view
-        returns (uint256);
+    function getNecessaryExp(
+        CharacterInfoMinimal memory charInfo,
+        uint8 num
+    ) external view returns (uint256);
 
-    function getRarity(uint8[1] memory attributeIds)
-        external
-        view
-        returns (uint8);
+    function getRarity(
+        uint8[1] memory attributeIds
+    ) external view returns (uint8);
 
     function getTypeName(uint8 typeId) external view returns (string memory);
 
