@@ -18,11 +18,19 @@ contract PLMDealer is PLMGacha, IPLMDealer {
     /// @notice block number of subscription period unit (30 days).
     uint256 constant SUBSC_UNIT_PERIOD_BLOCK_NUM = 1296000;
 
+    /// @notice The value used to avoid undeflow in calculation about subscription.
+    /// @dev This value should be larger than the maximum value of block numbers subtracted
+    ///      when the player is banned. Currently, it is set to SUBSC_UNIT_PERIOD_BLOCK_NUM.
+    uint256 constant SUBSC_OFFSET = 1296000;
+
     /// @notice The number of blocks needed to recover unit stamina. (10 min).
     uint16 constant STAMINA_RESTORE_SPEED = 300;
 
     /// @notice The maximum value of stamina.
     uint8 constant STAMINA_MAX = 100;
+
+    /// @notice The value used to avoid underflow in calculation about stamina.
+    uint16 constant STAMINA_OFFSET = 30000;
 
     //// @notice the fee to restore stamina (unit: PLM)
     uint8 constant RESTORE_STAMINA_FEE = 5;
@@ -51,7 +59,8 @@ contract PLMDealer is PLMGacha, IPLMDealer {
     /// @notice Mapping from each account to one's subscription expired block number.
     mapping(address => uint256) subscExpiredBlock;
 
-    /// @notice The block number when the stamina is zero for each player.
+    /// @notice "The block number when the stamina is zero for each player" + "STAMINA_OFFSET"
+    /// @dev STAMINA_OFFSET is added to simplify the implementation by not handling underflow errors.
     mapping(address => uint256) staminaFromBlock;
 
     /// @notice The block number of the player's previous charge.
@@ -89,24 +98,6 @@ contract PLMDealer is PLMGacha, IPLMDealer {
         _;
     }
 
-    // TODO: if block number is smaller than STAMINA_MAX, it cannot work.
-    /// @dev - This function calculate remained stamina ftom retained block numbers and stamina restoring speed.
-    ///        This contract restores the block number at the time when each player's stamina was zero.
-    ///      - When the current block number is less than max stamina point, this function return max stamina.
-    function _currentStamina(address player) internal view returns (uint8) {
-        if (block.number < STAMINA_MAX) {
-            return STAMINA_MAX;
-        } else if (block.number > staminaFromBlock[player]) {
-            return
-                uint8(
-                    ((block.number - staminaFromBlock[player]) /
-                        STAMINA_RESTORE_SPEED).min(STAMINA_MAX)
-                );
-        } else {
-            return 0;
-        }
-    }
-
     ////////////////////////////////
     /// FUNCTIONS ABOUT FINANCES ///
     ////////////////////////////////
@@ -138,24 +129,29 @@ contract PLMDealer is PLMGacha, IPLMDealer {
     /// FUNCTIONS ABOUT STAMINA ///
     ///////////////////////////////
 
-    /// @dev rewrite the retained block number that indicate the time when stamina is zero to shift it into the past
-    function _restoreStamina(address player) internal {
-        uint256 restAmount = uint256(STAMINA_MAX) *
-            uint256(STAMINA_RESTORE_SPEED);
-
-        // Deal with underflow.
-        staminaFromBlock[player] = _safeSubUint256(block.number, restAmount);
+    /// @dev This function calculate remained stamina ftom retained block numbers
+    ///      and stamina restoring speed.
+    function _currentStamina(address player) internal view returns (uint8) {
+        // if the player doesn't consume any stamina, it's ok because the below
+        // calculation always output STAMINA_MAX.
+        return
+            uint8(
+                ((block.number +
+                    uint256(STAMINA_OFFSET) -
+                    staminaFromBlock[player]) / STAMINA_RESTORE_SPEED).min(
+                        STAMINA_MAX
+                    )
+            );
     }
 
-    function _safeSubUint256(
-        uint256 x,
-        uint256 y
-    ) internal pure returns (uint256) {
-        if (x >= y) {
-            return x - y;
-        } else {
-            return 0;
-        }
+    /// @dev restore the stamina to the max value of the stamina.
+    function _restoreStamina(address player) internal {
+        // because staminaFromBlock preserves the value of block number that indicate
+        // the time when stamina is zero + STAMINA_OFFSET.
+        // setting staminaFromBlock by block.number means that the current stamina is
+        // ((block.number + STAMINA_OFFSET) - staminaFromBlock) / STAMINA_RESTORE_SPEED
+        // = STAMINA_MAX !!
+        staminaFromBlock[player] = block.number;
     }
 
     /// @dev set stamina max value
@@ -179,40 +175,50 @@ contract PLMDealer is PLMGacha, IPLMDealer {
         address player
     ) external onlyMatchOrganizer {
         require(
-            block.number >=
+            block.number + STAMINA_OFFSET >=
                 staminaFromBlock[player] +
                     STAMINA_PER_BATTLE *
                     STAMINA_RESTORE_SPEED,
             "sender does not have enough stamina"
         );
-        // When "staminaFromBlock" remains at the initial value of "0", players start a battle without any stamina
-        // consumption up to the time when the staminaFromBlock can express that stamina is consumed for one battle.
-        if (staminaFromBlock[player] > 0) {
+
+        uint8 currentStamina = _currentStamina(player);
+        if (currentStamina < STAMINA_MAX) {
+            // case1: stamina < stamina_max
+            // in this case, we should shift the staminaFromBlock by the amount
+            // corresponding to the stamina consumed per battle.
             staminaFromBlock[player] +=
                 STAMINA_PER_BATTLE *
                 STAMINA_RESTORE_SPEED;
         } else {
-            staminaFromBlock[player] = _safeSubUint256(
-                block.number,
-                (STAMINA_MAX - STAMINA_PER_BATTLE) * STAMINA_RESTORE_SPEED
-            );
+            // case2: stamina >= stamina_max
+            // in this case, we jump to the point that stamina is MAX
+            // (that is block.number) and comsume stamina with amount
+            // STAMINA_PER_BATTLE * STAMINA_RESTORE_SPEED
+            staminaFromBlock[player] =
+                block.number +
+                STAMINA_PER_BATTLE *
+                STAMINA_RESTORE_SPEED;
         }
     }
 
     /// @notice function called when the battle did not end normally
     function refundStaminaForBattle(address player) external onlyBattleField {
-        uint256 candidate1 = _safeSubUint256(
-            block.number,
-            STAMINA_MAX * STAMINA_RESTORE_SPEED
+        // This function is called after the consumeStaminaPerBattle function call.
+        // It means that
+        // staminaFromBlock[player] > block.number + STAMINA_PER_BATTLE * STAMINA_RESTORE_SPEED
+        //                          >= 0 + STAMINA_PER_BATTLE * STAMINA_RESTORE_SPEED
+        // we can implement refunding by just subtracting STAMINA_PER_BATTLE * STAMINA_RESTORE_SPEED
+        // without handling underflow.
+        // the below require should always be passed.
+        require(
+            staminaFromBlock[player] >=
+                STAMINA_PER_BATTLE * STAMINA_RESTORE_SPEED,
+            "invalid call of refundStamina"
         );
-        uint256 candidate2 = _safeSubUint256(
-            staminaFromBlock[player],
-            STAMINA_PER_BATTLE * STAMINA_RESTORE_SPEED
-        );
-        staminaFromBlock[player] = candidate1.max(candidate2);
+        staminaFromBlock[player] -= STAMINA_PER_BATTLE * STAMINA_RESTORE_SPEED;
     }
 
-    // TODO: if block number is smaller than STAMINA_MAX, it cannot work.
     /// @dev - This function calculate remained stamina ftom retained block numbers and stamina restoring speed.
     ///        This contract restores the block number at the time when each player's stamina was zero.
     ///      - When the current block number is less than max stamina point, this function return max stamina.
@@ -237,56 +243,62 @@ contract PLMDealer is PLMGacha, IPLMDealer {
     ////////////////////////////////////
 
     /// @notice Function to get the subscription expired block number of the account.
-    function _subscExpiredBlock(
-        address account
-    ) internal view returns (uint256) {
-        return subscExpiredBlock[account];
-    }
-
-    function _extendSubscPeriod(address account) internal {
-        subscExpiredBlock[account] =
-            _subscExpiredBlock(account).max(block.number) +
-            SUBSC_UNIT_PERIOD_BLOCK_NUM;
+    function _subscIsExpired(address account) internal view returns (bool) {
+        return block.number + SUBSC_OFFSET > subscExpiredBlock[account];
     }
 
     /// @notice Function to return whether the account's subscription is expired or not.
     function subscIsExpired(address account) external view returns (bool) {
-        return block.number > _subscExpiredBlock(account);
+        return _subscIsExpired(account);
     }
 
-    /// @notice Function to extend subscription period. Need approvement of coin to dealer
+    /// @notice Function to extend subscription period.
+    /// @dev Need approvement of coin to dealer
     function extendSubscPeriod() external {
-        uint256 currentExpiredBlock = _subscExpiredBlock(msg.sender);
+        uint256 currentExpiredBlock = subscExpiredBlock[msg.sender];
 
         // TODO: modify here from transfer to safeTransfer.
         // Transfer PLMCoin from user to dealer as subscription fee.
         coin.transferFrom(msg.sender, dealer, SUBSC_FEE_PER_UNIT_PERIOD);
 
-        // Update subscription period.
-        _extendSubscPeriod(msg.sender);
+        if (_subscIsExpired(msg.sender)) {
+            // case1: subsc is expired
+            // in this case, start subscription unit from the current time
+            // (that is block.number + SUBSC_OFFSET).
+            subscExpiredBlock[msg.sender] =
+                block.number +
+                SUBSC_OFFSET +
+                SUBSC_UNIT_PERIOD_BLOCK_NUM;
+        } else {
+            // case2: subsc is ongoing.
+            // in this case, just extend the period by SUBSC_UNIT_PERIOD_BLOCK_NUM.
+            subscExpiredBlock[msg.sender] += SUBSC_UNIT_PERIOD_BLOCK_NUM;
+        }
 
         emit SubscExtended(
             msg.sender,
             currentExpiredBlock,
-            _subscExpiredBlock(msg.sender)
+            subscExpiredBlock[msg.sender]
         );
     }
 
-    // TODO: disable palyers from calling this function
     /// @notice Function to ban account for the period designated by banPeriod.
     /// @dev This function is called from BattleField contract when cheating detected.
-    function banAccount(address account, uint256 banPeriod) external {
-        uint256 currentExpiredBlock = _subscExpiredBlock(account);
+    function banAccount(
+        address account,
+        uint256 banPeriod
+    ) external onlyBattleField {
+        uint256 currentExpiredBlock = subscExpiredBlock[account];
 
-        // Deal with underflow.
-        subscExpiredBlock[account] = subscExpiredBlock[account] >= banPeriod
-            ? subscExpiredBlock[account] - banPeriod
-            : 0;
+        // We should only deal with the case that the subsc of the banned player is ongoing.
+        if (!_subscIsExpired(account)) {
+            subscExpiredBlock[account] -= banPeriod;
+        }
 
         emit SubscShortened(
             msg.sender,
             currentExpiredBlock,
-            _subscExpiredBlock(account)
+            subscExpiredBlock[account]
         );
     }
 
@@ -301,8 +313,9 @@ contract PLMDealer is PLMGacha, IPLMDealer {
     function getSubscRemainingBlockNum(
         address account
     ) external view returns (uint256) {
-        uint256 remainingBlockNum = block.number <= _subscExpiredBlock(account)
-            ? _subscExpiredBlock(account) - block.number
+        uint256 remainingBlockNum = block.number + SUBSC_OFFSET <
+            subscExpiredBlock[account]
+            ? subscExpiredBlock[account] - block.number - SUBSC_OFFSET
             : 0;
         return remainingBlockNum;
     }

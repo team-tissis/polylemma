@@ -101,9 +101,6 @@ contract BattleTest is Test {
         manager.setPLMBattleField(address(bf));
         strg.setBattleManager(address(manager));
 
-        // set block number to be enough length
-        currentBlock = dealerContract.getStaminaMax() * 300 + 1000;
-        vm.roll(currentBlock);
         vm.stopPrank();
 
         // initial mint of PLM

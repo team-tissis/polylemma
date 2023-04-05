@@ -54,9 +54,6 @@ contract PLMTokenTest is Test {
         coin.setDealer(address(dealer));
         token.setDealer(address(dealer));
 
-        // set block number to be enough length
-        currentBlock = dealer.getStaminaMax() + 1000;
-        vm.roll(currentBlock);
         vm.stopPrank();
 
         // initial mint of PLM
@@ -114,6 +111,11 @@ contract PLMTokenTest is Test {
         uint256 tokenId = 1;
 
         vm.startPrank(user);
+
+        // debug: if we remove this roll, the below assertion marked by [WARNING] fails.
+        currentBlock++;
+        vm.roll(currentBlock);
+
         // gacha
         coin.approve(address(dealer), dealer.getGachaFee());
         dealer.gacha("test-mon");
@@ -124,6 +126,7 @@ contract PLMTokenTest is Test {
         coin.approve(address(token), token.getNecessaryExp(tokenId));
         token.updateLevel(tokenId);
 
+        // [WARNING]
         assertEq(
             token.getPriorCharacterInfo(tokenId, currentBlock - 1).level,
             1
@@ -135,6 +138,7 @@ contract PLMTokenTest is Test {
         uint256 tokenId = 1;
 
         vm.startPrank(user);
+
         // gacha
         coin.approve(address(dealer), dealer.getGachaFee());
         dealer.gacha("test-mon");
