@@ -32,18 +32,17 @@ contract PLMTypesV1 is IPLMTypes {
 
     /// @notice function to calculate the type compatibility.
     /// @dev TODO: make this function upgradeable.
-    function getTypeCompatibility(uint8 playerTypeId, uint8 enemyTypeId)
-        external
-        view
-        returns (uint8, uint8)
-    {
+    function getTypeCompatibility(
+        uint8 playerTypeId,
+        uint8 enemyTypeId
+    ) external view returns (uint8, uint8) {
         if (playerTypeId == enemyTypeId) {
             // In case that both character have the same types.
             return (1, 1);
-        } else if ((playerTypeId + 1) / numTypes == enemyTypeId) {
+        } else if ((playerTypeId + 1) % numTypes == enemyTypeId) {
             // The type of id i is super effective to the type of id i+1.
             return (12, 10);
-        } else if (playerTypeId == (enemyTypeId + 1) / numTypes) {
+        } else if (playerTypeId == (enemyTypeId + 1) % numTypes) {
             // The type of id i is not effective to the type of id i-1.
             return (8, 10);
         } else {
@@ -74,10 +73,10 @@ contract PLMTypesV1 is IPLMTypes {
     ////////////////////////
 
     /// @notice Function to set new types with name and odds.
-    function setNewType(string calldata name, uint8 odds)
-        external
-        onlyPolylemmers
-    {
+    function setNewType(
+        string calldata name,
+        uint8 odds
+    ) external onlyPolylemmers {
         numTypes++;
         characterTypeNames.push(name);
         characterTypeOdds.push(odds);
