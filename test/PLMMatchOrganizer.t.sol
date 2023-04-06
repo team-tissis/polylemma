@@ -84,7 +84,7 @@ contract BattleTest is Test {
 
         strgContract = new PLMBattleStorage();
         strg = IPLMBattleStorage(address(strgContract));
-        managerContract = new PLMBattleManager(strg);
+        managerContract = new PLMBattleManager(token, strg);
         manager = IPLMBattleManager(address(managerContract));
         dealerContract = new PLMDealer(token, coin);
         dealer = IPLMDealer(address(dealerContract));

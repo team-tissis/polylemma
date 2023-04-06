@@ -75,7 +75,7 @@ contract PolylemmaScript is Script {
 
         strgContract = new PLMBattleStorage();
         strg = IPLMBattleStorage(address(strgContract));
-        managerContract = new PLMBattleManager(strg);
+        managerContract = new PLMBattleManager(token, strg);
         manager = IPLMBattleManager(address(managerContract));
         dealer = new PLMDealer(token, coin);
         matchOrganizer = new PLMMatchOrganizer(dealer, token);

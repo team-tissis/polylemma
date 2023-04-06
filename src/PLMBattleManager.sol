@@ -2,11 +2,16 @@
 pragma solidity ^0.8.17;
 pragma experimental ABIEncoderV2;
 
+import {IPLMToken} from "./interfaces/IPLMToken.sol";
+import {IPLMData} from "./interfaces/IPLMData.sol";
 import {IPLMDealer} from "./interfaces/IPLMDealer.sol";
 import {IPLMBattleStorage} from "./interfaces/IPLMBattleStorage.sol";
 import {IPLMBattleField} from "./interfaces/IPLMBattleField.sol";
 
 contract PLMBattleManager {
+    /// @notice The number of the fixed slots that one player has.
+    uint8 constant FIXED_SLOTS_NUM = 4;
+
     /// @notice List of IDs of battles the player has participated in. playerAddress => listIndex => battleID
     mapping(address => mapping(uint256 => uint256)) private _joinedBattles;
 
@@ -21,10 +26,19 @@ contract PLMBattleManager {
     address polylemmers;
     address battleField;
 
+    /// @notice interface to the characters' information.
+    IPLMToken token;
+
+    /// @notice interface to the database of polylemma.
+    IPLMData data;
+
+    /// @notice interface to the storage for battle information.
     IPLMBattleStorage strg;
 
-    constructor(IPLMBattleStorage _strg) {
+    constructor(IPLMToken _token, IPLMBattleStorage _strg) {
+        token = _token;
         strg = _strg;
+        data = IPLMData(_token.getDataAddr());
         polylemmers = msg.sender;
     }
 
@@ -165,6 +179,36 @@ contract PLMBattleManager {
         address player
     ) internal view returns (address) {
         return strg.loadEnemyAddress(_battleId, player);
+    }
+
+    ////////////////////////////
+    ////    data composer   ////
+    ////////////////////////////
+
+    function _bondLevelAtBattleStart(
+        uint8 level,
+        uint256 fromBlock,
+        address player
+    ) internal view returns (uint32) {
+        // fromBlockは移行先に格納する必要がある．
+        uint256 _battleId = _latestBattle(player);
+        return
+            data.getPriorBondLevel(
+                level,
+                fromBlock,
+                _getPlayerInfo(_battleId, player).fromBlock
+            );
+    }
+
+    function _totalSupplyAtFromBlock(
+        address player
+    ) internal view returns (uint256) {
+        // Here we assume that Bob is always a requester.
+        uint256 _battleId = _latestBattle(player);
+        return
+            token.getPriorTotalSupply(
+                _getPlayerInfo(_battleId, player).fromBlock
+            );
     }
 
     ////////////////////////////
@@ -601,6 +645,69 @@ contract PLMBattleManager {
 
     function getEnemyAddress(address player) external view returns (address) {
         return _getEnemyAddress(_latestBattle(player), player);
+    }
+
+    function getBondLevelAtBattleStart(
+        address player,
+        uint8 level,
+        uint256 fromBlock
+    ) external view returns (uint32) {
+        return _bondLevelAtBattleStart(level, fromBlock, player);
+    }
+
+    function getTotalSupplyAtFromBlock(
+        address player
+    ) external view returns (uint256) {
+        return _totalSupplyAtFromBlock(player);
+    }
+
+    function getVirtualRandomSlotCharInfo(
+        address player,
+        uint256 tokenId
+    ) external view returns (IPLMToken.CharacterInfo memory) {
+        uint256 _battleId = _latestBattle(player);
+        IPLMToken.CharacterInfo memory virtualPlayerCharInfo = token
+            .getPriorCharacterInfo(
+                tokenId,
+                _getPlayerInfo(_battleId, player).fromBlock
+            );
+        virtualPlayerCharInfo.level = _getPlayerInfo(_battleId, player)
+            .randomSlot
+            .level;
+
+        return virtualPlayerCharInfo;
+    }
+
+    // FIXME:
+    function getCharsUsedRounds(
+        address player
+    ) external view returns (uint8[5] memory) {
+        uint256 _battleId = _latestBattle(player);
+        uint8[5] memory order;
+
+        // Fixed slots
+        for (uint8 slotIdx = 0; slotIdx < FIXED_SLOTS_NUM; slotIdx++) {
+            order[slotIdx] = _getPlayerInfo(_battleId, player)
+                .fixedSlotsUsedRounds[slotIdx];
+        }
+
+        // Random slots
+        order[4] = _getPlayerInfo(_battleId, player).randomSlot.usedRound;
+
+        return order;
+    }
+
+    function getRoundResults(
+        address player
+    ) external view returns (IPLMBattleField.RoundResult[] memory) {
+        uint256 _battleId = _latestBattle(player);
+        uint8 numRounds = _getNumRounds(_battleId);
+        IPLMBattleField.RoundResult[]
+            memory results = new IPLMBattleField.RoundResult[](numRounds);
+        for (uint8 i = 0; i < numRounds; i++) {
+            results[i] = _getRoundResult(_battleId, i);
+        }
+        return results;
     }
 
     ////////////////////////////////

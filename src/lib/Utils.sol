@@ -40,8 +40,8 @@ library Utils {
         if (numElements == 0) {
             return (0, false);
         }
-
         // First check the most recent
+
         if (
             _callGetElementByIdx(
                 elementFuncPacked,
@@ -82,11 +82,10 @@ library Utils {
         return (lower, true);
     }
 
-    function _callGetLength(bytes memory lengthFuncPacked, address caller)
-        internal
-        view
-        returns (uint32)
-    {
+    function _callGetLength(
+        bytes memory lengthFuncPacked,
+        address caller
+    ) internal view returns (uint32) {
         (bool success, bytes memory result) = caller.staticcall(
             lengthFuncPacked
         );
@@ -113,11 +112,10 @@ library Utils {
     }
 
     /// @dev curry of uint256s
-    function curryUint(bytes4 funcSig, uint256[] memory args)
-        public
-        pure
-        returns (bytes memory)
-    {
+    function curryUint(
+        bytes4 funcSig,
+        uint256[] memory args
+    ) public pure returns (bytes memory) {
         bytes memory packed;
         for (uint256 i = 0; i < args.length; i++) {
             if (i == 0) {
@@ -129,44 +127,36 @@ library Utils {
         return abi.encodePacked(funcSig, packed);
     }
 
-    function bytesToAddress(bytes calldata data)
-        external
-        pure
-        returns (address addr)
-    {
+    function bytesToAddress(
+        bytes calldata data
+    ) external pure returns (address addr) {
         bytes memory b = data;
         assembly {
             addr := mload(add(b, 20))
         }
     }
 
-    function bytesToUint256(bytes calldata data)
-        external
-        pure
-        returns (uint256 num)
-    {
+    function bytesToUint256(
+        bytes calldata data
+    ) external pure returns (uint256 num) {
         bytes memory b = data;
         assembly {
             num := mload(add(b, 0x20))
         }
     }
 
-    function bytesToUint32(bytes calldata data)
-        external
-        pure
-        returns (uint32 num)
-    {
+    function bytesToUint32(
+        bytes calldata data
+    ) external pure returns (uint32 num) {
         bytes memory b = data;
         assembly {
             num := mload(add(b, 0x20))
         }
     }
 
-    function bytesToUint8(bytes calldata data)
-        external
-        pure
-        returns (uint8 num)
-    {
+    function bytesToUint8(
+        bytes calldata data
+    ) external pure returns (uint8 num) {
         bytes memory b = data;
         assembly {
             num := mload(add(b, 0x20))
@@ -186,7 +176,7 @@ library Utils {
             number =
                 number +
                 uint256(uint8(b[i])) *
-                (2**(8 * (b.length - (i + 1))));
+                (2 ** (8 * (b.length - (i + 1))));
         }
         return number;
     }

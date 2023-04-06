@@ -2,9 +2,9 @@
 pragma solidity ^0.8.17;
 pragma experimental ABIEncoderV2;
 
+import {IPLMToken} from "./IPLMToken.sol";
 import {IPLMDealer} from "./IPLMDealer.sol";
 import {IPLMBattleStorage} from "./IPLMBattleStorage.sol";
-
 import {IPLMBattleField} from "./IPLMBattleField.sol";
 
 interface IPLMBattleManager {
@@ -220,6 +220,29 @@ interface IPLMBattleManager {
     function getPlayerInfoRemainingLevelPoint(
         address player
     ) external view returns (uint8);
+
+    function getBondLevelAtBattleStart(
+        address player,
+        uint8 level,
+        uint256 fromBlock
+    ) external view returns (uint32);
+
+    function getTotalSupplyAtFromBlock(
+        address player
+    ) external view returns (uint256);
+
+    function getVirtualRandomSlotCharInfo(
+        address player,
+        uint256 tokenId
+    ) external view returns (IPLMToken.CharacterInfo memory);
+
+    function getCharsUsedRounds(
+        address player
+    ) external view returns (uint8[5] memory);
+
+    function getRoundResults(
+        address player
+    ) external view returns (IPLMBattleField.RoundResult[] memory);
 
     ////////////////////////////////
     /////    get by battleId   /////
