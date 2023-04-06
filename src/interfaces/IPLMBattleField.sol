@@ -102,36 +102,36 @@ interface IPLMBattleField {
     ////////////////////////
 
     event BattleStarted(
-        uint256 battleId,
+        uint256 indexed battleId,
         address indexed homeAddr,
         address indexed visitorAddr
     );
-    event PlayerSeedCommitted(uint256 battleId, address indexed player);
+    event PlayerSeedCommitted(uint256 indexed battleId, address indexed player);
     event RandomSlotNounceGenerated(
-        uint256 battleId,
+        uint256 indexed battleId,
         address player,
         bytes32 nonce
     );
     event PlayerSeedRevealed(
-        uint256 battleId,
+        uint256 indexed battleId,
         uint8 indexed numRounds,
         address indexed player,
         bytes32 playerSeed
     );
     event ChoiceCommitted(
-        uint256 battleId,
+        uint256 indexed battleId,
         uint8 indexed numRounds,
         address indexed player
     );
     event ChoiceRevealed(
-        uint256 battleId,
+        uint256 indexed battleId,
         uint8 indexed numRounds,
         address indexed player,
         uint8 levelPoint,
         Choice choice
     );
     event RoundCompleted(
-        uint256 battleId,
+        uint256 indexed battleId,
         uint8 indexed numRounds,
         bool isDraw,
         address winner,
@@ -140,7 +140,7 @@ interface IPLMBattleField {
         uint32 loserDamage
     );
     event BattleCompleted(
-        uint256 battleId,
+        uint256 indexed battleId,
         uint8 indexed numRounds,
         bool isDraw,
         address winner,
@@ -151,7 +151,7 @@ interface IPLMBattleField {
 
     // Events for cheater detection.
     event ExceedingLevelPointCheatDetected(
-        uint256 battleId,
+        uint256 indexed battleId,
         address indexed cheater,
         uint8 remainingLevelPoint,
         uint8 cheaterLevelPoint
@@ -164,21 +164,21 @@ interface IPLMBattleField {
 
     // Events for delayer detection.
     event LatePlayerSeedCommitDetected(
-        uint256 battleId,
+        uint256 indexed battleId,
         address indexed delayer
     );
     event LateChoiceCommitDetected(
-        uint256 battleId,
+        uint256 indexed battleId,
         uint8 numRounds,
         address indexed delayer
     );
     event LateChoiceRevealDetected(
-        uint256 battleId,
+        uint256 indexed battleId,
         uint8 numRounds,
         address indexed delayer
     );
-    event BattleCanceled(uint256 battleId);
-    event ForceInited(uint256 battleId);
+    event BattleCanceled(uint256 indexed battleId);
+    event ForceInited(uint256 indexed battleId);
 
     //////////////////////////////
     /// BATTLE FIELD FUNCTIONS ///
