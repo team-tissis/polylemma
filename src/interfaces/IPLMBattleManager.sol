@@ -20,6 +20,7 @@ interface IPLMBattleManager {
     ////////////////////////////
     /// WRITE/READ FUNCTIONS ///
     ////////////////////////////
+    function setPlayerAddressByPlayerId(address home, address visitor) external;
 
     function setNumRounds(address player, uint8 numRound) external;
 
@@ -121,6 +122,8 @@ interface IPLMBattleManager {
     ////////////////////////////////
     /////   get sender's data  /////
     ////////////////////////////////
+    function getPlayerId(address player) external view returns(uint8);
+
     function getNumRounds(address player) external view returns (uint8);
 
     function getBattleState(

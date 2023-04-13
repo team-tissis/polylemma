@@ -7,6 +7,9 @@ import {IPLMBattleField} from "./interfaces/IPLMBattleField.sol";
 import {Utils} from "./lib/Utils.sol";
 
 contract PLMBattleStorage {
+    /// @notice SSTORE2 pointer to the playerId referenced by battleId(uint256)
+    mapping(uint256 => mapping(uint8=>address)) private pointerPlayerAddress;
+
     /// @notice SSTORE2 pointer to the numRounds referenced by battleId
     mapping(uint256 => address) private pointerNumRounds;
 
@@ -240,7 +243,7 @@ contract PLMBattleStorage {
             });
     }
 
-    function _decodeEnemyAddress(
+    function _decodeAddress(
         bytes calldata encoded
     ) external pure returns (address) {
         return Utils.bytesToAddress(encoded[0:20]);
@@ -249,6 +252,18 @@ contract PLMBattleStorage {
     //////////////////////////////////
     ///      Writer/Loader         ///
     //////////////////////////////////
+    /// @notice store numRounds by SSTORE2. It is read only, so overwrite all data when updating.
+    function writePlayerAddressByPlayerId(
+        uint256 battleId,
+        address homeAddress,
+        address visitorAddress
+    ) external onlyBattleManager {
+        // homeAddress
+        pointerPlayerAddress[battleId][0] = SSTORE2.write(abi.encodePacked(homeAddress));
+        // visitorAddress
+        pointerPlayerAddress[battleId][1] = SSTORE2.write(abi.encodePacked(visitorAddress));
+    }
+    
     /// @notice store numRounds by SSTORE2. It is read only, so overwrite all data when updating.
     function writeNumRounds(
         uint256 battleId,
@@ -365,6 +380,21 @@ contract PLMBattleStorage {
         );
     }
 
+    /// @notice load playerId by SSTORE2.
+    function loadPlayerId(uint256 battleId, address player) external view returns(uint8) {
+        // load homeAddress
+        bytes memory loadedHome = SSTORE2.read(pointerPlayerAddress[battleId][0]);
+        bytes memory loadedVisitor = SSTORE2.read(pointerPlayerAddress[battleId][1]);
+        if (keccak256(abi.encodePacked((this._decodeAddress(loadedHome)))) == keccak256(abi.encodePacked(player))) {
+            return 0;
+        } else if (keccak256(abi.encodePacked(this._decodeAddress(loadedVisitor))) == keccak256(abi.encodePacked(player))) {
+            return 1;
+        } else {
+            revert("Error: this address is not a player of the battle.");
+        }
+    }
+    
+
     /// @notice load NumRounds by SSTORE2.
     function loadNumRounds(uint256 battleId) external view returns (uint8) {
         bytes memory loaded = SSTORE2.read(pointerNumRounds[battleId]);
@@ -472,7 +502,7 @@ contract PLMBattleStorage {
         bytes memory loaded = SSTORE2.read(
             pointerEnemyAddress[battleId][player]
         );
-        return this._decodeEnemyAddress(loaded);
+        return this._decodeAddress(loaded);
     }
 
     ////////////////////////////

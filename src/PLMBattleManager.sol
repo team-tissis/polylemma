@@ -214,6 +214,12 @@ contract PLMBattleManager {
     ////////////////////////////
     /// WRITE/READ FUNCTIONS ///
     ////////////////////////////
+    // TODO: latestbattleが更新されるよりも後に呼び出さなけれなならない
+    function setPlayerAddressByPlayerId(address home, address visitor) external onlyBattleField {
+        strg.writePlayerAddressByPlayerId(_latestBattle(home),home,visitor);
+    } 
+
+
     function setNumRounds(
         address player,
         uint8 numRound
@@ -461,6 +467,10 @@ contract PLMBattleManager {
     ////////////////////////////////
     /////  get sender's data   /////
     ////////////////////////////////
+    function getPlayerId(address player) external view returns (uint8) {
+        return strg.loadPlayerId(_latestBattle(player), player);
+    }
+
     function getNumRounds(address player) external view returns (uint8) {
         return _getNumRounds(_latestBattle(player));
     }
