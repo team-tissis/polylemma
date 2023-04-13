@@ -74,6 +74,8 @@ interface IPLMBattleStorage {
 
     function loadPlayerId(uint256 battleId, address player) external view returns(uint8);
 
+    function loadPlayerAddressById(uint256 battleId,uint8 playerId) external view returns(address);
+
     function loadNumRounds(uint256 battleId) external view returns (uint8);
 
     function loadBattleState(

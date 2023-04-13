@@ -1130,6 +1130,20 @@ contract PLMBattleField is IPLMBattleField, IERC165 {
         return _randomSlotCharInfo(player);
     }
 
+    function getFixedSlotsCharInfo(uint8 playerId)
+        external
+        view
+        returns (IPLMToken.CharacterInfo[FIXED_SLOTS_NUM] memory)
+    {   
+        address player = manager.getPlayerAddressById(manager.getLatestBattle(msg.sender),playerId);
+        IPLMToken.CharacterInfo[FIXED_SLOTS_NUM] memory playerCharInfos;
+        for (uint8 i = 0; i < FIXED_SLOTS_NUM; i++) {
+            playerCharInfos[i] = _fixedSlotCharInfoByIdx(player, i);
+        }
+
+        return playerCharInfos;
+    }
+
     ////////////////////////
     ///      SETTERS     ///
     ////////////////////////

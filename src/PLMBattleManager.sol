@@ -98,6 +98,11 @@ contract PLMBattleManager {
     ///////////////////////
     /// internal getter ///
     ///////////////////////
+
+    function _getPlayerAddress(uint256 _battleId, uint8 playerId) internal view returns (address) {
+        return strg.loadPlayerAddressById(_battleId,playerId);
+    }
+
     function _getNumRounds(uint256 _battleId) internal view returns (uint8) {
         try strg.loadNumRounds(_battleId) returns (uint8 numRounds) {
             return numRounds;
@@ -186,12 +191,13 @@ contract PLMBattleManager {
     ////////////////////////////
 
     function _bondLevelAtBattleStart(
+        uint256 _battleId,
         uint8 level,
         uint256 fromBlock,
         address player
     ) internal view returns (uint32) {
         // fromBlockは移行先に格納する必要がある．
-        uint256 _battleId = _latestBattle(player);
+
         return
             data.getPriorBondLevel(
                 level,
@@ -201,10 +207,10 @@ contract PLMBattleManager {
     }
 
     function _totalSupplyAtFromBlock(
+        uint256 _battleId,
         address player
     ) internal view returns (uint256) {
         // Here we assume that Bob is always a requester.
-        uint256 _battleId = _latestBattle(player);
         return
             token.getPriorTotalSupply(
                 _getPlayerInfo(_battleId, player).fromBlock
@@ -466,7 +472,6 @@ contract PLMBattleManager {
 
     ////////////////////////////////
     /////  get sender's data   /////
-    ////////////////////////////////
     function getPlayerId(address player) external view returns (uint8) {
         return strg.loadPlayerId(_latestBattle(player), player);
     }
@@ -662,13 +667,15 @@ contract PLMBattleManager {
         uint8 level,
         uint256 fromBlock
     ) external view returns (uint32) {
-        return _bondLevelAtBattleStart(level, fromBlock, player);
+        uint256 _battleId = _latestBattle(player);
+        return _bondLevelAtBattleStart(_battleId, level, fromBlock, player);
     }
 
     function getTotalSupplyAtFromBlock(
         address player
     ) external view returns (uint256) {
-        return _totalSupplyAtFromBlock(player);
+        uint256 _battleId = _latestBattle(player);
+        return _totalSupplyAtFromBlock(_battleId, player);
     }
 
     function getVirtualRandomSlotCharInfo(
@@ -723,6 +730,9 @@ contract PLMBattleManager {
     ////////////////////////////////
     /////    get by battleId   /////
     ////////////////////////////////
+    function getPlayerAddressById(uint256 _battleId, uint8 playerId) external view returns (address){
+        return _getPlayerAddress(_battleId,playerId);
+    }
     function getNumRoundsById(uint256 _battleId) external view returns (uint8) {
         return _getNumRounds(_battleId);
     }
@@ -769,93 +779,126 @@ contract PLMBattleManager {
     function getChoiceCommitById(
         uint256 _battleId,
         uint8 indRound,
-        address player
+        uint8 playerId
     ) external view returns (IPLMBattleField.ChoiceCommit memory) {
-        return _getChoiceCommit(_battleId, indRound, player);
+        return _getChoiceCommit(_battleId, indRound, _getPlayerAddress(_battleId, playerId));
     }
 
     function getPlayerSeedCommitById(
         uint256 _battleId,
-        address player
+        uint8 playerId
     ) external view returns (IPLMBattleField.PlayerSeedCommit memory) {
-        return _getPlayerSeedCommit(_battleId, player);
+        return _getPlayerSeedCommit(_battleId, _getPlayerAddress(_battleId, playerId));
+    }
+
+    function getBondLevelAtBattleStartById(
+        uint256 _battleId,
+        uint8 playerId,
+        uint8 level,
+        uint256 fromBlock
+    ) external view returns (uint32) {
+        return _bondLevelAtBattleStart(_battleId, level, fromBlock, _getPlayerAddress(_battleId, playerId));
+    }
+    function getTotalSupplyAtFromBlockById(
+        uint256 _battleId,
+        uint8 playerId
+    ) external view returns (uint256) {
+        
+        return _totalSupplyAtFromBlock(_battleId, _getPlayerAddress(_battleId, playerId));
+    }
+    function getVirtualRandomSlotCharInfoById(
+        uint256 _battleId,
+        uint8 playerId,
+        uint256 tokenId
+    ) external view returns (IPLMToken.CharacterInfo memory) {
+        address player = _getPlayerAddress(_battleId, playerId);
+        IPLMToken.CharacterInfo memory virtualPlayerCharInfo = token
+            .getPriorCharacterInfo(
+                tokenId,
+                _getPlayerInfo(_battleId, player).fromBlock
+            );
+        virtualPlayerCharInfo.level = _getPlayerInfo(_battleId, player)
+            .randomSlot
+            .level;
+
+        return virtualPlayerCharInfo;
     }
 
     function getPlayerInfoById(
         uint256 _battleId,
-        address player
+        uint8 playerId
     ) external view returns (IPLMBattleField.PlayerInfo memory) {
-        return _getPlayerInfo(_battleId, player);
+        return _getPlayerInfo(_battleId, _getPlayerAddress(_battleId, playerId));
     }
 
     function getPlayerInfoAddressById(
         uint256 _battleId,
-        address player
+        uint8 playerId
     ) external view returns (address) {
-        return _getPlayerInfo(_battleId, player).addr;
+        return _getPlayerInfo(_battleId, _getPlayerAddress(_battleId, playerId)).addr;
     }
 
     function getPlayerInfoFromBlockById(
         uint256 _battleId,
-        address player
+        uint8 playerId
     ) external view returns (uint256) {
-        return _getPlayerInfo(_battleId, player).fromBlock;
+        return _getPlayerInfo(_battleId, _getPlayerAddress(_battleId, playerId)).fromBlock;
     }
 
     function getPlayerInfoFixedSlotsById(
         uint256 _battleId,
-        address player
+        uint8 playerId
     ) external view returns (uint256[4] memory) {
-        return _getPlayerInfo(_battleId, player).fixedSlots;
+        return _getPlayerInfo(_battleId, _getPlayerAddress(_battleId, playerId)).fixedSlots;
     }
 
     function getPlayerInfoFixedSlotsUsedRoundsById(
         uint256 _battleId,
-        address player
+        uint8 playerId
     ) external view returns (uint8[4] memory) {
-        return _getPlayerInfo(_battleId, player).fixedSlotsUsedRounds;
+        return _getPlayerInfo(_battleId, _getPlayerAddress(_battleId, playerId)).fixedSlotsUsedRounds;
     }
 
     function getPlayerInfoRandomSlotById(
         uint256 _battleId,
-        address player
+        uint8 playerId
     ) external view returns (IPLMBattleField.RandomSlot memory) {
-        return _getPlayerInfo(_battleId, player).randomSlot;
+        return _getPlayerInfo(_battleId,_getPlayerAddress(_battleId, playerId)).randomSlot;
     }
 
     function getPlayerInfoPlayerStateById(
         uint256 _battleId,
-        address player
+        uint8 playerId
     ) external view returns (IPLMBattleField.PlayerState) {
-        return _getPlayerInfo(_battleId, player).state;
+        return _getPlayerInfo(_battleId, _getPlayerAddress(_battleId, playerId)).state;
     }
 
     function getPlayerInfoWinCountById(
         uint256 _battleId,
-        address player
+        uint8 playerId
     ) external view returns (uint8) {
-        return _getPlayerInfo(_battleId, player).winCount;
+        return _getPlayerInfo(_battleId, _getPlayerAddress(_battleId, playerId)).winCount;
     }
 
     function getPlayerInfoMaxLevelPointById(
         uint256 _battleId,
-        address player
+        uint8 playerId
     ) external view returns (uint8) {
-        return _getPlayerInfo(_battleId, player).maxLevelPoint;
+        return _getPlayerInfo(_battleId, _getPlayerAddress(_battleId, playerId)).maxLevelPoint;
     }
 
     function getPlayerInfoRemainingLevelPointById(
         uint256 _battleId,
-        address player
+        uint8 playerId
     ) external view returns (uint8) {
-        return _getPlayerInfo(_battleId, player).remainingLevelPoint;
+        return _getPlayerInfo(_battleId, _getPlayerAddress(_battleId, playerId)).remainingLevelPoint;
     }
 
     function getEnemyAddress(
         uint256 _battleId,
-        address player
+        uint8 playerId
     ) external view returns (address) {
-        return _getEnemyAddress(_battleId, player);
+        return _getEnemyAddress(_battleId, _getPlayerAddress(_battleId, playerId));
     }
 
     /////////////////////////

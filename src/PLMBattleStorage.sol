@@ -393,6 +393,13 @@ contract PLMBattleStorage {
             revert("Error: this address is not a player of the battle.");
         }
     }
+
+    /// @notice load playerId by SSTORE2.
+    function loadPlayerAddressById(uint256 battleId, uint8 playerId) external view returns(address) {
+        // load homeAddress
+        bytes memory loaded = SSTORE2.read(pointerPlayerAddress[battleId][playerId]);
+        return this._decodeAddress(loaded);
+    }
     
 
     /// @notice load NumRounds by SSTORE2.

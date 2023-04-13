@@ -215,6 +215,11 @@ interface IPLMBattleField {
         address player
     ) external view returns (IPLMToken.CharacterInfo memory);
 
+    function getFixedSlotsCharInfo(uint8 playerId)
+    external
+    view
+    returns (IPLMToken.CharacterInfo[4] memory);
+
     ////////////////////////
     ///      SETTERS     ///
     ////////////////////////
