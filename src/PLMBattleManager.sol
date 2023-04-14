@@ -714,19 +714,6 @@ contract PLMBattleManager {
         return order;
     }
 
-    function getRoundResults(
-        address player
-    ) external view returns (IPLMBattleField.RoundResult[] memory) {
-        uint256 _battleId = _latestBattle(player);
-        uint8 numRounds = _getNumRounds(_battleId);
-        IPLMBattleField.RoundResult[]
-            memory results = new IPLMBattleField.RoundResult[](numRounds);
-        for (uint8 i = 0; i < numRounds; i++) {
-            results[i] = _getRoundResult(_battleId, i);
-        }
-        return results;
-    }
-
     ////////////////////////////////
     /////    get by battleId   /////
     ////////////////////////////////
@@ -866,6 +853,20 @@ contract PLMBattleManager {
         return _getPlayerInfo(_battleId,_getPlayerAddress(_battleId, playerId)).randomSlot;
     }
 
+    function getPlayerInfoRandomSlotStateById(
+        uint256 _battleId,
+        uint8 playerId
+    ) external view returns (IPLMBattleField.RandomSlotState) {
+        return _getPlayerInfo(_battleId, _getPlayerAddress(_battleId, playerId)).randomSlot.state;
+    }
+
+    function getPlayerInfoRandomSlotLevelById(
+        uint256 _battleId,
+        uint8 playerId
+    ) external view returns (uint8) {
+        return _getPlayerInfo(_battleId, _getPlayerAddress(_battleId, playerId)).randomSlot.level;
+    }
+
     function getPlayerInfoPlayerStateById(
         uint256 _battleId,
         uint8 playerId
@@ -892,6 +893,18 @@ contract PLMBattleManager {
         uint8 playerId
     ) external view returns (uint8) {
         return _getPlayerInfo(_battleId, _getPlayerAddress(_battleId, playerId)).remainingLevelPoint;
+    }
+
+    function getRoundResultsById(
+        uint256 _battleId
+    ) external view returns (IPLMBattleField.RoundResult[] memory) {
+        uint8 numRounds = _getNumRounds(_battleId);
+        IPLMBattleField.RoundResult[]
+            memory results = new IPLMBattleField.RoundResult[](numRounds);
+        for (uint8 i = 0; i < numRounds; i++) {
+            results[i] = _getRoundResult(_battleId, i);
+        }
+        return results;
     }
 
     function getEnemyAddress(

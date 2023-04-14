@@ -277,10 +277,21 @@ interface IPLMBattleManager {
     function getPlayerInfoFixedSlotsById(uint256 _battleId, uint8 playerId) external view returns (uint256[4] memory);
     function getPlayerInfoFixedSlotsUsedRoundsById(uint256 _battleId, uint8 playerId) external view returns (uint8[4] memory);
     function getPlayerInfoRandomSlotById(uint256 _battleId, uint8 playerId) external view returns (IPLMBattleField.RandomSlot memory);
+    function getPlayerInfoRandomSlotStateById(
+        uint256 _battleId,
+        uint8 playerId
+    ) external view returns (IPLMBattleField.RandomSlotState);
+    function getPlayerInfoRandomSlotLevelById(
+        uint256 _battleId,
+        uint8 playerId
+    ) external view returns (uint8);
     function getPlayerInfoPlayerStateById(uint256 _battleId, uint8 playerId) external view returns (IPLMBattleField.PlayerState);
     function getPlayerInfoWinCountById(uint256 _battleId, uint8 playerId) external view returns (uint8);
     function getPlayerInfoMaxLevelPointById(uint256 _battleId, uint8 playerId) external view returns (uint8);
     function getPlayerInfoRemainingLevelPointById(uint256 _battleId, uint8 playerId) external view returns (uint8);
+    function getRoundResultsById(
+        uint256 _battleId
+    ) external view returns (IPLMBattleField.RoundResult[] memory);
     function getEnemyAddress(uint256 _battleId, uint8 playerId) external view returns (address);
 
     function setPLMBattleField(address _battleField) external;
