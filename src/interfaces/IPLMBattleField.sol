@@ -106,27 +106,27 @@ interface IPLMBattleField {
         address indexed homeAddr,
         address indexed visitorAddr
     );
-    event PlayerSeedCommitted(uint256 indexed battleId, address indexed player);
+    event PlayerSeedCommitted(uint256 indexed battleId, uint8 indexed playerId);
     event RandomSlotNounceGenerated(
         uint256 indexed battleId,
-        address player,
+        uint8 indexed playerId,
         bytes32 nonce
     );
     event PlayerSeedRevealed(
         uint256 indexed battleId,
         uint8 indexed numRounds,
-        address indexed player,
+        uint8 indexed playerId,
         bytes32 playerSeed
     );
     event ChoiceCommitted(
         uint256 indexed battleId,
         uint8 indexed numRounds,
-        address indexed player
+        uint8 indexed playerId
     );
     event ChoiceRevealed(
         uint256 indexed battleId,
         uint8 indexed numRounds,
-        address indexed player,
+        uint8 indexed playerId,
         uint8 levelPoint,
         Choice choice
     );
@@ -134,8 +134,8 @@ interface IPLMBattleField {
         uint256 indexed battleId,
         uint8 indexed numRounds,
         bool isDraw,
-        address winner,
-        address loser,
+        uint8 winnerId,
+        uint8 loserId,
         uint32 winnerDamage,
         uint32 loserDamage
     );
@@ -143,8 +143,8 @@ interface IPLMBattleField {
         uint256 indexed battleId,
         uint8 indexed numRounds,
         bool isDraw,
-        address winner,
-        address loser,
+        uint8 winnerId,
+        uint8 loserId,
         uint8 winnerCount,
         uint8 loserCount
     );
@@ -152,30 +152,30 @@ interface IPLMBattleField {
     // Events for cheater detection.
     event ExceedingLevelPointCheatDetected(
         uint256 indexed battleId,
-        address indexed cheater,
+        uint8 indexed cheaterId,
         uint8 remainingLevelPoint,
         uint8 cheaterLevelPoint
     );
     event ReusingUsedSlotCheatDetected(
         uint256 battlId,
-        address indexed cheater,
+        uint8 indexed cheaterId,
         Choice targetSlot
     );
 
     // Events for delayer detection.
     event LatePlayerSeedCommitDetected(
         uint256 indexed battleId,
-        address indexed delayer
+        uint8 indexed delayer
     );
     event LateChoiceCommitDetected(
         uint256 indexed battleId,
         uint8 numRounds,
-        address indexed delayer
+        uint8 indexed delayer
     );
     event LateChoiceRevealDetected(
         uint256 indexed battleId,
         uint8 numRounds,
-        address indexed delayer
+        uint8 indexed delayer
     );
     event BattleCanceled(uint256 indexed battleId);
     event ForceInited(uint256 indexed battleId);

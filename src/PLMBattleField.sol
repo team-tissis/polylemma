@@ -169,7 +169,7 @@ contract PLMBattleField is IPLMBattleField, IERC165 {
             emit LateChoiceCommitDetected(
                 battleId[msg.sender],
                 manager.getNumRounds(msg.sender),
-                _enemyAddr
+                manager.getPlayerId(_enemyAddr)
             );
 
             // Deal with the delayer (the player designated by player) and cancel
@@ -222,15 +222,19 @@ contract PLMBattleField is IPLMBattleField, IERC165 {
             msg.sender,
             RoundResult(isDraw, winner, _enemyAddr, winnerDamage, loserDamage)
         );
-        emit RoundCompleted(
-            battleId[msg.sender],
-            manager.getNumRounds(msg.sender),
-            isDraw,
-            winner,
-            _enemyAddr,
-            winnerDamage,
-            loserDamage
-        );
+        // For local use of variables
+        {
+            uint8 winnerId = manager.getPlayerId(winner);
+            emit RoundCompleted(
+                battleId[msg.sender],
+                manager.getNumRounds(msg.sender),
+                isDraw,
+                winnerId,
+                1-winnerId,
+                winnerDamage,
+                loserDamage
+            );
+        }
     }
 
     /// @notice Function to execute the current round.
@@ -334,15 +338,18 @@ contract PLMBattleField is IPLMBattleField, IERC165 {
             // This battle ends.
             _settleBattle();
 
-            emit BattleCompleted(
-                battleId[msg.sender],
-                numRounds - 1,
-                isDraw,
-                winner,
-                loser,
-                winnerCount,
-                loserCount
-            );
+            {
+                uint8 winnerId = manager.getPlayerId(winner);
+                emit BattleCompleted(
+                    battleId[msg.sender],
+                    numRounds - 1,
+                    isDraw,
+                    winnerId,
+                    1-winnerId,
+                    winnerCount,
+                    loserCount
+                );
+            }
             return;
         }
 
@@ -685,13 +692,15 @@ contract PLMBattleField is IPLMBattleField, IERC165 {
         );
 
         uint256 _battleId = battleId[msg.sender];
+        uint8 myId = manager.getPlayerId(msg.sender);
         // Check that player seed commitment is in time.
         if (_isLateForPlayerSeedCommit()) {
-            emit LatePlayerSeedCommitDetected(_battleId, msg.sender);
+            
+            emit LatePlayerSeedCommitDetected(_battleId, myId);
 
             if (_randomSlotState(_enemyAddr) == RandomSlotState.NotSet) {
                 // Both players are delayers.
-                emit LatePlayerSeedCommitDetected(_battleId, _enemyAddr);
+                emit LatePlayerSeedCommitDetected(_battleId, 1-myId);
                 _dealWithDelayersAndCancelBattle();
             } else {
                 // Deal with the delayer (the player designated by player) and
@@ -708,7 +717,7 @@ contract PLMBattleField is IPLMBattleField, IERC165 {
         );
 
         // Emit the event that tells frontend that the player designated by player has committed.
-        emit PlayerSeedCommitted(_battleId, msg.sender);
+        emit PlayerSeedCommitted(_battleId, myId);
 
         // Update the state of the random slot to be commited.
         manager.setPlayerInfoRandomSlotState(
@@ -721,7 +730,7 @@ contract PLMBattleField is IPLMBattleField, IERC165 {
 
         // Emit the event that tells frontend that the randomSlotNonce is generated for the player designated
         // by player.
-        emit RandomSlotNounceGenerated(_battleId, msg.sender, nonce);
+        emit RandomSlotNounceGenerated(_battleId, myId, nonce);
 
         manager.setPlayerInfoRandomSlotNonce(msg.sender, nonce);
 
@@ -758,7 +767,7 @@ contract PLMBattleField is IPLMBattleField, IERC165 {
         emit PlayerSeedRevealed(
             battleId[msg.sender],
             manager.getNumRounds(msg.sender),
-            msg.sender,
+            manager.getPlayerId(msg.sender),
             playerSeed
         );
 
@@ -784,13 +793,14 @@ contract PLMBattleField is IPLMBattleField, IERC165 {
 
         uint8 numRounds = manager.getNumRounds(msg.sender);
         uint256 _battleId = battleId[msg.sender];
+        uint8 myId = manager.getPlayerId(msg.sender);
         // Check that choice commitment is in time.
         if (_isLateForChoiceCommit()) {
-            emit LateChoiceCommitDetected(_battleId, numRounds, msg.sender);
+            emit LateChoiceCommitDetected(_battleId, numRounds, myId);
 
             if (_playerState(_enemyAddr) == PlayerState.Standby) {
                 // Both players are delayers.
-                emit LateChoiceCommitDetected(_battleId, numRounds, _enemyAddr);
+                emit LateChoiceCommitDetected(_battleId, numRounds, myId);
                 _dealWithDelayersAndCancelBattle();
             } else {
                 // Deal with the delayer (the player designated by player) and
@@ -807,7 +817,7 @@ contract PLMBattleField is IPLMBattleField, IERC165 {
         );
 
         // Emit the event that tells frontend that the player designated by player has committed.
-        emit ChoiceCommitted(_battleId, numRounds, msg.sender);
+        emit ChoiceCommitted(_battleId, numRounds, myId);
 
         // Update the state of the commit player to be committed.
         manager.setPlayerInfoState(msg.sender, PlayerState.Committed);
@@ -845,16 +855,17 @@ contract PLMBattleField is IPLMBattleField, IERC165 {
         address _enemyAddr = enemyAddr[msg.sender];
         uint256 _battleId = battleId[msg.sender];
         {
+            uint8 myId = manager.getPlayerId(msg.sender);
             // Check that choice revealment is in time.
             if (_isLateForChoiceReveal()) {
-                emit LateChoiceRevealDetected(_battleId, numRounds, msg.sender);
+                emit LateChoiceRevealDetected(_battleId, numRounds, myId);
 
                 if (_playerState(_enemyAddr) == PlayerState.Committed) {
                     // Both players are delayers.
                     emit LateChoiceRevealDetected(
                         _battleId,
                         numRounds,
-                        _enemyAddr
+                        1-myId
                     );
                     _dealWithDelayersAndCancelBattle();
                 } else {
@@ -874,23 +885,25 @@ contract PLMBattleField is IPLMBattleField, IERC165 {
             );
         }
 
-        // The pointer to the commit log of the player designated by player.
-        bytes32 choiceCommitString = manager.getChoiceCommitString(msg.sender);
+        {
+            // The pointer to the commit log of the player designated by player.
+            bytes32 choiceCommitString = manager.getChoiceCommitString(msg.sender);
 
-        // Check the commit hash coincides with the one stored on chain.
-        require(
-            keccak256(
-                abi.encodePacked(msg.sender, levelPoint, choice, bindingFactor)
-            ) == choiceCommitString,
-            "Commit hash doesn't coincide"
-        );
-
+            // Check the commit hash coincides with the one stored on chain.
+            require(
+                keccak256(
+                    abi.encodePacked(msg.sender, levelPoint, choice, bindingFactor)
+                ) == choiceCommitString,
+                "Commit hash doesn't coincide"
+            );
+        }
         // Check that the levelPoint is less than or equal to the remainingLevelPoint.
         uint8 remainingLevelPoint = _remainingLevelPoint(msg.sender);
+        uint8 myId = manager.getPlayerId(msg.sender);
         if (levelPoint > remainingLevelPoint) {
             emit ExceedingLevelPointCheatDetected(
                 _battleId,
-                msg.sender,
+                myId,
                 remainingLevelPoint,
                 levelPoint
             );
@@ -911,7 +924,7 @@ contract PLMBattleField is IPLMBattleField, IERC165 {
             (choice != Choice.Random &&
                 _fixedSlotUsedRoundByIdx(msg.sender, uint8(choice)) > 0)
         ) {
-            emit ReusingUsedSlotCheatDetected(_battleId, msg.sender, choice);
+            emit ReusingUsedSlotCheatDetected(_battleId, myId, choice);
 
             // Deal with the chater (the player designated by player) and cancel
             // this battle.
@@ -927,7 +940,7 @@ contract PLMBattleField is IPLMBattleField, IERC165 {
         emit ChoiceRevealed(
             _battleId,
             numRounds,
-            msg.sender,
+            myId,
             levelPoint,
             choice
         );
@@ -952,7 +965,7 @@ contract PLMBattleField is IPLMBattleField, IERC165 {
             "Reported player isn't late"
         );
 
-        emit LatePlayerSeedCommitDetected(battleId[msg.sender], _enemyAddr);
+        emit LatePlayerSeedCommitDetected(battleId[msg.sender], manager.getPlayerId(_enemyAddr));
 
         // Deal with the delayer (enemy player) and cancel this battle.
         _dealWithDelayerAndCancelBattle(_enemyAddr);
@@ -971,7 +984,7 @@ contract PLMBattleField is IPLMBattleField, IERC165 {
         emit LateChoiceCommitDetected(
             battleId[msg.sender],
             manager.getNumRounds(msg.sender),
-            _enemyAddr
+            manager.getPlayerId(_enemyAddr)
         );
 
         // Deal with the delayer (enemy player) and cancel this battle.
@@ -997,7 +1010,7 @@ contract PLMBattleField is IPLMBattleField, IERC165 {
         emit LateChoiceRevealDetected(
             battleId[msg.sender],
             manager.getNumRounds(msg.sender),
-            _enemyAddr
+            manager.getPlayerId(_enemyAddr)
         );
 
         // Deal with the delayer (enemy player) and cancel this battle.
