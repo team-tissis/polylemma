@@ -2,9 +2,9 @@
 pragma solidity ^0.8.17;
 pragma experimental ABIEncoderV2;
 
+import {IPLMToken} from "./IPLMToken.sol";
 import {IPLMDealer} from "./IPLMDealer.sol";
 import {IPLMBattleStorage} from "./IPLMBattleStorage.sol";
-
 import {IPLMBattleField} from "./IPLMBattleField.sol";
 
 interface IPLMBattleManager {
@@ -20,6 +20,7 @@ interface IPLMBattleManager {
     ////////////////////////////
     /// WRITE/READ FUNCTIONS ///
     ////////////////////////////
+    function setPlayerAddressByPlayerId(address home, address visitor) external;
 
     function setNumRounds(address player, uint8 numRound) external;
 
@@ -121,6 +122,8 @@ interface IPLMBattleManager {
     ////////////////////////////////
     /////   get sender's data  /////
     ////////////////////////////////
+    function getPlayerId(address player) external view returns(uint8);
+
     function getNumRounds(address player) external view returns (uint8);
 
     function getBattleState(
@@ -221,98 +224,75 @@ interface IPLMBattleManager {
         address player
     ) external view returns (uint8);
 
+    function getBondLevelAtBattleStart(
+        address player,
+        uint8 level,
+        uint256 fromBlock
+    ) external view returns (uint32);
+
+    function getTotalSupplyAtFromBlock(
+        address player
+    ) external view returns (uint256);
+
+    function getVirtualRandomSlotCharInfo(
+        address player,
+        uint256 tokenId
+    ) external view returns (IPLMToken.CharacterInfo memory);
+
+    function getCharsUsedRounds(
+        address player
+    ) external view returns (uint8[5] memory);
+
+    function getRoundResults(
+        address player
+    ) external view returns (IPLMBattleField.RoundResult[] memory);
+
     ////////////////////////////////
     /////    get by battleId   /////
     ////////////////////////////////
+    function getPlayerAddressById(uint256 _battleId, uint8 playerId) external view returns (address);
     function getNumRoundsById(uint256 _battleId) external view returns (uint8);
-
-    function getBattleStateById(
-        uint256 _battleId
-    ) external view returns (IPLMBattleField.BattleState);
-
-    function getRoundResultById(
+    function getBattleStateById(uint256 _battleId) external view returns (IPLMBattleField.BattleState);
+    function getRoundResultById(uint256 _battleId, uint8 indRound) external view returns (IPLMBattleField.RoundResult memory);
+    function getBattleResultById(uint256 _battleId) external view returns (IPLMBattleField.BattleResult memory);
+    function getPlayerSeedCommitFromBlockById(uint256 _battleId) external view returns (uint256);
+    function getCommitFromBlockById(uint256 _battleId, uint8 indRound) external view returns (uint256);
+    function getRevealFromBlockById(uint256 _battleId, uint8 indRound) external view returns (uint256);
+    function getChoiceCommitById(uint256 _battleId, uint8 indRound, uint8 playerId) external view returns (IPLMBattleField.ChoiceCommit memory);
+    function getPlayerSeedCommitById(uint256 _battleId, uint8 playerId) external view returns (IPLMBattleField.PlayerSeedCommit memory);
+        function getBondLevelAtBattleStartById(
         uint256 _battleId,
-        uint8 indRound
-    ) external view returns (IPLMBattleField.RoundResult calldata);
-
-    function getBattleResultById(
-        uint256 _battleId
-    ) external view returns (IPLMBattleField.BattleResult calldata);
-
-    function getPlayerSeedCommitFromBlockById(
-        uint256 _battleId
+        uint8 playerId,
+        uint8 level,
+        uint256 fromBlock
+    ) external view returns (uint32);
+        function getTotalSupplyAtFromBlockById(
+        uint256 _battleId,
+        uint8 playerId
     ) external view returns (uint256);
 
-    function getCommitFromBlockById(
+    function getPlayerInfoById(uint256 _battleId, uint8 playerId) external view returns (IPLMBattleField.PlayerInfo memory);
+    function getPlayerInfoAddressById(uint256 _battleId, uint8 playerId) external view returns (address);
+    function getPlayerInfoFromBlockById(uint256 _battleId, uint8 playerId) external view returns (uint256);
+    function getPlayerInfoFixedSlotsById(uint256 _battleId, uint8 playerId) external view returns (uint256[4] memory);
+    function getPlayerInfoFixedSlotsUsedRoundsById(uint256 _battleId, uint8 playerId) external view returns (uint8[4] memory);
+    function getPlayerInfoRandomSlotById(uint256 _battleId, uint8 playerId) external view returns (IPLMBattleField.RandomSlot memory);
+    function getPlayerInfoRandomSlotStateById(
         uint256 _battleId,
-        uint8 indRound
-    ) external view returns (uint256);
-
-    function getRevealFromBlockById(
+        uint8 playerId
+    ) external view returns (IPLMBattleField.RandomSlotState);
+    function getPlayerInfoRandomSlotLevelById(
         uint256 _battleId,
-        uint8 indRound
-    ) external view returns (uint256);
-
-    function getChoiceCommitById(
-        uint256 _battleId,
-        uint8 indRound,
-        address player
-    ) external view returns (IPLMBattleField.ChoiceCommit calldata);
-
-    function getPlayerSeedCommitById(
-        uint256 _battleId,
-        address player
-    ) external view returns (IPLMBattleField.PlayerSeedCommit calldata);
-
-    function getPlayerInfoById(
-        uint256 _battleId,
-        address player
-    ) external view returns (IPLMBattleField.PlayerInfo memory);
-
-    function getPlayerInfoAddressById(
-        uint256 _battleId,
-        address player
-    ) external view returns (address);
-
-    function getPlayerInfoFromBlockById(
-        uint256 _battleId,
-        address player
-    ) external view returns (uint256);
-
-    function getPlayerInfoFixedSlotsById(
-        uint256 _battleId,
-        address player
-    ) external view returns (uint256[4] memory);
-
-    function getPlayerInfoFixedSlotsUsedRoundsById(
-        uint256 _battleId,
-        address player
-    ) external view returns (uint8[4] memory);
-
-    function getPlayerInfoRandomSlotById(
-        uint256 _battleId,
-        address player
-    ) external view returns (IPLMBattleField.RandomSlot memory);
-
-    function getPlayerInfoPlayerStateById(
-        uint256 _battleId,
-        address player
-    ) external view returns (IPLMBattleField.PlayerState);
-
-    function getPlayerInfoWinCountById(
-        uint256 _battleId,
-        address player
+        uint8 playerId
     ) external view returns (uint8);
-
-    function getPlayerInfoMaxLevelPointById(
-        uint256 _battleId,
-        address player
-    ) external view returns (uint8);
-
-    function getPlayerInfoRemainingLevelPointById(
-        uint256 _battleId,
-        address player
-    ) external view returns (uint8);
+    function getPlayerInfoPlayerStateById(uint256 _battleId, uint8 playerId) external view returns (IPLMBattleField.PlayerState);
+    function getPlayerInfoWinCountById(uint256 _battleId, uint8 playerId) external view returns (uint8);
+    function getPlayerInfoMaxLevelPointById(uint256 _battleId, uint8 playerId) external view returns (uint8);
+    function getPlayerInfoRemainingLevelPointById(uint256 _battleId, uint8 playerId) external view returns (uint8);
+    function getRoundResultsById(
+        uint256 _battleId
+    ) external view returns (IPLMBattleField.RoundResult[] memory);
+    function getEnemyAddress(uint256 _battleId, uint8 playerId) external view returns (address);
 
     function setPLMBattleField(address _battleField) external;
 }

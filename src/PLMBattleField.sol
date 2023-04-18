@@ -259,7 +259,11 @@ contract PLMBattleField is IPLMBattleField, IERC165 {
                 numRounds,
                 myChar,
                 manager.getChoiceCommitLevelPoint(msg.sender),
-                _bondLevelAtBattleStart(myChar.level, myChar.fromBlock),
+                manager.getBondLevelAtBattleStart(
+                    msg.sender,
+                    myChar.level,
+                    myChar.fromBlock
+                ),
                 enemyChar
             );
 
@@ -267,7 +271,11 @@ contract PLMBattleField is IPLMBattleField, IERC165 {
                 numRounds,
                 enemyChar,
                 manager.getChoiceCommitLevelPoint(_enemyAddr),
-                _bondLevelAtBattleStart(enemyChar.level, enemyChar.fromBlock),
+                manager.getBondLevelAtBattleStart(
+                    msg.sender,
+                    myChar.level,
+                    myChar.fromBlock
+                ),
                 myChar
             );
 
@@ -569,13 +577,7 @@ contract PLMBattleField is IPLMBattleField, IERC165 {
         }
     }
 
-    function _totalSupplyAtFromBlock(
-        address player
-    ) internal view returns (uint256) {
-        // Here we assume that Bob is always a requester.
-        return token.getPriorTotalSupply(_fromBlock(player));
-    }
-
+    // TODO:これはこのコントラクトにgetterを書く
     function _randomSlotCharInfo(
         address player
     ) internal view returns (IPLMToken.CharacterInfo memory) {
@@ -588,7 +590,7 @@ contract PLMBattleField is IPLMBattleField, IERC165 {
         uint256 tokenId = PLMSeeder.getRandomSlotTokenId(
             _nonce(player),
             _playerSeed(player),
-            _totalSupplyAtFromBlock(player)
+            manager.getTotalSupplyAtFromBlock(player)
         );
 
         IPLMToken.CharacterInfo memory playerCharInfo = token
@@ -658,13 +660,6 @@ contract PLMBattleField is IPLMBattleField, IERC165 {
                 _fixedSlotTokenIdByIdx(player, slotIdx),
                 _fromBlock(player)
             );
-    }
-
-    function _bondLevelAtBattleStart(
-        uint8 level,
-        uint256 fromBlock
-    ) internal view returns (uint32) {
-        return data.getPriorBondLevel(level, fromBlock, _fromBlock(msg.sender));
     }
 
     //////////////////////////////
@@ -1123,6 +1118,30 @@ contract PLMBattleField is IPLMBattleField, IERC165 {
         return
             interfaceId == type(IERC165).interfaceId ||
             interfaceId == type(IPLMBattleField).interfaceId;
+    }
+
+    ////////////////////////
+    ///      GETTERS     ///
+    ////////////////////////
+
+    function getRandomSlotCharInfo(
+        address player
+    ) external view returns (IPLMToken.CharacterInfo memory) {
+        return _randomSlotCharInfo(player);
+    }
+
+    function getFixedSlotsCharInfo(uint8 playerId)
+        external
+        view
+        returns (IPLMToken.CharacterInfo[FIXED_SLOTS_NUM] memory)
+    {   
+        address player = manager.getPlayerAddressById(manager.getLatestBattle(msg.sender),playerId);
+        IPLMToken.CharacterInfo[FIXED_SLOTS_NUM] memory playerCharInfos;
+        for (uint8 i = 0; i < FIXED_SLOTS_NUM; i++) {
+            playerCharInfos[i] = _fixedSlotCharInfoByIdx(player, i);
+        }
+
+        return playerCharInfos;
     }
 
     ////////////////////////

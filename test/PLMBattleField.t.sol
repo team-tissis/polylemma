@@ -76,7 +76,7 @@ contract BattleFieldTest is Test {
 
         strgContract = new PLMBattleStorage();
         strg = IPLMBattleStorage(address(strgContract));
-        managerContract = new PLMBattleManager(strg);
+        managerContract = new PLMBattleManager(token, strg);
         manager = IPLMBattleManager(address(managerContract));
         mo = new PLMMatchOrganizer(dealer, token);
         bf = new PLMBattleField(dealer, token, manager);

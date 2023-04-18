@@ -6,6 +6,12 @@ import {SSTORE2} from "lib/sstore2/contracts/SSTORE2.sol";
 import {IPLMBattleField} from "./IPLMBattleField.sol";
 
 interface IPLMBattleStorage {
+    function writePlayerAddressByPlayerId(
+        uint256 battleId,
+        address homeAddress,
+        address visitorAddress
+    ) external;
+
     function writeNumRounds(uint256 battleId, uint256 numRounds) external;
 
     function writeBattleState(
@@ -65,6 +71,10 @@ interface IPLMBattleStorage {
         address player,
         address enemy
     ) external;
+
+    function loadPlayerId(uint256 battleId, address player) external view returns(uint8);
+
+    function loadPlayerAddressById(uint256 battleId,uint8 playerId) external view returns(address);
 
     function loadNumRounds(uint256 battleId) external view returns (uint8);
 
