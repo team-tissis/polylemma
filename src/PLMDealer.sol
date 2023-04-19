@@ -47,8 +47,17 @@ contract PLMDealer is PLMGacha, IPLMDealer {
     /// @notice contract address of the matchOrganizer.
     address matchOrganizer;
 
-    /// @notice contract address of the battleField.
-    address battleField;
+    /// @notice BattlePlayerSeed contract's address.
+    address battleChoice;
+
+    /// @notice BattlePlayerSeed contract's address.
+    address battlePlayerSeed;
+
+    /// @notice BattleReporter contract's address.
+    address battleReporter;
+
+    /// @notice BattleReporter contract's address.
+    address battleStarter;
 
     /// @notice contract address of the dealer of polylemma.
     address dealer;
@@ -81,8 +90,8 @@ contract PLMDealer is PLMGacha, IPLMDealer {
         require(msg.sender == matchOrganizer, "sender != matchOrganizer");
         _;
     }
-    modifier onlyBattleField() {
-        require(msg.sender == battleField, "sender != battleField");
+    modifier onlyBattleContract() {
+        require(msg.sender == battleChoice||msg.sender == battlePlayerSeed||msg.sender == battleReporter||msg.sender == battleStarter, "sender != battleContracts.");
         _;
     }
 
@@ -203,7 +212,7 @@ contract PLMDealer is PLMGacha, IPLMDealer {
     }
 
     /// @notice function called when the battle did not end normally
-    function refundStaminaForBattle(address player) external onlyBattleField {
+    function refundStaminaForBattle(address player) external onlyBattleContract {
         // This function is called after the consumeStaminaPerBattle function call.
         // It means that
         // staminaFromBlock[player] > block.number + STAMINA_PER_BATTLE * STAMINA_RESTORE_SPEED
@@ -287,7 +296,7 @@ contract PLMDealer is PLMGacha, IPLMDealer {
     function banAccount(
         address account,
         uint256 banPeriod
-    ) external onlyBattleField {
+    ) external onlyBattleContract {
         uint256 currentExpiredBlock = subscExpiredBlock[account];
 
         // We should only deal with the case that the subsc of the banned player is ongoing.
@@ -445,8 +454,15 @@ contract PLMDealer is PLMGacha, IPLMDealer {
 
     /// @notice set battle field contract address, function called by only Polylemmers EOA
     /// @dev   This function must be called when initializing contracts by the deployer manually. ("polylemmers" is contract deployer's address.)
-    ///        "battleField" address is stored in this contract to make some functions able to be called from only battleField.
-    function setBattleField(address _battleField) external onlyPolylemmers {
-        battleField = _battleField;
+    ///        "battleChoice","battlePlayerSeed","battleReporter","battleStarter" address is stored in this contract to make some functions able to be called from only battleContracts.
+    /// @param _battleChoice: the contract address of PLMBattleChoice contract.
+    /// @param _battlePlayerSeed: the contract address of PLMBattlePlayerSeed contract.
+    /// @param _battleReporter: the contract address of PLMBattleReporter contract.
+    /// @param _battleStarter: the contract address of PLMBattleStarter contract.
+    function setPLMBattleContracts(address _battleChoice,  address _battlePlayerSeed ,address _battleReporter, address _battleStarter) external onlyPolylemmers {
+        battleChoice = _battleChoice;
+        battlePlayerSeed = _battlePlayerSeed;
+        battleReporter = _battleReporter;
+        battleStarter = _battleStarter;
     }
 }

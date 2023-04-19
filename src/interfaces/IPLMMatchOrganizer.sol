@@ -70,7 +70,8 @@ interface IPLMMatchOrganizer {
     ///      SETTERS      ///
     /////////////////////////
 
-    function setPLMBattleField(address _battleField) external;
+    function setPLMBattleContracts(address _battleChoice,  address _battlePlayerSeed, address _battleReporter, address _battleStarter) external;
+
 
     //////////////////////////
     /// FUNCTIONS FOR DEMO ///

@@ -63,12 +63,6 @@ contract PLMBattleField is IPLMBattleField, IERC165 {
     /// @notice admin's address
     address polylemmers;
 
-    /// @notice latest battle ID
-    mapping(address => uint256) battleId;
-
-    /// @notice latest enemy address
-    mapping(address => address) enemyAddr;
-
     /// @notice status for reentrancy guard for each battle, battle Id => locked flag, _NOT_ENTERED or _ENTERED
     mapping(uint256 => uint256) private _status;
 
@@ -109,10 +103,10 @@ contract PLMBattleField is IPLMBattleField, IERC165 {
     }
 
     modifier onlyPlayerOf() {
-        uint256 _battleId = battleId[msg.sender];
+        uint256 _battleId = _battleId();
         BattleState battleState = manager.getBattleStateById(_battleId);
         require(
-            _battleId == battleId[enemyAddr[msg.sender]] &&
+            _battleId == manager.getLatestBattle(_enemyAddress()) &&
                 (battleState != BattleState.NotStarted ||
                     battleState != BattleState.Settled ||
                     battleState != BattleState.Canceled),
@@ -125,13 +119,7 @@ contract PLMBattleField is IPLMBattleField, IERC165 {
         require(msg.sender == polylemmers, "sender != polylemmers");
         _;
     }
-    modifier onlyMatchOrganizer() {
-        require(
-            msg.sender == address(matchOrganizer),
-            "sender != matchOrganizer"
-        );
-        _;
-    }
+
 
     /// @notice Check that the random slot of the player designated by player
     ///         has already been committed, the choice of that player in this
@@ -143,7 +131,7 @@ contract PLMBattleField is IPLMBattleField, IERC165 {
             "playerSeed has already been revealed."
         );
 
-        address _enemyAddr = enemyAddr[msg.sender];
+        address _enemyAddr = _enemyAddress();
         require(
             _playerState(msg.sender) == PlayerState.Committed &&
                 (_playerState(_enemyAddr) == PlayerState.Committed ||
@@ -160,14 +148,14 @@ contract PLMBattleField is IPLMBattleField, IERC165 {
             "Player hasn't committed the choice yet"
         );
 
-        address _enemyAddr = enemyAddr[msg.sender];
+        address _enemyAddr = _enemyAddress();
         PlayerState enemyState = _playerState(_enemyAddr);
 
         // If the enemy player has not committed yet and it's over commit time limit,
         // ban the enemy player as delayer.
         if (enemyState == PlayerState.Standby && _isLateForChoiceCommit()) {
             emit LateChoiceCommitDetected(
-                battleId[msg.sender],
+                _battleId(),
                 manager.getNumRounds(msg.sender),
                 manager.getPlayerId(_enemyAddr)
             );
@@ -190,7 +178,7 @@ contract PLMBattleField is IPLMBattleField, IERC165 {
     }
 
     function _nonReentrantForEachBattleBefore() private {
-        uint256 _battleId = battleId[msg.sender];
+        uint256 _battleId = _battleId();
 
         // On the first call to nonReentrantForEachBattle, _status will be _NOT_ENTERED
         require(
@@ -204,8 +192,9 @@ contract PLMBattleField is IPLMBattleField, IERC165 {
 
     function _nonReentrantForEachBattleAfter() private {
         // By storing the original value once again, a refund is triggered (see
-        // https://eips.ethereum.org/EIPS/eip-2200)
-        _status[battleId[msg.sender]] = _NOT_ENTERED;
+        // https://eips.ethereum.org/EIPS/eip-2200) 
+        // FIXME:
+        _status[_battleId()] = _NOT_ENTERED;
     }
 
     /// @notice Function to execute closing round.
@@ -216,7 +205,7 @@ contract PLMBattleField is IPLMBattleField, IERC165 {
         address winner,
         bool isDraw
     ) internal {
-        address _enemyAddr = enemyAddr[winner];
+        address _enemyAddr = manager.getEnemyAddress(winner);
         manager.incrementPlayerInfoWinCount(winner);
         manager.setRoundResult(
             msg.sender,
@@ -226,7 +215,7 @@ contract PLMBattleField is IPLMBattleField, IERC165 {
         {
             uint8 winnerId = manager.getPlayerId(winner);
             emit RoundCompleted(
-                battleId[msg.sender],
+                _battleId(),
                 manager.getNumRounds(msg.sender),
                 isDraw,
                 winnerId,
@@ -243,7 +232,7 @@ contract PLMBattleField is IPLMBattleField, IERC165 {
     function _stepRound() internal {
         // Mark the slot as used.
         _markSlot(msg.sender);
-        address _enemyAddr = enemyAddr[msg.sender];
+        address _enemyAddr = _enemyAddress();
         _markSlot(_enemyAddr);
 
         // Calculate the damage of both players.
@@ -341,7 +330,7 @@ contract PLMBattleField is IPLMBattleField, IERC165 {
             {
                 uint8 winnerId = manager.getPlayerId(winner);
                 emit BattleCompleted(
-                    battleId[msg.sender],
+                    _battleId(),
                     numRounds - 1,
                     isDraw,
                     winnerId,
@@ -374,7 +363,7 @@ contract PLMBattleField is IPLMBattleField, IERC165 {
         );
 
         // Refund stamina for the enemy player.
-        dealer.refundStaminaForBattle(enemyAddr[msg.sender]);
+        dealer.refundStaminaForBattle(_enemyAddress());
 
         // Cancel battle because of cheat detection.
         _cancelBattle();
@@ -393,7 +382,7 @@ contract PLMBattleField is IPLMBattleField, IERC165 {
         );
 
         // Refund stamina for the enemy player.
-        dealer.refundStaminaForBattle(enemyAddr[msg.sender]);
+        dealer.refundStaminaForBattle(_enemyAddress());
 
         // Cancel battle because of delay detection.
         _cancelBattle();
@@ -410,7 +399,7 @@ contract PLMBattleField is IPLMBattleField, IERC165 {
             DAILY_BLOCK_NUM * BAN_DATE_LENGTH_FOR_DELAYER_ACCOUNT
         );
         dealer.banAccount(
-            enemyAddr[msg.sender],
+            _enemyAddress(),
             DAILY_BLOCK_NUM * BAN_DATE_LENGTH_FOR_DELAYER_ACCOUNT
         );
 
@@ -430,7 +419,7 @@ contract PLMBattleField is IPLMBattleField, IERC165 {
         }
 
         // Update the proposal state.
-        matchOrganizer.resetMatchStates(msg.sender, enemyAddr[msg.sender]);
+        matchOrganizer.resetMatchStates(msg.sender, _enemyAddress());
 
         // settle this battle.
         manager.setBattleState(msg.sender, BattleState.Settled);
@@ -438,10 +427,10 @@ contract PLMBattleField is IPLMBattleField, IERC165 {
 
     /// @notice Function to cancel this battle.
     function _cancelBattle() internal {
-        matchOrganizer.resetMatchStates(msg.sender, enemyAddr[msg.sender]);
+        matchOrganizer.resetMatchStates(msg.sender, _enemyAddress());
         manager.setBattleState(msg.sender, BattleState.Canceled);
 
-        emit BattleCanceled(battleId[msg.sender]);
+        emit BattleCanceled(_battleId());
     }
 
     /// @notice Function to pay reward to the winner.
@@ -466,7 +455,7 @@ contract PLMBattleField is IPLMBattleField, IERC165 {
     /// @notice Function to pay reward to both players when draws.
     /// @dev This logic is derived from Pokemon.
     function _payRewardsDraw() internal {
-        address _enemyAddr = enemyAddr[msg.sender];
+        address _enemyAddr = _enemyAddress();
         // Calculate the reward balance of both players.
         uint16 myTotalLevel = _totalLevel(msg.sender);
         uint16 enemyTotalLevel = _totalLevel(_enemyAddr);
@@ -548,9 +537,7 @@ contract PLMBattleField is IPLMBattleField, IERC165 {
     }
 
     /// @notice Function to return the player's remainingLevelPoint.
-    /// @param player: The player's address.
     function _remainingLevelPoint(
-        address player
     ) internal view returns (uint8) {
         return manager.getPlayerInfoRemainingLevelPoint(msg.sender);
     }
@@ -669,497 +656,44 @@ contract PLMBattleField is IPLMBattleField, IERC165 {
             );
     }
 
-    //////////////////////////////
-    /// BATTLE FIELD FUNCTIONS ///
-    //////////////////////////////
-
-    /// @notice Commit the player's seed to generate the tokenId for random slot.
-    /// @param commitString: commitment string calculated by the player designated by player
-    ///                      as keccak256(abi.encodePacked(msg.sender, playerSeed)).
-    function commitPlayerSeed(
-        bytes32 commitString
-    ) external nonReentrantForEachBattle onlyPlayerOf {
-        // Check that the battle hasn't started yet.
-        require(
-            _battleState() == BattleState.Standby,
-            "Battle has already started."
-        );
-        address _enemyAddr = enemyAddr[msg.sender];
-        // Check that the player seed hasn't set yet.
-        require(
-            _randomSlotState(msg.sender) == RandomSlotState.NotSet,
-            "playerSeed has already been set."
-        );
-
-        uint256 _battleId = battleId[msg.sender];
-        uint8 myId = manager.getPlayerId(msg.sender);
-        // Check that player seed commitment is in time.
-        if (_isLateForPlayerSeedCommit()) {
-            
-            emit LatePlayerSeedCommitDetected(_battleId, myId);
-
-            if (_randomSlotState(_enemyAddr) == RandomSlotState.NotSet) {
-                // Both players are delayers.
-                emit LatePlayerSeedCommitDetected(_battleId, 1-myId);
-                _dealWithDelayersAndCancelBattle();
-            } else {
-                // Deal with the delayer (the player designated by player) and
-                // cancel this battle.
-                _dealWithDelayerAndCancelBattle(msg.sender);
-            }
-            return;
-        }
-
-        // Save commitment on the storage. The playerSeed of the player is hidden in the commit phase.
-        manager.setPlayerSeedCommit(
-            msg.sender,
-            PlayerSeedCommit(commitString, bytes32(0))
-        );
-
-        // Emit the event that tells frontend that the player designated by player has committed.
-        emit PlayerSeedCommitted(_battleId, myId);
-
-        // Update the state of the random slot to be commited.
-        manager.setPlayerInfoRandomSlotState(
-            msg.sender,
-            RandomSlotState.Committed
-        );
-
-        // Generate nonce after player committed the playerSeed.
-        bytes32 nonce = PLMSeeder.randomFromBlockHash();
-
-        // Emit the event that tells frontend that the randomSlotNonce is generated for the player designated
-        // by player.
-        emit RandomSlotNounceGenerated(_battleId, myId, nonce);
-
-        manager.setPlayerInfoRandomSlotNonce(msg.sender, nonce);
-
-        // If both players have already committed their player seeds, start the battle.
-        if (_randomSlotState(_enemyAddr) == RandomSlotState.Committed) {
-            manager.setBattleState(msg.sender, BattleState.InRound);
-        }
-
-        // Set the block number when the round starts.
-        manager.setCommitFromBlock(msg.sender, block.number);
+    function _enemyAddress() internal view returns(address) {
+        return manager.getEnemyAddress(msg.sender);
     }
 
-    /// @param playerSeed: the choice the player designated by player committed in this round.
-    ///                    bytes32(0) is not allowed.
-    function revealPlayerSeed(
-        bytes32 playerSeed
-    ) external inRound readyForPlayerSeedReveal onlyPlayerOf {
-        // The pointer to the commit log of the player designated by player.
-        PlayerSeedCommit memory playerSeedCommit = manager.getPlayerSeedCommit(
-            msg.sender
-        );
-
-        // Check the commit has coincides with the one stored on chain.
-        require(
-            keccak256(abi.encodePacked(msg.sender, playerSeed)) ==
-                playerSeedCommit.commitString,
-            "Commit hash doesn't coincide"
-        );
-
-        // Execute revealment
-        manager.setPlayerSeedCommitValue(msg.sender, playerSeed);
-
-        // Emit the event that tells frontend that the player designated by player has revealed.
-        emit PlayerSeedRevealed(
-            battleId[msg.sender],
-            manager.getNumRounds(msg.sender),
-            manager.getPlayerId(msg.sender),
-            playerSeed
-        );
-
-        // Update the state of the random slot to be revealed.
-        manager.setPlayerInfoRandomSlotState(
-            msg.sender,
-            RandomSlotState.Revealed
-        );
+    function _enemyId() internal view returns(uint8) {
+        return manager.getPlayerId(_enemyAddress());
     }
 
-    /// @notice Commit the choice (the character the player choose to use in the current round).
-    /// @param commitString: commitment string calculated by the player designated by player
-    ///                      as keccak256(abi.encodePacked(msg.sender, levelPoint, choice, blindingFactor)).
-    function commitChoice(
-        bytes32 commitString
-    ) external nonReentrantForEachBattle inRound onlyPlayerOf {
-        // Check that the player who want to commit haven't committed yet in this round.
-        require(
-            _playerState(msg.sender) == PlayerState.Standby,
-            "Player isn't ready for choice commit"
-        );
-        address _enemyAddr = enemyAddr[msg.sender];
-
-        uint8 numRounds = manager.getNumRounds(msg.sender);
-        uint256 _battleId = battleId[msg.sender];
-        uint8 myId = manager.getPlayerId(msg.sender);
-        // Check that choice commitment is in time.
-        if (_isLateForChoiceCommit()) {
-            emit LateChoiceCommitDetected(_battleId, numRounds, myId);
-
-            if (_playerState(_enemyAddr) == PlayerState.Standby) {
-                // Both players are delayers.
-                emit LateChoiceCommitDetected(_battleId, numRounds, myId);
-                _dealWithDelayersAndCancelBattle();
-            } else {
-                // Deal with the delayer (the player designated by player) and
-                // cancel this battle.
-                _dealWithDelayerAndCancelBattle(msg.sender);
-            }
-            return;
-        }
-
-        // Save commitment on the storage. The choice of the player is hidden in the commit phase.
-        manager.setChoiceCommit(
-            msg.sender,
-            ChoiceCommit(commitString, 0, Choice.Hidden)
-        );
-
-        // Emit the event that tells frontend that the player designated by player has committed.
-        emit ChoiceCommitted(_battleId, numRounds, myId);
-
-        // Update the state of the commit player to be committed.
-        manager.setPlayerInfoState(msg.sender, PlayerState.Committed);
-
-        if (_playerState(_enemyAddr) == PlayerState.Committed) {
-            // both players have already committed.
-            manager.setRevealFromBlock(msg.sender, block.number);
-        }
+    function _playerId() internal view returns(uint8) {
+        return manager.getPlayerId(msg.sender);
     }
 
-    /// @notice Reveal the committed choice by the player who committed it in this round.
-    /// @dev bindingFactor should be used only once. Reusing bindingFactor results in the security
-    ///      vulnerability.
-    /// @param levelPoint: the levelPoint the player uses to the chosen character.
-    /// @param choice: the choice the player designated by player committed in this round.
-    ///                Choice.Hidden is not allowed.
-    /// @param bindingFactor: the secret factor (one-time) used in the generation of the commitment.
-    function revealChoice(
-        uint8 levelPoint,
-        Choice choice,
-        bytes32 bindingFactor
-    )
-        external
-        nonReentrantForEachBattle
-        inRound
-        onlyPlayerOf
-        readyForChoiceReveal
-    {
-        uint8 numRounds = manager.getNumRounds(msg.sender);
-        // Choice.Hidden is not allowed for the choice passed to the reveal function.
-        require(
-            choice != Choice.Hidden,
-            "Choice.Hidden isn't allowed when revealing"
-        );
-        address _enemyAddr = enemyAddr[msg.sender];
-        uint256 _battleId = battleId[msg.sender];
-        {
-            uint8 myId = manager.getPlayerId(msg.sender);
-            // Check that choice revealment is in time.
-            if (_isLateForChoiceReveal()) {
-                emit LateChoiceRevealDetected(_battleId, numRounds, myId);
-
-                if (_playerState(_enemyAddr) == PlayerState.Committed) {
-                    // Both players are delayers.
-                    emit LateChoiceRevealDetected(
-                        _battleId,
-                        numRounds,
-                        1-myId
-                    );
-                    _dealWithDelayersAndCancelBattle();
-                } else {
-                    // Deal with the delayer (the player designated by player) and
-                    // cancel this battle.
-                    _dealWithDelayerAndCancelBattle(msg.sender);
-                }
-                return;
-            }
-        }
-
-        // If the choice is the random slot, then random slot must have already been revealed.
-        if (choice == Choice.Random) {
-            require(
-                _randomSlotState(msg.sender) == RandomSlotState.Revealed,
-                "Random slot can't be used because playerSeed hasn't been revealed yet"
-            );
-        }
-
-        {
-            // The pointer to the commit log of the player designated by player.
-            bytes32 choiceCommitString = manager.getChoiceCommitString(msg.sender);
-
-            // Check the commit hash coincides with the one stored on chain.
-            require(
-                keccak256(
-                    abi.encodePacked(msg.sender, levelPoint, choice, bindingFactor)
-                ) == choiceCommitString,
-                "Commit hash doesn't coincide"
-            );
-        }
-        // Check that the levelPoint is less than or equal to the remainingLevelPoint.
-        uint8 remainingLevelPoint = _remainingLevelPoint(msg.sender);
-        uint8 myId = manager.getPlayerId(msg.sender);
-        if (levelPoint > remainingLevelPoint) {
-            emit ExceedingLevelPointCheatDetected(
-                _battleId,
-                myId,
-                remainingLevelPoint,
-                levelPoint
-            );
-
-            // Deal with the chater (the player designated by player) and cancel
-            // this battle.
-            _dealWithCheaterAndCancelBattle(msg.sender);
-            return;
-        }
-
-        // Subtract revealed levelPoint from remainingLevelPoint
-        manager.subtractPlayerInfoRemainingLevelPoint(msg.sender, levelPoint);
-
-        // Check that the chosen slot hasn't been used yet.
-        // If the revealed slot has already used, then end this match and ban the player designated by player.
-        if (
-            (choice == Choice.Random && _randomSlotUsedRound(msg.sender) > 0) ||
-            (choice != Choice.Random &&
-                _fixedSlotUsedRoundByIdx(msg.sender, uint8(choice)) > 0)
-        ) {
-            emit ReusingUsedSlotCheatDetected(_battleId, myId, choice);
-
-            // Deal with the chater (the player designated by player) and cancel
-            // this battle.
-            _dealWithCheaterAndCancelBattle(msg.sender);
-            return;
-        }
-
-        // Execute revealment
-        manager.setChoiceCommitLevelPoint(msg.sender, levelPoint);
-        manager.setChoiceCommitChoice(msg.sender, choice);
-
-        // Emit the event that tells frontend that the player designated by player has revealed.
-        emit ChoiceRevealed(
-            _battleId,
-            numRounds,
-            myId,
-            levelPoint,
-            choice
-        );
-
-        // Update the state of the reveal player to be Revealed.
-        manager.setPlayerInfoState(msg.sender, PlayerState.Revealed);
-
-        // If both players have already revealed their choices, then proceed to the damage
-        // calculation.
-        if (_playerState(_enemyAddr) == PlayerState.Revealed) {
-            _stepRound();
-        }
+    function _battleId() internal view returns(uint256) {
+        return manager.getLatestBattle(msg.sender);
     }
 
-    /// @notice Function to report enemy player for late Seed Commit.
-    function reportLatePlayerSeedCommit() external standby onlyPlayerOf {
-        // Detect enemy player's late player seed commit.
-        address _enemyAddr = enemyAddr[msg.sender];
-        require(
-            _randomSlotState(_enemyAddr) == RandomSlotState.NotSet &&
-                _isLateForPlayerSeedCommit(),
-            "Reported player isn't late"
-        );
 
-        emit LatePlayerSeedCommitDetected(battleId[msg.sender], manager.getPlayerId(_enemyAddr));
-
-        // Deal with the delayer (enemy player) and cancel this battle.
-        _dealWithDelayerAndCancelBattle(_enemyAddr);
-    }
-
-    /// @notice Function to report enemy player for late commitment.
-    function reportLateChoiceCommit() external inRound onlyPlayerOf {
-        address _enemyAddr = enemyAddr[msg.sender];
-        // Detect enemy player's late choice commit.
-        require(
-            _playerState(_enemyAddr) == PlayerState.Standby &&
-                _isLateForChoiceCommit(),
-            "Reported player isn't late"
-        );
-
-        emit LateChoiceCommitDetected(
-            battleId[msg.sender],
-            manager.getNumRounds(msg.sender),
-            manager.getPlayerId(_enemyAddr)
-        );
-
-        // Deal with the delayer (enemy player) and cancel this battle.
-        _dealWithDelayerAndCancelBattle(_enemyAddr);
-    }
-
-    /// @notice Function to report enemy player for late revealment.
-    /// @dev This function is prepared to deal with the case that one of the player
-    ///      don't reveal his/her choice and it locked the battle forever.
-    ///      In this case, if the enemy (honest) player report him/her after the
-    ///      choice revealmenet timelimit, then the delayer will be banned,
-    ///      the battle will be canceled, and the stamina of the honest player will
-    ///      be refunded.
-    function reportLateReveal() external inRound onlyPlayerOf {
-        address _enemyAddr = enemyAddr[msg.sender];
-        // Detect enemy player's late revealment.
-        require(
-            _playerState(_enemyAddr) == PlayerState.Committed &&
-                _isLateForChoiceReveal(),
-            "Reported player isn't late"
-        );
-
-        emit LateChoiceRevealDetected(
-            battleId[msg.sender],
-            manager.getNumRounds(msg.sender),
-            manager.getPlayerId(_enemyAddr)
-        );
-
-        // Deal with the delayer (enemy player) and cancel this battle.
-        _dealWithDelayerAndCancelBattle(_enemyAddr);
-    }
-
-    /// @notice Function to start the battle.
-    /// @dev This function is called from match organizer.
-    /// @param homeAddr: the address of the player assigned to home.
-    /// @param visitorAddr: the address of the player assigned to visitor.
-    /// @param homeFromBlock: the block number used to view home's characters' info.
-    /// @param visitorFromBlock: the block number used to view visitor's characters' info.
-    /// @param homeFixedSlots: tokenIds of home's fixed slots.
-    /// @param visitorFixedSlots: tokenIds of visitor's fixed slots.
-    function startBattle(
-        address homeAddr,
-        address visitorAddr,
-        uint256 homeFromBlock,
-        uint256 visitorFromBlock,
-        uint256[4] memory homeFixedSlots,
-        uint256[4] memory visitorFixedSlots
-    ) external onlyMatchOrganizer {
-        manager.beforeBattleStart(homeAddr, visitorAddr);
-        enemyAddr[homeAddr] = visitorAddr;
-        enemyAddr[visitorAddr] = homeAddr;
-
-        // register this battle to battle manager
-
-        battleId[homeAddr] = manager.getLatestBattle(homeAddr);
-        battleId[visitorAddr] = manager.getLatestBattle(visitorAddr);
-        require(
-            battleId[homeAddr] == battleId[visitorAddr],
-            "battleIds don't match"
-        );
-        IPLMData.CharacterInfoMinimal[FIXED_SLOTS_NUM] memory homeCharInfos;
-        IPLMData.CharacterInfoMinimal[FIXED_SLOTS_NUM] memory visitorCharInfos;
-
-        // Retrieve character infomation by tokenId in the fixed slots.
-        for (uint8 slotIdx = 0; slotIdx < FIXED_SLOTS_NUM; slotIdx++) {
-            homeCharInfos[slotIdx] = token.minimalizeCharInfo(
-                token.getPriorCharacterInfo(
-                    homeFixedSlots[slotIdx],
-                    homeFromBlock
-                )
-            );
-            visitorCharInfos[slotIdx] = token.minimalizeCharInfo(
-                token.getPriorCharacterInfo(
-                    visitorFixedSlots[slotIdx],
-                    visitorFromBlock
-                )
-            );
-        }
-
-        {
-            // Get level point for both players.
-            uint8 homeLevelPoint = data.getLevelPoint(homeCharInfos);
-
-            // Initialize both players' information.
-            // Initialize random slots of them too.
-            manager.setPlayerInfo(
-                homeAddr,
-                PlayerInfo(
-                    homeAddr,
-                    homeFromBlock,
-                    homeFixedSlots,
-                    [0, 0, 0, 0],
-                    RandomSlot(
-                        data.getRandomSlotLevel(homeCharInfos),
-                        bytes32(0),
-                        0,
-                        RandomSlotState.NotSet
-                    ),
-                    PlayerState.Standby,
-                    0,
-                    homeLevelPoint,
-                    homeLevelPoint
-                )
-            );
-        }
-        {
-            uint8 visitorLevelPoint = data.getLevelPoint(visitorCharInfos);
-            manager.setPlayerInfo(
-                visitorAddr,
-                PlayerInfo(
-                    visitorAddr,
-                    visitorFromBlock,
-                    visitorFixedSlots,
-                    [0, 0, 0, 0],
-                    RandomSlot(
-                        data.getRandomSlotLevel(visitorCharInfos),
-                        bytes32(0),
-                        0,
-                        RandomSlotState.NotSet
-                    ),
-                    PlayerState.Standby,
-                    0,
-                    visitorLevelPoint,
-                    visitorLevelPoint
-                )
-            );
-        }
-
-        // Change battle state to wait for the playerSeed commitment.
-        manager.setBattleState(homeAddr, BattleState.Standby);
-
-        // Set the block number when the battle has started.
-        manager.setPlayerSeedCommitFromBlock(homeAddr, block.number);
-
-        // Reset round number.
-        manager.setNumRounds(homeAddr, 0);
-
-        emit BattleStarted(battleId[msg.sender], homeAddr, visitorAddr);
-    }
+    // //////////////////////////////
+    // /// BATTLE FIELD FUNCTIONS ///
+    // //////////////////////////////
 
     function supportsInterface(
         bytes4 interfaceId
-    ) external pure returns (bool) {
+    ) external pure virtual returns (bool) {
         return
             interfaceId == type(IERC165).interfaceId ||
             interfaceId == type(IPLMBattleField).interfaceId;
     }
 
-    ////////////////////////
-    ///      GETTERS     ///
-    ////////////////////////
+    // ////////////////////////
+    // ///      GETTERS     ///
+    // ////////////////////////
 
-    function getRandomSlotCharInfo(
-        address player
-    ) external view returns (IPLMToken.CharacterInfo memory) {
-        return _randomSlotCharInfo(player);
-    }
+    
 
-    function getFixedSlotsCharInfo(uint8 playerId)
-        external
-        view
-        returns (IPLMToken.CharacterInfo[FIXED_SLOTS_NUM] memory)
-    {   
-        address player = manager.getPlayerAddressById(manager.getLatestBattle(msg.sender),playerId);
-        IPLMToken.CharacterInfo[FIXED_SLOTS_NUM] memory playerCharInfos;
-        for (uint8 i = 0; i < FIXED_SLOTS_NUM; i++) {
-            playerCharInfos[i] = _fixedSlotCharInfoByIdx(player, i);
-        }
-
-        return playerCharInfos;
-    }
-
-    ////////////////////////
-    ///      SETTERS     ///
-    ////////////////////////
+    // ////////////////////////
+    // ///      SETTERS     ///
+    // ////////////////////////
 
     /// @notice Function to set battle field contract's address as interface inside
     ///         this contract.
@@ -1184,12 +718,5 @@ contract PLMBattleField is IPLMBattleField, IERC165 {
     /// FUNCTIONS FOR DEMO ///
     //////////////////////////
 
-    // FIXME: remove this function after demo.
-    function forceInitBattle() external {
-        manager.setBattleState(msg.sender, BattleState.Settled);
-        matchOrganizer.forceResetMatchState(msg.sender);
-        matchOrganizer.forceResetMatchState(enemyAddr[msg.sender]);
-        emit BattleCanceled(battleId[msg.sender]);
-        emit ForceInited(battleId[msg.sender]);
-    }
+
 }

@@ -224,6 +224,8 @@ interface IPLMBattleManager {
         address player
     ) external view returns (uint8);
 
+    function getEnemyAddress(address player) external view returns (address);
+
     function getBondLevelAtBattleStart(
         address player,
         uint8 level,
@@ -292,7 +294,7 @@ interface IPLMBattleManager {
     function getRoundResultsById(
         uint256 _battleId
     ) external view returns (IPLMBattleField.RoundResult[] memory);
-    function getEnemyAddress(uint256 _battleId, uint8 playerId) external view returns (address);
+    function getEnemyAddressById(uint256 _battleId, uint8 playerId) external view returns (address);
 
-    function setPLMBattleField(address _battleField) external;
+    function setPLMBattleContracts(address _battleChoice,  address _battlePlayerSeed ,address _battleReporter, address _battleStarter) external;
 }

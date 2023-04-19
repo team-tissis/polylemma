@@ -2,13 +2,15 @@
 pragma solidity ^0.8.17;
 pragma experimental ABIEncoderV2;
 
+import "forge-std/Test.sol";
 import {IPLMToken} from "./interfaces/IPLMToken.sol";
 import {IPLMData} from "./interfaces/IPLMData.sol";
 import {IPLMDealer} from "./interfaces/IPLMDealer.sol";
 import {IPLMBattleStorage} from "./interfaces/IPLMBattleStorage.sol";
 import {IPLMBattleField} from "./interfaces/IPLMBattleField.sol";
+import {IPLMBattleManager} from "./interfaces/IPLMBattleManager.sol";
 
-contract PLMBattleManager {
+contract PLMBattleManager is IPLMBattleManager{
     /// @notice The number of the fixed slots that one player has.
     uint8 constant FIXED_SLOTS_NUM = 4;
 
@@ -24,7 +26,18 @@ contract PLMBattleManager {
     uint256 battleId;
 
     address polylemmers;
-    address battleField;
+
+    /// @notice BattlePlayerSeed contract's address.
+    address battleChoice;
+
+    /// @notice BattlePlayerSeed contract's address.
+    address battlePlayerSeed;
+
+    /// @notice BattleReporter contract's address.
+    address battleReporter;
+
+    /// @notice BattleReporter contract's address.
+    address battleStarter;
 
     /// @notice interface to the characters' information.
     IPLMToken token;
@@ -47,8 +60,8 @@ contract PLMBattleManager {
         _;
     }
 
-    modifier onlyBattleField() {
-        require(msg.sender == battleField, "sender != battleField");
+    modifier onlyBattleContract() {
+        require(msg.sender == battleChoice||msg.sender == battlePlayerSeed||msg.sender == battleReporter||msg.sender == battleStarter, "sender != battleContracts.");
         _;
     }
 
@@ -62,14 +75,15 @@ contract PLMBattleManager {
     function beforeBattleStart(
         address home,
         address visitor
-    ) external onlyBattleField {
+    ) external onlyBattleContract {
         battleId++;
 
         _addBattleToPlayerEnumeration(home, battleId);
         _addBattleToPlayerEnumeration(visitor, battleId);
 
-        strg.writeEnemyAddress(battleId, home, visitor);
-        strg.writeEnemyAddress(battleId, visitor, home);
+        strg.writePlayerAddressByPlayerId(_latestBattle(home),home,visitor);
+        strg.writeEnemyAddress(_latestBattle(home),home,visitor);
+        strg.writeEnemyAddress(_latestBattle(visitor),visitor,home);
     }
 
     /// @notice Obtain IDs of the most recent battles in which the player has participated
@@ -80,15 +94,15 @@ contract PLMBattleManager {
     /**
      * Add new battle ID to the list of IDs of battles in which the player has participated so far
      * @param player address representing the new player of the given battle ID
-     * @param battleId uint256 ID of the battle to be added to the battles list of the given address
+     * @param _battleId uint256 ID of the battle to be added to the battles list of the given address
      */
     function _addBattleToPlayerEnumeration(
         address player,
-        uint256 battleId
+        uint256 _battleId
     ) private {
         uint256 length = _numBattle[player];
-        _joinedBattles[player][length] = battleId;
-        _joinedBattlesIndex[battleId] = length;
+        _joinedBattles[player][length] = _battleId;
+        _joinedBattlesIndex[_battleId] = length;
     }
 
     function _latestBattle(address player) internal view returns (uint256) {
@@ -221,7 +235,7 @@ contract PLMBattleManager {
     /// WRITE/READ FUNCTIONS ///
     ////////////////////////////
     // TODO: latestbattleが更新されるよりも後に呼び出さなけれなならない
-    function setPlayerAddressByPlayerId(address home, address visitor) external onlyBattleField {
+    function setPlayerAddressByPlayerId(address home, address visitor) external onlyBattleContract {
         strg.writePlayerAddressByPlayerId(_latestBattle(home),home,visitor);
     } 
 
@@ -229,11 +243,11 @@ contract PLMBattleManager {
     function setNumRounds(
         address player,
         uint8 numRound
-    ) external onlyBattleField {
+    ) external onlyBattleContract {
         strg.writeNumRounds(_latestBattle(player), numRound);
     }
 
-    function incrementNumRounds(address player) external onlyBattleField {
+    function incrementNumRounds(address player) external onlyBattleContract {
         uint256 _battleId = _latestBattle(player);
         uint8 numRounds = _getNumRounds(_battleId);
         strg.writeNumRounds(_battleId, numRounds + 1);
@@ -242,14 +256,14 @@ contract PLMBattleManager {
     function setBattleState(
         address player,
         IPLMBattleField.BattleState battleState
-    ) external onlyBattleField {
+    ) external onlyBattleContract {
         strg.writeBattleState(_latestBattle(player), battleState);
     }
 
     function setRoundResult(
         address player,
         IPLMBattleField.RoundResult calldata roundResult
-    ) external onlyBattleField {
+    ) external onlyBattleContract {
         uint256 _battleId = _latestBattle(player);
         strg.writeRoundResult(
             _latestBattle(player),
@@ -261,14 +275,14 @@ contract PLMBattleManager {
     function setBattleResult(
         address player,
         IPLMBattleField.BattleResult calldata battleResult
-    ) external onlyBattleField {
+    ) external onlyBattleContract {
         strg.writeBattleResult(_latestBattle(player), battleResult);
     }
 
     function setPlayerSeedCommitFromBlock(
         address player,
         uint256 playerSeedCommitFromBlock
-    ) external onlyBattleField {
+    ) external onlyBattleContract {
         strg.writePlayerSeedCommitFromBlock(
             _latestBattle(player),
             playerSeedCommitFromBlock
@@ -278,7 +292,7 @@ contract PLMBattleManager {
     function setCommitFromBlock(
         address player,
         uint256 commitFromBlock
-    ) external onlyBattleField {
+    ) external onlyBattleContract {
         uint256 _battleId = _latestBattle(player);
         strg.writeCommitFromBlock(
             _battleId,
@@ -290,7 +304,7 @@ contract PLMBattleManager {
     function setRevealFromBlock(
         address player,
         uint256 revealFromBlock
-    ) external onlyBattleField {
+    ) external onlyBattleContract {
         uint256 _battleId = _latestBattle(player);
         strg.writeRevealFromBlock(
             _battleId,
@@ -302,7 +316,7 @@ contract PLMBattleManager {
     function setChoiceCommit(
         address player,
         IPLMBattleField.ChoiceCommit calldata choiceCommit
-    ) external onlyBattleField {
+    ) external onlyBattleContract {
         uint256 _battleId = _latestBattle(player);
         strg.writeChoiceCommitLog(
             _battleId,
@@ -316,7 +330,7 @@ contract PLMBattleManager {
     function setChoiceCommitLevelPoint(
         address player,
         uint8 levelPoint
-    ) external onlyBattleField {
+    ) external onlyBattleContract {
         uint256 _battleId = _latestBattle(player);
         uint8 indRound = _getNumRounds(_battleId);
         IPLMBattleField.ChoiceCommit memory choiceCommit = _getChoiceCommit(
@@ -332,7 +346,7 @@ contract PLMBattleManager {
     function setChoiceCommitChoice(
         address player,
         IPLMBattleField.Choice choice
-    ) external onlyBattleField {
+    ) external onlyBattleContract {
         uint256 _battleId = _latestBattle(player);
         uint8 indRound = _getNumRounds(_battleId);
         IPLMBattleField.ChoiceCommit memory choiceCommit = _getChoiceCommit(
@@ -347,7 +361,7 @@ contract PLMBattleManager {
     function setPlayerSeedCommit(
         address player,
         IPLMBattleField.PlayerSeedCommit calldata playerSeedCommit
-    ) external onlyBattleField {
+    ) external onlyBattleContract {
         uint256 _battleId = _latestBattle(player);
         strg.writePlayerSeedCommitLog(_battleId, player, playerSeedCommit);
     }
@@ -356,7 +370,7 @@ contract PLMBattleManager {
     function setPlayerSeedCommitValue(
         address player,
         bytes32 playerSeed
-    ) external onlyBattleField {
+    ) external onlyBattleContract {
         uint256 _battleId = _latestBattle(player);
         IPLMBattleField.PlayerSeedCommit
             memory playerSeedCommit = _getPlayerSeedCommit(_battleId, player);
@@ -367,14 +381,14 @@ contract PLMBattleManager {
     function setPlayerInfo(
         address player,
         IPLMBattleField.PlayerInfo calldata playerInfo
-    ) external onlyBattleField {
+    ) external onlyBattleContract {
         uint256 _battleId = _latestBattle(player);
         strg.writePlayerInfoTable(_battleId, player, playerInfo);
     }
 
     function incrementPlayerInfoWinCount(
         address winner
-    ) external onlyBattleField {
+    ) external onlyBattleContract {
         uint256 _battleId = _latestBattle(winner);
 
         IPLMBattleField.PlayerInfo memory playerInfo = _getPlayerInfo(
@@ -389,7 +403,7 @@ contract PLMBattleManager {
     function setPlayerInfoState(
         address player,
         IPLMBattleField.PlayerState playerState
-    ) external onlyBattleField {
+    ) external onlyBattleContract {
         uint256 _battleId = _latestBattle(player);
         IPLMBattleField.PlayerInfo memory playerInfo = _getPlayerInfo(
             _battleId,
@@ -403,7 +417,7 @@ contract PLMBattleManager {
     function setPlayerInfoRandomSlotState(
         address player,
         IPLMBattleField.RandomSlotState state
-    ) external onlyBattleField {
+    ) external onlyBattleContract {
         uint256 _battleId = _latestBattle(player);
         IPLMBattleField.PlayerInfo memory playerInfo = _getPlayerInfo(
             _battleId,
@@ -417,7 +431,7 @@ contract PLMBattleManager {
     function setPlayerInfoRandomSlotNonce(
         address player,
         bytes32 nonce
-    ) external onlyBattleField {
+    ) external onlyBattleContract {
         uint256 _battleId = _latestBattle(player);
         IPLMBattleField.PlayerInfo memory playerInfo = _getPlayerInfo(
             _battleId,
@@ -431,7 +445,7 @@ contract PLMBattleManager {
     function setPlayerInfoRandomSlotUsedRound(
         address player,
         uint8 usedRound
-    ) external onlyBattleField {
+    ) external onlyBattleContract {
         uint256 _battleId = _latestBattle(player);
         IPLMBattleField.PlayerInfo memory playerInfo = _getPlayerInfo(
             _battleId,
@@ -446,7 +460,7 @@ contract PLMBattleManager {
         address player,
         uint8 slot,
         uint8 usedRound
-    ) external onlyBattleField {
+    ) external onlyBattleContract {
         uint256 _battleId = _latestBattle(player);
         IPLMBattleField.PlayerInfo memory playerInfo = _getPlayerInfo(
             _battleId,
@@ -460,7 +474,7 @@ contract PLMBattleManager {
     function subtractPlayerInfoRemainingLevelPoint(
         address player,
         uint8 used
-    ) external onlyBattleField {
+    ) external onlyBattleContract {
         uint256 _battleId = _latestBattle(player);
         IPLMBattleField.PlayerInfo memory playerInfo = _getPlayerInfo(
             _battleId,
@@ -714,6 +728,19 @@ contract PLMBattleManager {
         return order;
     }
 
+    function getRoundResults(
+        address player
+    ) external view returns (IPLMBattleField.RoundResult[] memory) {
+        uint256 _battleId = _latestBattle(player);
+        uint8 numRounds = _getNumRounds(_battleId);
+        IPLMBattleField.RoundResult[]
+            memory results = new IPLMBattleField.RoundResult[](numRounds);
+        for (uint8 i = 0; i < numRounds; i++) {
+            results[i] = _getRoundResult(_battleId, i);
+        }
+        return results;
+    }
+
     ////////////////////////////////
     /////    get by battleId   /////
     ////////////////////////////////
@@ -907,7 +934,7 @@ contract PLMBattleManager {
         return results;
     }
 
-    function getEnemyAddress(
+    function getEnemyAddressById(
         uint256 _battleId,
         uint8 playerId
     ) external view returns (address) {
@@ -917,7 +944,17 @@ contract PLMBattleManager {
     /////////////////////////
     ////  setter for req ////
     /////////////////////////
-    function setPLMBattleField(address _battleField) external onlyPolylemmers {
-        battleField = _battleField;
+    /// @notice set battle field contract address, function called by only Polylemmers EOA
+    /// @dev   This function must be called when initializing contracts by the deployer manually. ("polylemmers" is contract deployer's address.)
+    ///        "battleChoice","battlePlayerSeed","battleReporter","battleStarter" address is stored in this contract to make some functions able to be called from only battleContracts.
+    /// @param _battleChoice: the contract address of PLMBattleChoice contract.
+    /// @param _battlePlayerSeed: the contract address of PLMBattlePlayerSeed contract.
+    /// @param _battleReporter: the contract address of PLMBattleReporter contract.
+    /// @param _battleStarter: the contract address of PLMBattleStarter contract.
+    function setPLMBattleContracts(address _battleChoice,  address _battlePlayerSeed ,address _battleReporter, address _battleStarter) external onlyPolylemmers {
+        battleChoice = _battleChoice;
+        battlePlayerSeed = _battlePlayerSeed;
+        battleReporter = _battleReporter;
+        battleStarter = _battleStarter;
     }
 }

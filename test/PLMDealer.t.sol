@@ -19,7 +19,7 @@ contract PLMCoinTest is Test {
     address polylemmer = address(10);
     address user = address(11);
     address matchOrganizer = address(20);
-    address battleField = address(30);
+    address battleContractAddr = address(30);
     uint256 maticForEx = 180 ether;
     PLMDealer dealer;
 
@@ -57,7 +57,7 @@ contract PLMCoinTest is Test {
         coin.setDealer(address(dealer));
         token.setDealer(address(dealer));
         dealer.setMatchOrganizer(matchOrganizer);
-        dealer.setBattleField(battleField);
+        dealer.setPLMBattleContracts(battleContractAddr,battleContractAddr,battleContractAddr,battleContractAddr);
 
         vm.stopPrank();
 
@@ -148,7 +148,7 @@ contract PLMCoinTest is Test {
         vm.stopPrank();
 
         uint256 fromSubscExpi = dealer.getSubscExpiredBlock(user);
-        vm.prank(battleField);
+        vm.prank(battleContractAddr);
         dealer.banAccount(user, 10);
         assertEq(fromSubscExpi - 10, dealer.getSubscExpiredBlock(user));
     }

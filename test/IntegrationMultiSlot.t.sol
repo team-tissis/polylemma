@@ -10,7 +10,10 @@ import {PLMToken} from "../src/PLMToken.sol";
 import {PLMData} from "../src/PLMData.sol";
 import {PLMBattleManager} from "../src/PLMBattleManager.sol";
 import {PLMMatchOrganizer} from "../src/PLMMatchOrganizer.sol";
-import {PLMBattleField} from "../src/PLMBattleField.sol";
+import {PLMBattleChoice} from "src/PLMBattleChoice.sol";
+import {PLMBattlePlayerSeed} from "src/PLMBattlePlayerSeed.sol";
+import {PLMBattleReporter} from "src/PLMBattleReporter.sol";
+import {PLMBattleStarter} from "src/PLMBattleStarter.sol";
 import {PLMBattleStorage} from "../src/PLMBattleStorage.sol";
 import {PLMTypesV1} from "../src/data-contracts/PLMTypesV1.sol";
 import {PLMLevelsV1} from "../src/data-contracts/PLMLevelsV1.sol";
@@ -51,6 +54,10 @@ contract MultiSlotTest is Test {
     PLMData dataContract;
     PLMTypesV1 typesContract;
     PLMLevelsV1 levelsContract;
+    PLMBattleChoice battleChoice;
+    PLMBattlePlayerSeed battlePlayerSeed;
+    PLMBattleReporter battleReporter;
+    PLMBattleStarter battleStarter;
 
     IPLMToken token;
     IPLMCoin coin;
@@ -64,7 +71,6 @@ contract MultiSlotTest is Test {
     PLMBattleStorage strgContract;
     PLMBattleManager managerContract;
     PLMMatchOrganizer mo;
-    PLMBattleField bf;
 
     TestPlayer home1 =
         TestPlayer(
@@ -147,16 +153,23 @@ contract MultiSlotTest is Test {
         dealerContract = new PLMDealer(token, coin);
         dealer = IPLMDealer(address(dealerContract));
         mo = new PLMMatchOrganizer(dealer, token);
-        bf = new PLMBattleField(dealer, token, manager);
+        battleChoice = new PLMBattleChoice(dealer, token, manager);
+        battlePlayerSeed = new PLMBattlePlayerSeed(dealer, token, manager);
+        battleReporter = new PLMBattleReporter(dealer,token,manager);
+        battleStarter = new PLMBattleStarter(dealer, token, manager);
 
         // set dealer
         coin.setDealer(address(dealerContract));
         token.setDealer(address(dealerContract));
         dealer.setMatchOrganizer(address(mo));
-        dealer.setBattleField(address(bf));
-        mo.setPLMBattleField(address(bf));
-        bf.setPLMMatchOrganizer(address(mo));
-        manager.setPLMBattleField(address(bf));
+        dealer.setPLMBattleContracts(address(battleChoice),address(battlePlayerSeed),address(battleReporter),address(battleStarter));
+        mo.setPLMBattleContracts(address(battleChoice),address(battlePlayerSeed),address(battleReporter),address(battleStarter));
+        battleChoice.setPLMMatchOrganizer(address(mo));
+        battlePlayerSeed.setPLMMatchOrganizer(address(mo));
+        battleReporter.setPLMMatchOrganizer(address(mo));
+        battleStarter.setPLMMatchOrganizer(address(mo));
+        // FIXME:ここから
+        manager.setPLMBattleContracts(address(battleChoice),address(battlePlayerSeed),address(battleReporter),address(battleStarter));
         strg.setBattleManager(address(manager));
 
         vm.stopPrank();
@@ -394,17 +407,17 @@ contract MultiSlotTest is Test {
 
         // home commit playerSeed
         vm.prank(_home1.addr);
-        bf.commitPlayerSeed(commitSeedString1);
+        battlePlayerSeed.commitPlayerSeed(commitSeedString1);
         // visitor commit playerSeed
         vm.prank(_visitor1.addr);
-        bf.commitPlayerSeed(commitSeedString2);
+        battlePlayerSeed.commitPlayerSeed(commitSeedString2);
 
         // home commit playerSeed
         vm.prank(_home2.addr);
-        bf.commitPlayerSeed(commitSeedString3);
+        battlePlayerSeed.commitPlayerSeed(commitSeedString3);
         // visitor commit playerSeed
         vm.prank(_visitor2.addr);
-        bf.commitPlayerSeed(commitSeedString4);
+        battlePlayerSeed.commitPlayerSeed(commitSeedString4);
 
         uint8 roundCount = 0;
         IPLMBattleField.BattleState bs1 = manager.getBattleState(_home1.addr);
@@ -462,27 +475,27 @@ contract MultiSlotTest is Test {
 
         // commit choice
         vm.prank(_home.addr);
-        bf.commitChoice(commitChoiceString1);
+        battleChoice.commitChoice(commitChoiceString1);
         vm.prank(_visitor.addr);
-        bf.commitChoice(commitChoiceString2);
+        battleChoice.commitChoice(commitChoiceString2);
 
         if (_home.choices[_roundCount] == IPLMBattleField.Choice.Random) {
             vm.prank(_home.addr);
-            bf.revealPlayerSeed(_home.playerSeed);
+            battlePlayerSeed.revealPlayerSeed(_home.playerSeed);
         }
         if (_visitor.choices[_roundCount] == IPLMBattleField.Choice.Random) {
             vm.prank(_visitor.addr);
-            bf.revealPlayerSeed(_visitor.playerSeed);
+            battlePlayerSeed.revealPlayerSeed(_visitor.playerSeed);
         }
 
         vm.prank(_home.addr);
-        bf.revealChoice(
+        battleChoice.revealChoice(
             _home.levelPoints[_roundCount],
             _home.choices[_roundCount],
             _home.bindingFactor
         );
         vm.prank(_visitor.addr);
-        bf.revealChoice(
+        battleChoice.revealChoice(
             _visitor.levelPoints[_roundCount],
             _visitor.choices[_roundCount],
             _visitor.bindingFactor

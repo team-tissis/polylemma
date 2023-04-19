@@ -3,11 +3,12 @@ pragma solidity ^0.8.17;
 pragma experimental ABIEncoderV2;
 
 import {PLMBattleField} from "./PLMBattleField.sol";
+// import {PLMBattleStarter} from "./interfaces/IPLMBattleStarter.sol";
 import {ReentrancyGuard} from "openzeppelin-contracts/security/ReentrancyGuard.sol";
 
 import {IPLMToken} from "./interfaces/IPLMToken.sol";
 import {IPLMDealer} from "./interfaces/IPLMDealer.sol";
-import {IPLMBattleField} from "./interfaces/IPLMBattleField.sol";
+import {IPLMBattleStarter} from "./interfaces/IPLMBattleStarter.sol";
 import {IPLMMatchOrganizer} from "./interfaces/IPLMMatchOrganizer.sol";
 import {IERC165} from "openzeppelin-contracts/utils/introspection/IERC165.sol";
 
@@ -21,11 +22,20 @@ contract PLMMatchOrganizer is IPLMMatchOrganizer, ReentrancyGuard, IERC165 {
     /// @notice interface to the characters' information.
     IPLMToken token;
 
-    /// @notice interface to the battle field.
-    IPLMBattleField battleField;
+    /// @notice interface to the battle starter.
+    IPLMBattleStarter battleStarter;
 
     /// @notice admin's address.
     address polylemmers;
+
+    /// @notice BattlePlayerSeed contract's address.
+    address battleChoice;
+
+    /// @notice BattlePlayerSeed contract's address.
+    address battlePlayerSeed;
+
+    /// @notice BattleReporter contract's address.
+    address battleReporter;
 
     // TODO: we will change the data structure to the list of all proposals and interval tree of [LB, UB].
     BattleProposal[] proposalsBoard;
@@ -61,8 +71,8 @@ contract PLMMatchOrganizer is IPLMMatchOrganizer, ReentrancyGuard, IERC165 {
         _;
     }
 
-    modifier onlyBattleField() {
-        require(msg.sender == address(battleField), "sender != battleField.");
+    modifier onlyBattleContract() {
+        require(msg.sender == battleChoice||msg.sender == battlePlayerSeed||msg.sender == battleReporter||msg.sender == address(battleStarter), "sender != battleContracts.");
         _;
     }
 
@@ -258,7 +268,7 @@ contract PLMMatchOrganizer is IPLMMatchOrganizer, ReentrancyGuard, IERC165 {
         dealer.consumeStaminaForBattle(msg.sender);
 
         // start battle.
-        battleField.startBattle(
+        battleStarter.startBattle(
             proposer,
             msg.sender,
             proposals[proposer].fromBlock,
@@ -279,7 +289,7 @@ contract PLMMatchOrganizer is IPLMMatchOrganizer, ReentrancyGuard, IERC165 {
     function resetMatchStates(
         address home,
         address visitor
-    ) external onlyBattleField {
+    ) external onlyBattleContract {
         matchStates[home] = MatchState.NotInvolved;
         matchStates[visitor] = MatchState.NotInvolved;
     }
@@ -321,15 +331,21 @@ contract PLMMatchOrganizer is IPLMMatchOrganizer, ReentrancyGuard, IERC165 {
     ///      This is the reason why we have to prepare this function.
     ///      Given contract address, this function checks that the contract supports
     ///      IPLMBattleField interface. If so, set the address as interface.
-    /// @param _battleField: the contract address of PLMBattleField contract.
-    function setPLMBattleField(address _battleField) external onlyPolylemmers {
+    /// @param _battleChoice: the contract address of PLMBattleChoice contract.
+    /// @param _battlePlayerSeed: the contract address of PLMBattlePlayerSeed contract.
+    /// @param _battleReporter: the contract address of PLMBattleReporter contract.
+    /// @param _battleStarter: the contract address of PLMBattleStarter contract.
+    function setPLMBattleContracts(address _battleChoice,  address _battlePlayerSeed ,address _battleReporter, address _battleStarter) external onlyPolylemmers {
         require(
-            IERC165(_battleField).supportsInterface(
-                type(IPLMBattleField).interfaceId
+            IERC165(_battleStarter).supportsInterface(
+                type(IPLMBattleStarter).interfaceId
             ),
-            "Given contract doesn't support IPLMBattleField"
+            "Given contract doesn't support IPLMBattleStarter"
         );
-        battleField = IPLMBattleField(_battleField);
+        battleStarter = IPLMBattleStarter(_battleStarter);
+        battleChoice = _battleChoice;
+        battlePlayerSeed = _battlePlayerSeed;
+        battleReporter = _battleReporter;
     }
 
     /////////////////////////

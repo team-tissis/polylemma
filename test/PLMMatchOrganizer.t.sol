@@ -8,7 +8,10 @@ import {PLMToken} from "../src/PLMToken.sol";
 import {PLMData} from "../src/PLMData.sol";
 import {PLMBattleManager} from "../src/PLMBattleManager.sol";
 import {PLMMatchOrganizer} from "../src/PLMMatchOrganizer.sol";
-import {PLMBattleField} from "../src/PLMBattleField.sol";
+import {PLMBattleChoice} from "src/PLMBattleChoice.sol";
+import {PLMBattlePlayerSeed} from "src/PLMBattlePlayerSeed.sol";
+import {PLMBattleReporter} from "src/PLMBattleReporter.sol";
+import {PLMBattleStarter} from "src/PLMBattleStarter.sol";
 import {PLMBattleStorage} from "../src/PLMBattleStorage.sol";
 import {PLMTypesV1} from "../src/data-contracts/PLMTypesV1.sol";
 import {PLMLevelsV1} from "../src/data-contracts/PLMLevelsV1.sol";
@@ -57,7 +60,10 @@ contract BattleTest is Test {
     PLMBattleStorage strgContract;
     PLMBattleManager managerContract;
     PLMMatchOrganizer mo;
-    PLMBattleField bf;
+    PLMBattleChoice battleChoice;
+    PLMBattlePlayerSeed battlePlayerSeed;
+    PLMBattleReporter battleReporter;
+    PLMBattleStarter battleStarter;
 
     /// for battle
     bytes32 bindingFactor1 = bytes32("sdaskfjdiopfvj0pr2904738cdf");
@@ -89,16 +95,23 @@ contract BattleTest is Test {
         dealerContract = new PLMDealer(token, coin);
         dealer = IPLMDealer(address(dealerContract));
         mo = new PLMMatchOrganizer(dealer, token);
-        bf = new PLMBattleField(dealer, token, manager);
+        battleChoice = new PLMBattleChoice(dealer, token, manager);
+        battlePlayerSeed = new PLMBattlePlayerSeed(dealer, token, manager);
+        battleReporter = new PLMBattleReporter(dealer,token,manager);
+        battleStarter = new PLMBattleStarter(dealer, token, manager);
 
         // set dealer
         coin.setDealer(address(dealerContract));
         token.setDealer(address(dealerContract));
         dealer.setMatchOrganizer(address(mo));
-        dealer.setBattleField(address(bf));
-        mo.setPLMBattleField(address(bf));
-        bf.setPLMMatchOrganizer(address(mo));
-        manager.setPLMBattleField(address(bf));
+        dealer.setPLMBattleContracts(address(battleChoice),address(battlePlayerSeed),address(battleReporter),address(battleStarter));
+        mo.setPLMBattleContracts(address(battleChoice),address(battlePlayerSeed),address(battleReporter),address(battleStarter));
+        battleChoice.setPLMMatchOrganizer(address(mo));
+        battlePlayerSeed.setPLMMatchOrganizer(address(mo));
+        battleReporter.setPLMMatchOrganizer(address(mo));
+        battleStarter.setPLMMatchOrganizer(address(mo));
+
+        manager.setPLMBattleContracts(address(battleChoice),address(battlePlayerSeed),address(battleReporter),address(battleStarter));
         strg.setBattleManager(address(manager));
 
         vm.stopPrank();
@@ -260,9 +273,9 @@ contract BattleTest is Test {
         bytes32 commitString2 = "sddgfsgkhfjlvhdda121dfdsfds2dq"; //30 chars
         // Alice is home, Bob is visitor
         vm.prank(home);
-        bf.commitPlayerSeed(commitString1);
+        battlePlayerSeed.commitPlayerSeed(commitString1);
         vm.prank(visitor);
-        bf.commitPlayerSeed(commitString2);
+        battlePlayerSeed.commitPlayerSeed(commitString2);
     }
 
     // if committing by other user
@@ -276,9 +289,9 @@ contract BattleTest is Test {
         bytes32 commitString2 = "sddgfsgkhfjlvhdda121dfdsfds2dq"; //30 chars
         // Alice is home, Bob is visitor
         vm.prank(visitor);
-        bf.commitPlayerSeed(commitString1);
+        battlePlayerSeed.commitPlayerSeed(commitString1);
 
-        bf.commitPlayerSeed(commitString2);
+        battlePlayerSeed.commitPlayerSeed(commitString2);
     }
 
     // 正常終了する手順でバトルを実行する
@@ -433,7 +446,7 @@ contract BattleTest is Test {
 
         // visitor commit playerSeed
         vm.prank(visitor);
-        bf.commitPlayerSeed(commitSeedString2);
+        battlePlayerSeed.commitPlayerSeed(commitSeedString2);
 
         uint256 subscBlockBeforeBanned = dealer.getSubscExpiredBlock(home);
 
@@ -441,7 +454,7 @@ contract BattleTest is Test {
         currentBlock += uint256(PLAYER_SEED_COMMIT_TIME_LIMIT) + 1;
         vm.roll(currentBlock);
         vm.prank(home);
-        bf.commitPlayerSeed(commitSeedString1);
+        battlePlayerSeed.commitPlayerSeed(commitSeedString1);
 
         // cancelBattle
         assertEq(
@@ -464,7 +477,7 @@ contract BattleTest is Test {
         _createProposalByhome(10, 20);
         _requestChallengeByvisitor();
 
-        PLMBattleField.BattleState currentBattleState;
+        IPLMBattleField.BattleState currentBattleState;
 
         // pack commit seed string
         bytes32 commitSeedString1 = keccak256(
@@ -476,10 +489,10 @@ contract BattleTest is Test {
 
         // home commit playerSeed
         vm.prank(home);
-        bf.commitPlayerSeed(commitSeedString1);
+        battlePlayerSeed.commitPlayerSeed(commitSeedString1);
         // visitor commit playerSeed
         vm.prank(visitor);
-        bf.commitPlayerSeed(commitSeedString2);
+        battlePlayerSeed.commitPlayerSeed(commitSeedString2);
 
         //
         currentBattleState = manager.getBattleState(home);
@@ -504,7 +517,7 @@ contract BattleTest is Test {
 
         // commit HONEST choice
         vm.prank(visitor);
-        try bf.commitChoice(commitChoiceString2) {} catch {
+        try battleChoice.commitChoice(commitChoiceString2) {} catch {
             return;
         }
 
@@ -513,7 +526,7 @@ contract BattleTest is Test {
         currentBlock += uint256(CHOICE_COMMIT_TIME_LIMIT) + 1;
         vm.roll(currentBlock);
         vm.prank(home);
-        try bf.commitChoice(commitChoiceString1) {} catch {
+        try battleChoice.commitChoice(commitChoiceString1) {} catch {
             return;
         }
 
@@ -538,7 +551,7 @@ contract BattleTest is Test {
         _createProposalByhome(10, 20);
         _requestChallengeByvisitor();
 
-        PLMBattleField.BattleState currentBattleState;
+        IPLMBattleField.BattleState currentBattleState;
 
         // pack commit seed string
         bytes32 commitSeedString1 = keccak256(
@@ -550,10 +563,10 @@ contract BattleTest is Test {
 
         // home commit playerSeed
         vm.prank(home);
-        bf.commitPlayerSeed(commitSeedString1);
+        battlePlayerSeed.commitPlayerSeed(commitSeedString1);
         // visitor commit playerSeed
         vm.prank(visitor);
-        bf.commitPlayerSeed(commitSeedString2);
+        battlePlayerSeed.commitPlayerSeed(commitSeedString2);
 
         //
         currentBattleState = manager.getBattleState(home);
@@ -578,18 +591,18 @@ contract BattleTest is Test {
 
         // commit properly
         vm.prank(home);
-        try bf.commitChoice(commitChoiceString1) {} catch {
+        try battleChoice.commitChoice(commitChoiceString1) {} catch {
             return;
         }
         vm.prank(visitor);
-        try bf.commitChoice(commitChoiceString2) {} catch {
+        try battleChoice.commitChoice(commitChoiceString2) {} catch {
             return;
         }
 
         // reveal choice
         vm.prank(visitor);
         try
-            bf.revealChoice(
+            battleChoice.revealChoice(
                 uint8(2),
                 IPLMBattleField.Choice.Fixed1,
                 bindingFactor2
@@ -602,7 +615,7 @@ contract BattleTest is Test {
 
         vm.prank(visitor);
         try
-            bf.revealChoice(
+            battleChoice.revealChoice(
                 uint8(2),
                 IPLMBattleField.Choice.Fixed1,
                 bindingFactor1
@@ -614,7 +627,7 @@ contract BattleTest is Test {
         currentBlock += uint256(CHOICE_COMMIT_TIME_LIMIT) + 1;
         vm.roll(currentBlock);
         vm.prank(home);
-        bf.reportLateReveal();
+        battleReporter.reportLateReveal();
 
         // cancelBattle
         assertEq(
@@ -648,7 +661,7 @@ contract BattleTest is Test {
         //// irregular ////
         // commit choice
         vm.prank(home);
-        bf.commitChoice(commitChoiceString1);
+        battleChoice.commitChoice(commitChoiceString1);
     }
 
     function testFailCommitPlayerSeedAgain() public {
@@ -667,15 +680,15 @@ contract BattleTest is Test {
 
         // home commit playerSeed
         vm.prank(home);
-        bf.commitPlayerSeed(commitSeedString1);
+        battlePlayerSeed.commitPlayerSeed(commitSeedString1);
         // visitor commit playerSeed
         vm.prank(visitor);
-        bf.commitPlayerSeed(commitSeedString2);
+        battlePlayerSeed.commitPlayerSeed(commitSeedString2);
 
         //// irregular ////
         // commit player seed again
         vm.prank(home);
-        bf.commitPlayerSeed(commitSeedString1);
+        battlePlayerSeed.commitPlayerSeed(commitSeedString1);
     }
 
     function testFailCommitChoiceAgain() public {
@@ -694,10 +707,10 @@ contract BattleTest is Test {
 
         // home commit playerSeed
         vm.prank(home);
-        bf.commitPlayerSeed(commitSeedString1);
+        battlePlayerSeed.commitPlayerSeed(commitSeedString1);
         // visitor commit playerSeed
         vm.prank(visitor);
-        bf.commitPlayerSeed(commitSeedString2);
+        battlePlayerSeed.commitPlayerSeed(commitSeedString2);
 
         // pack commit string
         bytes32 commitChoiceString1 = keccak256(
@@ -719,12 +732,12 @@ contract BattleTest is Test {
 
         // commit HONEST choice
         vm.prank(visitor);
-        bf.commitChoice(commitChoiceString2);
+        battleChoice.commitChoice(commitChoiceString2);
 
         //// irregular ////
         // commit choice again
         vm.prank(visitor);
-        bf.commitChoice(commitChoiceString2);
+        battleChoice.commitChoice(commitChoiceString2);
     }
 
     function testFailFlyingReveal() public {
@@ -743,10 +756,10 @@ contract BattleTest is Test {
 
         // home commit playerSeed
         vm.prank(home);
-        bf.commitPlayerSeed(commitSeedString1);
+        battlePlayerSeed.commitPlayerSeed(commitSeedString1);
         // visitor commit playerSeed
         vm.prank(visitor);
-        bf.commitPlayerSeed(commitSeedString2);
+        battlePlayerSeed.commitPlayerSeed(commitSeedString2);
 
         // pack commit string
         bytes32 commitChoiceString1 = keccak256(
@@ -768,11 +781,11 @@ contract BattleTest is Test {
 
         // commit HONEST choice
         vm.prank(visitor);
-        bf.commitChoice(commitChoiceString2);
+        battleChoice.commitChoice(commitChoiceString2);
 
         //// irregular ////
         // flying reveal choice
-        bf.revealChoice(
+        battleChoice.revealChoice(
             uint8(2),
             IPLMBattleField.Choice.Fixed1,
             bindingFactor2
@@ -795,10 +808,10 @@ contract BattleTest is Test {
 
         // home commit playerSeed
         vm.prank(home);
-        bf.commitPlayerSeed(commitSeedString1);
+        battlePlayerSeed.commitPlayerSeed(commitSeedString1);
         // visitor commit playerSeed
         vm.prank(visitor);
-        bf.commitPlayerSeed(commitSeedString2);
+        battlePlayerSeed.commitPlayerSeed(commitSeedString2);
 
         // pack commit string
         bytes32 commitChoiceString1 = keccak256(
@@ -820,13 +833,13 @@ contract BattleTest is Test {
 
         // commit HONEST choice
         vm.prank(home);
-        bf.commitChoice(commitChoiceString2);
+        battleChoice.commitChoice(commitChoiceString2);
         vm.prank(visitor);
-        bf.commitChoice(commitChoiceString2);
+        battleChoice.commitChoice(commitChoiceString2);
 
         //// irregular ////
         // mismatch reveal
-        bf.revealChoice(
+        battleChoice.revealChoice(
             uint8(1),
             IPLMBattleField.Choice.Fixed1,
             bindingFactor2
@@ -849,10 +862,10 @@ contract BattleTest is Test {
 
         // home commit playerSeed
         vm.prank(home);
-        bf.commitPlayerSeed(commitSeedString1);
+        battlePlayerSeed.commitPlayerSeed(commitSeedString1);
         // visitor commit playerSeed
         vm.prank(visitor);
-        bf.commitPlayerSeed(commitSeedString2);
+        battlePlayerSeed.commitPlayerSeed(commitSeedString2);
 
         // pack commit string
         bytes32 commitChoiceString1 = keccak256(
@@ -874,12 +887,12 @@ contract BattleTest is Test {
 
         // commit HONEST choice
         vm.prank(home);
-        bf.commitChoice(commitChoiceString2);
+        battleChoice.commitChoice(commitChoiceString2);
         vm.prank(visitor);
-        bf.commitChoice(commitChoiceString2);
+        battleChoice.commitChoice(commitChoiceString2);
 
         // reveal
-        bf.revealChoice(
+        battleChoice.revealChoice(
             uint8(2),
             IPLMBattleField.Choice.Fixed1,
             bindingFactor1
@@ -898,7 +911,7 @@ contract BattleTest is Test {
         //// irregular ////
         // flying commit choice
         vm.prank(home);
-        bf.commitChoice(commitChoiceString2);
+        battleChoice.commitChoice(commitChoiceString2);
     }
 
     ////////////////////////////////
@@ -980,7 +993,7 @@ contract BattleTest is Test {
         uint8[5] memory aliceLevelPoints,
         uint8[5] memory bobLevelPoints
     ) public {
-        PLMBattleField.BattleState currentBattleState;
+        IPLMBattleField.BattleState currentBattleState;
         uint256 roundCount = 0;
 
         // pack commit seed string
@@ -993,10 +1006,10 @@ contract BattleTest is Test {
 
         // home commit playerSeed
         vm.prank(home);
-        bf.commitPlayerSeed(commitSeedString1);
+        battlePlayerSeed.commitPlayerSeed(commitSeedString1);
         // visitor commit playerSeed
         vm.prank(visitor);
-        bf.commitPlayerSeed(commitSeedString2);
+        battlePlayerSeed.commitPlayerSeed(commitSeedString2);
 
         currentBattleState = manager.getBattleState(home);
         while (
@@ -1023,28 +1036,28 @@ contract BattleTest is Test {
 
             // commit choice
             vm.prank(home);
-            bf.commitChoice(commitChoiceString1);
+            battleChoice.commitChoice(commitChoiceString1);
             vm.prank(visitor);
-            bf.commitChoice(commitChoiceString2);
+            battleChoice.commitChoice(commitChoiceString2);
 
             // if choice commit is random slot, revealing of player seed is needed
             if (aliceChoices[roundCount] == IPLMBattleField.Choice.Random) {
                 vm.prank(home);
-                bf.revealPlayerSeed(playerSeed1);
+                battlePlayerSeed.revealPlayerSeed(playerSeed1);
             }
             if (bobChoices[roundCount] == IPLMBattleField.Choice.Random) {
                 vm.prank(visitor);
-                bf.revealPlayerSeed(playerSeed2);
+                battlePlayerSeed.revealPlayerSeed(playerSeed2);
             }
             // reveal choice
             vm.prank(home);
-            bf.revealChoice(
+            battleChoice.revealChoice(
                 aliceLevelPoints[roundCount],
                 aliceChoices[roundCount],
                 bindingFactor1
             );
             vm.prank(visitor);
-            bf.revealChoice(
+            battleChoice.revealChoice(
                 bobLevelPoints[roundCount],
                 bobChoices[roundCount],
                 bindingFactor2
@@ -1062,7 +1075,7 @@ contract BattleTest is Test {
         uint8[5] memory aliceLevelPoints,
         uint8[5] memory bobLevelPoints
     ) public {
-        PLMBattleField.BattleState currentBattleState;
+        IPLMBattleField.BattleState currentBattleState;
         uint256 roundCount = 0;
 
         // pack commit seed string
@@ -1076,10 +1089,10 @@ contract BattleTest is Test {
         // home commit playerSeed
         console.log(uint256(manager.getBattleState(home)));
         vm.prank(home);
-        bf.commitPlayerSeed(commitSeedString1);
+        battlePlayerSeed.commitPlayerSeed(commitSeedString1);
         // visitor commit playerSeed
         vm.prank(visitor);
-        bf.commitPlayerSeed(commitSeedString2);
+        battlePlayerSeed.commitPlayerSeed(commitSeedString2);
         currentBattleState = manager.getBattleState(home);
         while (
             currentBattleState == IPLMBattleField.BattleState.InRound &&
@@ -1105,31 +1118,31 @@ contract BattleTest is Test {
 
             // commit choice
             vm.prank(home);
-            try bf.commitChoice(commitChoiceString1) {} catch {
+            try battleChoice.commitChoice(commitChoiceString1) {} catch {
                 return;
             }
             vm.prank(visitor);
-            try bf.commitChoice(commitChoiceString2) {} catch {
+            try battleChoice.commitChoice(commitChoiceString2) {} catch {
                 return;
             }
 
             // if choice commit is random slot, revealing of player seed is needed
             if (aliceChoices[roundCount] == IPLMBattleField.Choice.Random) {
                 vm.prank(home);
-                try bf.revealPlayerSeed(playerSeed1) {} catch {
+                try battlePlayerSeed.revealPlayerSeed(playerSeed1) {} catch {
                     return;
                 }
             }
             if (bobChoices[roundCount] == IPLMBattleField.Choice.Random) {
                 vm.prank(visitor);
-                try bf.revealPlayerSeed(playerSeed2) {} catch {
+                try battlePlayerSeed.revealPlayerSeed(playerSeed2) {} catch {
                     return;
                 }
             }
             // reveal choice
             vm.prank(home);
             try
-                bf.revealChoice(
+                battleChoice.revealChoice(
                     aliceLevelPoints[roundCount],
                     aliceChoices[roundCount],
                     bindingFactor1
@@ -1139,7 +1152,7 @@ contract BattleTest is Test {
             }
             vm.prank(visitor);
             try
-                bf.revealChoice(
+                battleChoice.revealChoice(
                     bobLevelPoints[roundCount],
                     bobChoices[roundCount],
                     bindingFactor2

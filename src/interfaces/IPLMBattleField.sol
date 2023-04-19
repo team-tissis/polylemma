@@ -184,47 +184,15 @@ interface IPLMBattleField {
     /// BATTLE FIELD FUNCTIONS ///
     //////////////////////////////
 
-    function commitPlayerSeed(bytes32 commitString) external;
-
-    function revealPlayerSeed(bytes32 playerSeed) external;
-
-    function commitChoice(bytes32 commitString) external;
-
-    function revealChoice(
-        uint8 levelPoint,
-        Choice choice,
-        bytes32 bindingFactor
-    ) external;
-
-    function reportLateReveal() external;
-
-    function reportLatePlayerSeedCommit() external;
-
-    function reportLateChoiceCommit() external;
-
-    function startBattle(
-        address homeAddr,
-        address visitorAddr,
-        uint256 homeFromBlock,
-        uint256 visitorFromBlock,
-        uint256[4] calldata homeFixedSlots,
-        uint256[4] calldata visitorFixedSlots
-    ) external;
-
-    function getRandomSlotCharInfo(
-        address player
-    ) external view returns (IPLMToken.CharacterInfo memory);
+    // function getRandomSlotCharInfo(
+    //     address player
+    // ) external view returns (IPLMToken.CharacterInfo memory);
 
     ////////////////////////
     ///      SETTERS     ///
     ////////////////////////
 
-    function setPLMMatchOrganizer(address _matchOrganizer) external;
+    // function setPLMMatchOrganizer(address _matchOrganizer) external;
 
-    //////////////////////////
-    /// FUNCTIONS FOR DEMO ///
-    //////////////////////////
 
-    // FIXME: remove this function after demo.
-    function forceInitBattle() external;
 }

@@ -8,7 +8,10 @@ import {PLMToken} from "../src/PLMToken.sol";
 import {PLMData} from "../src/PLMData.sol";
 import {PLMBattleManager} from "../src/PLMBattleManager.sol";
 import {PLMMatchOrganizer} from "../src/PLMMatchOrganizer.sol";
-import {PLMBattleField} from "../src/PLMBattleField.sol";
+import {PLMBattleChoice} from "src/PLMBattleChoice.sol";
+import {PLMBattlePlayerSeed} from "src/PLMBattlePlayerSeed.sol";
+import {PLMBattleReporter} from "src/PLMBattleReporter.sol";
+import {PLMBattleStarter} from "src/PLMBattleStarter.sol";
 import {PLMBattleStorage} from "../src/PLMBattleStorage.sol";
 import {PLMTypesV1} from "../src/data-contracts/PLMTypesV1.sol";
 import {PLMLevelsV1} from "../src/data-contracts/PLMLevelsV1.sol";
@@ -24,7 +27,7 @@ import {IPLMBattleStorage} from "../src/interfaces/IPLMBattleStorage.sol";
 import {IPLMTypes} from "../src/interfaces/IPLMTypes.sol";
 import {IPLMLevels} from "../src/interfaces/IPLMLevels.sol";
 
-contract BattleFieldTest is Test {
+contract BattleContractsTest is Test {
     address polylemmer = address(10);
     uint256 maticForEx = 100000 ether;
     uint256 currentBlock = 0;
@@ -49,7 +52,10 @@ contract BattleFieldTest is Test {
     PLMBattleStorage strgContract;
     PLMBattleManager managerContract;
     PLMMatchOrganizer mo;
-    PLMBattleField bf;
+    PLMBattleChoice battleChoice;
+    PLMBattlePlayerSeed battlePlayerSeed;
+    PLMBattleReporter battleReporter;
+    PLMBattleStarter battleStarter;
 
     address home = address(11);
     address visitor = address(12);
@@ -79,16 +85,22 @@ contract BattleFieldTest is Test {
         managerContract = new PLMBattleManager(token, strg);
         manager = IPLMBattleManager(address(managerContract));
         mo = new PLMMatchOrganizer(dealer, token);
-        bf = new PLMBattleField(dealer, token, manager);
+        battleChoice = new PLMBattleChoice(dealer, token, manager);
+        battlePlayerSeed = new PLMBattlePlayerSeed(dealer, token, manager);
+        battleReporter = new PLMBattleReporter(dealer,token,manager);
+        battleStarter = new PLMBattleStarter(dealer, token, manager);
 
         // set dealer
         coin.setDealer(address(dealerContract));
         token.setDealer(address(dealerContract));
         dealer.setMatchOrganizer(address(mo));
-        dealer.setBattleField(address(bf));
-        mo.setPLMBattleField(address(bf));
-        bf.setPLMMatchOrganizer(address(mo));
-        manager.setPLMBattleField(address(bf));
+        dealer.setPLMBattleContracts(address(battleChoice),address(battlePlayerSeed),address(battleReporter),address(battleStarter));
+        mo.setPLMBattleContracts(address(battleChoice),address(battlePlayerSeed),address(battleReporter),address(battleStarter));
+        battleChoice.setPLMMatchOrganizer(address(mo));
+        battlePlayerSeed.setPLMMatchOrganizer(address(mo));
+        battleReporter.setPLMMatchOrganizer(address(mo));
+        battleStarter.setPLMMatchOrganizer(address(mo));
+        manager.setPLMBattleContracts(address(battleChoice),address(battlePlayerSeed),address(battleReporter),address(battleStarter));
         strg.setBattleManager(address(manager));
         vm.stopPrank();
 
@@ -151,7 +163,7 @@ contract BattleFieldTest is Test {
         uint256[4] memory homeFixedSlots = [uint256(1), 2, 3, 4];
         uint256[4] memory visitorFixedSlots = [uint256(5), 6, 7, 8];
         vm.prank(address(mo));
-        bf.startBattle(
+        battleStarter.startBattle(
             home,
             visitor,
             currentBlock,
