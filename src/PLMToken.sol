@@ -38,7 +38,7 @@ contract PLMToken is ERC721Enumerable, IPLMToken, ReentrancyGuard {
     uint256 private currentTokenId = 0;
 
     /// @notice number of PLMToken images
-    uint256 numImg = 38;
+    uint256 numImg = 130;
 
     string baseImgURI =
         "https://raw.githubusercontent.com/team-tissis/polylemma-img/main/images/";
